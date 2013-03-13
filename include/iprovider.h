@@ -1,0 +1,53 @@
+#ifndef HISTORY_IPROVIDER_H
+#define HISTORY_IPROVIDER_H
+
+#include <memory>
+#include <stdint.h>
+
+namespace History
+{
+	enum Activity
+	{
+		kRead	= 0
+	,	kWrite
+	,	kCheckEmail
+	};
+
+	class IProvider
+	{
+	public:
+		virtual ~IProvider() {}
+
+		/* Connects to elliptics
+		*/
+		virtual void Connect() = 0;
+
+		/* Disconnects from elliptics
+		*/
+		virtual void Disconnect() = 0;
+
+		/* Add activity record to certain user
+		*/
+		virtual void AddActivity(const std::string& user, Activity activity, uint32_t time) const = 0;
+
+		/* Gets activities statistics for certain user for specified period
+		*/
+		virtual void GetActivities(const std::string& user, uint32_t begin_time, uint32_t end_time) const = 0;
+
+		/* Gets activities for all users for specified period
+		*/
+		virtual void GetActivities(uint32_t begin_time, uint32_t end_time) const = 0;
+
+		/* Iterates by active users
+		*/
+		virtual void ForEachActiveUser() const = 0;
+
+		/* Iterates by certain user activities for specified period
+		*/
+		virtual void ForEachUserActivities() const = 0;
+	};
+
+	extern std::shared_ptr<IProvider> CreateProvider();
+}
+
+#endif //HISTORY_IPROVIDER_H
