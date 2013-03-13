@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 	provider->AddActivity("BlaUser2", History::kRead, tm++);
 	provider->AddActivity("BlaUser2", History::kWrite, tm++);
 	provider->AddActivity("BlaUser2", History::kRead, tm++);
-	provider->AddActivity("BlaUser2", History::kRead, tm - 40 * 60 * 60);
+	provider->AddActivity("BlaUser2", History::kRead, tm - 10 * 60 * 60);
 	provider->AddActivity("BlaUser2", History::kWrite, tm++);
 
 	auto a1 = provider->GetActivities("BlaUser1", time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60);

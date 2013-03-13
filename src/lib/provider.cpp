@@ -22,7 +22,7 @@ namespace Const
 
 	const uint32_t	kSecPerDay		= 24 * 60 * 60;
 
-	const uint32_t	kRandSize		= 1;
+	const uint32_t	kRandSize		= 100;
 
 
 
@@ -203,7 +203,7 @@ inline ioremap::elliptics::key Provider::GetUserKey(const std::string& user, uin
 	if(Const::kKeys.find(key) == Const::kKeys.end())
 		Const::kKeys.insert(key);
 
-	std::cout << "KEY: " << key << std::endl;
+	//std::cout << "USER-KEY: " << key << std::endl;
 	
 	return ioremap::elliptics::key(key);
 }
@@ -216,7 +216,7 @@ inline ioremap::elliptics::key Provider::GetLogKey(Activity activity, uint32_t t
 	if(Const::kKeys.find(key) == Const::kKeys.end())
 		Const::kKeys.insert(key);
 
-	std::cout << "KEY: " << key << std::endl;
+	//std::cout << "LOG-KEY: " << key << std::endl;
 
 	return ioremap::elliptics::key(key);
 }

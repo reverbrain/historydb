@@ -40,7 +40,7 @@ namespace History
 		*/
 		virtual void AddActivity(const std::string& user, Activity activity, uint32_t time) const = 0;
 
-		/* Gets activities statistics for certain user for specified period
+		/* Gets activities statistics for certain user for specified time period
 		*/
 		virtual std::list<ActivityData> GetActivities(const std::string& user, uint32_t begin_time, uint32_t end_time) const = 0;
 
@@ -48,11 +48,11 @@ namespace History
 		*/
 		virtual std::map<std::string, uint32_t> GetActivities(Activity activity, uint32_t begin_time, uint32_t end_time) const = 0;
 
-		/* Iterates by active users
+		/* Iterates by active users for specified activity and time period
 		*/
 		virtual void ForEachUser(Activity activity, uint32_t begin_time, uint32_t end_time, std::function<bool(const std::string&, uint32_t)> func) const = 0;
 
-		/* Iterates by certain user activities for specified period
+		/* Iterates by certain user activities for specified time period
 		*/
 		virtual void ForEachActivities(const std::string& user, uint32_t begin_time, uint32_t end_time, std::function<bool(ActivityData)> func) const = 0;
 	};
