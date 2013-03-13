@@ -84,32 +84,11 @@ std::list<ActivityData> Provider::GetActivities(const std::string& user, uint32_
 {
 	std::list<ActivityData> ret;
 
-	auto s = CreateSession();
-
-	for(auto time = begin_time; time <= end_time; time += Const::kSecPerDay)
+	ForEachActivities(user, begin_time, end_time, [&ret](ActivityData data)
 	{
-		try
-		{
-			auto read_res = s->read_data(GetUserKey(user, time), 0, 0);
-			auto file = read_res->file();
-
-			if(!file.empty())
-			{
-				auto data = file.data<uint32_t>();
-				auto size = file.size() / sizeof(uint32_t);
-				for(size_t i = 0; i < size;)
-				{
-					ActivityData adata;
-					adata.activity = static_cast<Activity>(data[i++]);
-					adata.time = data[i++];
-					adata.user = user;
-					ret.push_back(adata);
-				}
-			}
-		}
-		catch(std::exception& e)
-		{}
-	}
+		ret.push_back(data);
+		return true;
+	});
 
 	return ret;
 }
@@ -159,13 +138,15 @@ std::map<std::string, uint32_t> Provider::GetActivities(Activity activity, uint3
 	return res;
 }
 
-void Provider::ForEachActiveUser() const
+void Provider::ForEachUser(Activity activity, uint32_t begin_time, uint32_t end_time, std::function<bool(const std::string&, uint32_t)> func) const
 {
-	std::cout << ">>" << __FUNCTION__ << "()\n\n";
+	auto res = GetActivities(activity, begin_time, end_time);
 
-	auto s = CreateSession();
-
-	std::cout << "\n<<" << __FUNCTION__ << "()\n\n";
+	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it)
+	{
+		if(!func(it->first, it->second))
+			return;
+	}
 }
 
 void Provider::ForEachActivities(const std::string& user, uint32_t begin_time, uint32_t end_time, std::function<bool(ActivityData)> func) const
@@ -190,7 +171,8 @@ void Provider::ForEachActivities(const std::string& user, uint32_t begin_time, u
 					adata.time = data[i++];
 					adata.user = user;
 
-					func(adata);
+					if(!func(adata))
+						return;
 				}
 			}
 		}

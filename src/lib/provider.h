@@ -34,7 +34,7 @@ namespace History
 
 		/* Iterates by active users
 		*/
-		virtual void ForEachActiveUser() const;
+		virtual void ForEachUser(Activity activity, uint32_t begin_time, uint32_t end_time, std::function<bool(const std::string&, uint32_t)> func) const;
 
 		/* Iterates by certain user activities for specified period
 		*/

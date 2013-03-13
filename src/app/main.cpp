@@ -55,13 +55,15 @@ int main(int argc, char* argv[])
 
 	provider->ForEachActivities("BlaUser1", time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60, [](History::ActivityData data)
 	{
-		std::cout << "LAMBDA: " << data.user << " " << data.activity << " " << data.time << std::endl;
+		std::cout << "ACTIV LAMBDA: " << data.user << " " << data.activity << " " << data.time << std::endl;
 		return true;
 	});
 
-	/*provider->ForEachActiveUser();
-
-	provider->ForEachUserActivities();*/
+	provider->ForEachUser(History::kRead, time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60, [](const std::string& user, uint32_t count)
+	{
+		std::cout << "USER LAMBDA: " << user << " " << count << std::endl;
+		return true;
+	});
 
 	return 0;
 }
