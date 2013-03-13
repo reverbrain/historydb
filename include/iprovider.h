@@ -3,6 +3,9 @@
 
 #include <memory>
 #include <stdint.h>
+#include <list>
+#include <string>
+#include <map>
 
 namespace History
 {
@@ -11,6 +14,13 @@ namespace History
 		kRead	= 0
 	,	kWrite
 	,	kCheckEmail
+	};
+
+	struct ActivityData
+	{
+		std::string user;
+		Activity activity;
+		uint32_t time;
 	};
 
 	class IProvider
@@ -32,11 +42,11 @@ namespace History
 
 		/* Gets activities statistics for certain user for specified period
 		*/
-		virtual void GetActivities(const std::string& user, uint32_t begin_time, uint32_t end_time) const = 0;
+		virtual std::list<ActivityData> GetActivities(const std::string& user, uint32_t begin_time, uint32_t end_time) const = 0;
 
 		/* Gets activities for all users for specified period
 		*/
-		virtual void GetActivities(uint32_t begin_time, uint32_t end_time) const = 0;
+		virtual std::map<std::string, uint32_t> GetActivities(Activity activity, uint32_t begin_time, uint32_t end_time) const = 0;
 
 		/* Iterates by active users
 		*/
@@ -44,7 +54,7 @@ namespace History
 
 		/* Iterates by certain user activities for specified period
 		*/
-		virtual void ForEachUserActivities() const = 0;
+		virtual void ForEachActivities(const std::string& user, uint32_t begin_time, uint32_t end_time, std::function<bool(ActivityData)> func) const = 0;
 	};
 
 	extern std::shared_ptr<IProvider> CreateProvider();
