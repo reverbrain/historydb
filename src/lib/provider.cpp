@@ -116,6 +116,9 @@ void Provider::AddUserData(const std::string& user, uint64_t time, void* data, u
 	vdata.insert(vdata.end(), (char*)data, (char*)data + size);
 
 	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&vdata.front(), vdata.size()), 0);
+
+	if(write_res.size() < min_writes_)
+		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 }
 
 void Provider::IncrementActivity(const std::string& user, uint64_t time) const
@@ -196,6 +199,9 @@ void Provider::IncrementActivity(const std::string& user, const std::string& key
 	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());
 
 	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
+
+	if(write_res.size() < min_writes_)
+		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 }
 
 void Provider::RepartitionActivity(const std::string& key, uint32_t parts) const
@@ -232,6 +238,7 @@ void Provider::RepartitionActivity(const std::string& old_key, const std::string
 	std::vector<char> data;
 
 	uint32_t part_no = 0;
+	bool written = true;
 
 	for(auto it = res.begin(), itNext = res.begin(), itEnd = res.end(); it != itEnd; it = itNext)
 	{
@@ -252,8 +259,14 @@ void Provider::RepartitionActivity(const std::string& old_key, const std::string
 		
 		auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 
+		if(write_res.size() < min_writes_)
+			written = false;
+
 		++part_no;
 	}
+
+	if(!written)
+		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
 }
 
 void Provider::RepartitionActivity(uint64_t time, uint32_t parts) const
