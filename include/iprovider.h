@@ -49,8 +49,8 @@ namespace History
 
 		/* Iterates by activity statistics and calls func for each user
 		*/
-		virtual void ForActiveUser(uint64_t time, std::function<bool(const std::string&, uint32_t)> func) const = 0;
-		virtual void ForActiveUser(const std::string& key, std::function<bool(const std::string&, uint32_t)> func) const = 0;
+		virtual void ForActiveUser(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) const = 0;
+		virtual void ForActiveUser(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const = 0;
 	};
 
 	extern std::shared_ptr<IProvider> CreateProvider();

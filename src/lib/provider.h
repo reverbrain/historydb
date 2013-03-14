@@ -26,8 +26,8 @@ namespace History
 
 		virtual void ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const;
 
-		virtual void ForActiveUser(uint64_t time, std::function<bool(const std::string&, uint32_t)> func) const;
-		virtual void ForActiveUser(const std::string& key, std::function<bool(const std::string&, uint32_t)> func) const;
+		virtual void ForActiveUser(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) const;
+		virtual void ForActiveUser(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const;
 
 
 	private:
@@ -38,6 +38,7 @@ namespace History
 		void IncrementActivity(const std::string& user, uint64_t time) const;
 		void IncrementActivity(const std::string& user, const std::string& key) const;
 
+		uint32_t GetKeySpreadSize(ioremap::elliptics::session& s, const std::string& key) const;
 		void GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const;
 
 		//Temporary

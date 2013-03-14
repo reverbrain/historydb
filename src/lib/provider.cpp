@@ -20,7 +20,7 @@ namespace Const
 	const uint32_t	kSecPerDay		= 24 * 60 * 60;
 
 	const uint32_t	kRandSize		= 100;
-	const auto		k0				= "000000000000000";
+	const auto		k0				= "0000000000";
 
 
 
@@ -111,28 +111,35 @@ void Provider::IncrementActivity(const std::string& user, uint64_t time) const
 	IncrementActivity(user, str(boost::format("%015d") % (time / Const::kSecPerDay)));
 }
 
-void Provider::GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const
+uint32_t Provider::GetKeySpreadSize(ioremap::elliptics::session& s, const std::string& key) const
 {
-	res_key = base_key;
-	size = 100;
-	auto s = CreateSession();
-	
 	try
 	{
-		auto file = s->read_data(ioremap::elliptics::key(base_key + Const::k0), 0, 0)->file();
+		auto file = s.read_data(ioremap::elliptics::key(key + Const::k0), 0, 0)->file();
 		if(!file.empty())
 		{
-			size = file.data<uint32_t>()[0];
-			res_key += str(boost::format("%010d") % (rand() % size));
-		}
-		else
-		{
-			res_key += Const::k0;
+			return file.data<uint32_t>()[0];
 		}
 	}
 	catch(std::exception& e)
+	{}
+	return -1;
+}
+
+void Provider::GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const
+{
+	res_key = base_key;
+	auto s = CreateSession();
+	size = GetKeySpreadSize(*s, base_key);
+
+	if(size == (uint32_t)-1)
 	{
+		size = 100;
 		res_key += Const::k0;
+	}
+	else
+	{
+		res_key += str(boost::format("%010d") % (rand() % size));
 	}
 }
 
@@ -149,10 +156,10 @@ void Provider::IncrementActivity(const std::string& user, const std::string& key
 
 	if(Const::kKeys.find(skey) == Const::kKeys.end())
 		Const::kKeys.insert(skey);
-
+	
 	try
 	{
-		auto file = s->read_data(key, 0, 0)->file();
+		auto file = s->read_data(w_key, 0, 0)->file();
 		file = file.skip<uint32_t>();
 		if(!file.empty())
 		{
@@ -173,11 +180,12 @@ void Provider::IncrementActivity(const std::string& user, const std::string& key
 	msgpack::sbuffer sbuf;
 	msgpack::pack(sbuf, map);
 
-	std::vector<char> data(sbuf.size() + sizeof(uint32_t));
-	memcpy(&data.front(), &size, sizeof(size));
-	memcpy(&data.front() + sizeof(size), sbuf.data(), sbuf.size());
+	std::vector<char> data;
+	data.reserve(sizeof(uint32_t) + sbuf.size());
+	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));
+	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());
 
-	auto write_res = s->write_data(key, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
+	auto write_res = s->write_data(w_key, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 }
 
 void Provider::RepartitionActivity(const std::string& key, uint32_t parts) const
@@ -239,26 +247,9 @@ void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_
 	}
 }
 
-void Provider::ForActiveUser(uint64_t time, std::function<bool(const std::string&, uint32_t)> func) const
+void Provider::ForActiveUser(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) const
 {
-
-}
-
-void Provider::ForActiveUser(const std::string& key, std::function<bool(const std::string&, uint32_t)> func) const
-{
-
-}
-
-std::shared_ptr<ioremap::elliptics::session> Provider::CreateSession(uint64_t ioflags) const
-{
-	auto session = std::make_shared<ioremap::elliptics::session>(*node_);
-
-	session->set_cflags(0);
-	session->set_ioflags(ioflags);
-
-	session->set_groups(groups_);
-
-	return session;
+	ForActiveUser(str(boost::format("%015d") % (time / Const::kSecPerDay)), func);
 }
 
 template<typename K, typename V>
@@ -272,6 +263,58 @@ void Merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
 		if(size == res_map.size())
 			mIt->second += it->second;
 	}
+}
+
+void Provider::ForActiveUser(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const
+{
+	auto s = CreateSession();
+	std::map<std::string, uint32_t> res;
+	std::map<std::string, uint32_t> tmp;
+	
+	uint32_t size = GetKeySpreadSize(*s, key);
+	if(size == -1)
+		return;
+
+	std::string skey;
+	
+	for(uint32_t i = 0; i < size; ++i)
+	{
+		try
+		{
+			skey = key + str(boost::format("%010d") % i);
+			auto file = s->read_data(ioremap::elliptics::key(skey), 0, 0)->file();
+			if(!file.empty())
+			{
+				file = file.skip<uint32_t>();
+				msgpack::unpacked msg;
+				msgpack::unpack(&msg, file.data<const char>(), file.size());
+				auto obj = msg.get();
+				obj.convert(&tmp);
+
+				Merge(res, tmp);
+			}
+		}
+		catch(std::exception& e)
+		{}
+	}
+
+	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it)
+	{
+		if(!func(it->first, it->second))
+			break;
+	}
+}
+
+std::shared_ptr<ioremap::elliptics::session> Provider::CreateSession(uint64_t ioflags) const
+{
+	auto session = std::make_shared<ioremap::elliptics::session>(*node_);
+
+	session->set_cflags(0);
+	session->set_ioflags(ioflags);
+
+	session->set_groups(groups_);
+
+	return session;
 }
 
 void Provider::Clean() const

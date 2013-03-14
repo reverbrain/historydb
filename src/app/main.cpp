@@ -35,7 +35,13 @@ int main(int argc, char* argv[])
 
 	provider->ForUserLogs(kUser1, 0, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size)
 	{
-		std::cout << "LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+		std::cout << "LOG LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+		return true;
+	});
+
+	provider->ForActiveUser(tm, [](const std::string& user, uint32_t number)
+	{
+		std::cout << "ACT LAMBDA: " << user << " " << number << std::endl;
 		return true;
 	});
 
