@@ -17,12 +17,10 @@ namespace Const
 	const char* 	kLogFile		= "/dev/stderr";
 	const int		kLogLevel		= DNET_LOG_ERROR;
 
-	const char* 	kRemoteAddr		= "localhost";
-	const int		kRemotePort		= 1025;
-
 	const uint32_t	kSecPerDay		= 24 * 60 * 60;
 
 	const uint32_t	kRandSize		= 100;
+	const auto		k0				= "000000000000000";
 
 
 
@@ -46,14 +44,14 @@ Provider::~Provider()
 	Disconnect();
 }
 
-void Provider::Connect()
+void Provider::Connect(const char* server_addr, const int server_port)
 {
 	try
 	{
 		log_.reset(new ioremap::elliptics::file_logger(Const::kLogFile, Const::kLogLevel));
 		node_.reset(new ioremap::elliptics::node(*log_));
 
-		if(dnet_add_state(node_->get_native(), const_cast<char*>(Const::kRemoteAddr), Const::kRemotePort, AF_INET, 0))
+		if(dnet_add_state(node_->get_native(), const_cast<char*>(server_addr), server_port, AF_INET, 0))
 		{
 			std::cout << "Error! Cannot connect to elliptics\n";
 			return;
@@ -74,175 +72,88 @@ void Provider::Disconnect()
 	log_.reset(nullptr);
 }
 
-void Provider::AddActivity(const std::string& user, Activity activity, uint32_t time) const
+void Provider::SetSessionParameters(const std::vector<int>& groups, uint32_t min_writes)
 {
-	AddActivityToUser(user, activity, time);
-	AddActivityToLog(user, activity, time);
+	groups_ = groups;
+	min_writes_ = min_writes > groups_.size() ? groups_.size() : min_writes;
 }
 
-std::list<ActivityData> Provider::GetActivities(const std::string& user, uint32_t begin_time, uint32_t end_time) const
+void Provider::AddUserActivity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key) const
 {
-	std::list<ActivityData> ret;
+	AddUserData(user, time, data, size);
 
-	ForEachActivities(user, begin_time, end_time, [&ret](ActivityData data)
-	{
-		ret.push_back(data);
-		return true;
-	});
-
-	return ret;
+	if(key.empty())
+		IncrementActivity(user, time);
+	else
+		IncrementActivity(user, key);
 }
 
-template<typename K, typename V>
-void Merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
+void Provider::AddUserData(const std::string& user, uint64_t time, void* data, uint32_t size) const
 {
-	auto mIt = res_map.begin();
-	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it)
-	{
-		auto size = res_map.size();
-		mIt = res_map.insert(mIt, *it);
-		if(size == res_map.size())
-			mIt->second += it->second;
-	}
-}
-
-std::map<std::string, uint32_t> Provider::GetActivities(Activity activity, uint32_t begin_time, uint32_t end_time) const
-{
-	auto s = CreateSession();
-
-	std::map<std::string, uint32_t> res;
-
-	for(auto time = begin_time; time <= end_time; time += Const::kSecPerDay)
-	{
-		for(uint32_t i = 0; i < Const::kRandSize; ++i)
-		{
-			try
-			{
-				auto read_res = s->read_data(GetLogKey(activity, time, i), 0, 0);
-				auto file = read_res->file();
-				if(!file.empty())
-				{
-					std::map<std::string, uint32_t> tmp;
-					msgpack::unpacked msg;
-					msgpack::unpack(&msg, file.data<const char>(), file.size());
-					msg.get().convert(&tmp);
-
-					Merge(res, tmp);
-				}
-			}
-			catch(std::exception& e)
-			{}
-		}
-	}
-
-	return res;
-}
-
-void Provider::ForEachUser(Activity activity, uint32_t begin_time, uint32_t end_time, std::function<bool(const std::string&, uint32_t)> func) const
-{
-	auto res = GetActivities(activity, begin_time, end_time);
-
-	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it)
-	{
-		if(!func(it->first, it->second))
-			return;
-	}
-}
-
-void Provider::ForEachActivities(const std::string& user, uint32_t begin_time, uint32_t end_time, std::function<bool(ActivityData)> func) const
-{
-	auto s = CreateSession();
-
-	for(auto time = begin_time; time <= end_time; time += Const::kSecPerDay)
-	{
-		try
-		{
-			auto read_res = s->read_data(GetUserKey(user, time), 0, 0);
-			auto file = read_res->file();
-
-			if(!file.empty())
-			{
-				auto data = file.data<uint32_t>();
-				auto size = file.size() / sizeof(uint32_t);
-				for(size_t i = 0; i < size;)
-				{
-					ActivityData adata;
-					adata.activity = static_cast<Activity>(data[i++]);
-					adata.time = data[i++];
-					adata.user = user;
-
-					if(!func(adata))
-						return;
-				}
-			}
-		}
-		catch(std::exception& e)
-		{}
-	}
-}
-
-std::shared_ptr<ioremap::elliptics::session> Provider::CreateSession(uint64_t ioflags) const
-{
-	auto session = std::make_shared<ioremap::elliptics::session>(*node_);
-
-	std::vector<int> groups;
-	groups.push_back(2);
-
-	session->set_cflags(0);
-	session->set_ioflags(ioflags);
-
-	session->set_groups(groups);
-
-	return session;
-}
-
-inline ioremap::elliptics::key Provider::GetUserKey(const std::string& user, uint32_t time) const
-{
-	auto key = str(boost::format("%s%010d") % user % (time / Const::kSecPerDay));
-
-	if(Const::kKeys.find(key) == Const::kKeys.end())
-		Const::kKeys.insert(key);
-
-	//std::cout << "USER-KEY: " << key << std::endl;
-	
-	return ioremap::elliptics::key(key);
-}
-
-inline ioremap::elliptics::key Provider::GetLogKey(Activity activity, uint32_t time, uint32_t file) const
-{
-	file = file == (uint32_t)-1 ? (rand() % Const::kRandSize) : file;
-	auto key = str(boost::format("%010d%010d%010d") % activity % (time / Const::kSecPerDay) % file);
-	
-	if(Const::kKeys.find(key) == Const::kKeys.end())
-		Const::kKeys.insert(key);
-
-	//std::cout << "LOG-KEY: " << key << std::endl;
-
-	return ioremap::elliptics::key(key);
-}
-
-void Provider::AddActivityToUser(const std::string& user, Activity activity, uint32_t time) const
-{
-	std::vector<uint32_t> raw_data(2);
-
-	raw_data[0] = activity;
-	raw_data[1] = time;
-
 	auto s = CreateSession(DNET_IO_FLAGS_APPEND);
 
-	auto write_res = s->write_data(GetUserKey(user, time), ioremap::elliptics::data_pointer::from_raw(&raw_data.front(), raw_data.size() * sizeof(uint32_t)), 0);
+	auto skey = str(boost::format("%s%015d") % user % (time / Const::kSecPerDay));
+
+	if(Const::kKeys.find(skey) == Const::kKeys.end())
+		Const::kKeys.insert(skey);
+
+	std::vector<char> vdata;
+	vdata.reserve(sizeof(uint64_t) + sizeof(uint32_t) + size);
+	vdata.insert(vdata.end(), (char*)&time, (char*)&time + sizeof(uint64_t));
+	vdata.insert(vdata.end(), (char*)&size, (char*)&size + sizeof(uint32_t));
+	vdata.insert(vdata.end(), (char*)data, (char*)data + size);
+
+	auto write_res = s->write_data(ioremap::elliptics::key(skey), ioremap::elliptics::data_pointer::from_raw(&vdata.front(), vdata.size()), 0);
 }
 
-void Provider::AddActivityToLog(const std::string& user, Activity activiy, uint32_t time) const
+void Provider::IncrementActivity(const std::string& user, uint64_t time) const
+{
+	IncrementActivity(user, str(boost::format("%015d") % (time / Const::kSecPerDay)));
+}
+
+void Provider::GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const
+{
+	res_key = base_key;
+	size = 100;
+	auto s = CreateSession();
+	
+	try
+	{
+		auto file = s->read_data(ioremap::elliptics::key(base_key + Const::k0), 0, 0)->file();
+		if(!file.empty())
+		{
+			size = file.data<uint32_t>()[0];
+			res_key += str(boost::format("%010d") % (rand() % size));
+		}
+		else
+		{
+			res_key += Const::k0;
+		}
+	}
+	catch(std::exception& e)
+	{
+		res_key += Const::k0;
+	}
+}
+
+void Provider::IncrementActivity(const std::string& user, const std::string& key) const
 {
 	auto s = CreateSession();
 	std::map<std::string, uint32_t> map;
+	std::string skey;
+	uint32_t size;
 
-	const auto key = GetLogKey(activiy, time);
+	GenerateActivityKey(key, skey, size);
+
+	const auto w_key = ioremap::elliptics::key(skey);
+
+	if(Const::kKeys.find(skey) == Const::kKeys.end())
+		Const::kKeys.insert(skey);
 
 	try
 	{
 		auto file = s->read_data(key, 0, 0)->file();
+		file = file.skip<uint32_t>();
 		if(!file.empty())
 		{
 			msgpack::unpacked msg;
@@ -262,7 +173,105 @@ void Provider::AddActivityToLog(const std::string& user, Activity activiy, uint3
 	msgpack::sbuffer sbuf;
 	msgpack::pack(sbuf, map);
 
-	auto write_res = s->write_data(key, ioremap::elliptics::data_pointer::from_raw(sbuf.data(), sbuf.size()), 0);
+	std::vector<char> data(sbuf.size() + sizeof(uint32_t));
+	memcpy(&data.front(), &size, sizeof(size));
+	memcpy(&data.front() + sizeof(size), sbuf.data(), sbuf.size());
+
+	auto write_res = s->write_data(key, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
+}
+
+void Provider::RepartitionActivity(const std::string& key, uint32_t parts) const
+{
+
+}
+
+void Provider::RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const
+{
+
+}
+
+void Provider::RepartitionActivity(uint64_t time, uint32_t parts) const
+{
+
+}
+
+void Provider::RepartitionActivity(uint32_t time, const std::string& new_key, uint32_t parts) const
+{
+
+}
+
+void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const
+{
+	auto s = CreateSession();
+
+	uint64_t tm = 0;
+	uint32_t size = 0;
+
+	for(auto time = begin_time; time <= end_time; time += Const::kSecPerDay)
+	{
+		try
+		{
+			auto skey = str(boost::format("%s%015d") % user % (time / Const::kSecPerDay));
+			const auto w_key = ioremap::elliptics::key(skey);
+			auto read_res = s->read_data(w_key, 0, 0);
+			auto file = read_res->file();
+
+			while(!file.empty())
+			{
+				tm = file.data<uint64_t>()[0];
+				file = file.skip<uint64_t>();
+
+				size = file.data<uint32_t>()[0];
+				file = file.skip<uint32_t>();
+
+				if(	tm >= begin_time &&
+					tm <= end_time)
+				{
+					if(!func(user, tm, file.data(), size))
+						return;
+				}
+
+				file = file.skip(size);
+			}
+		}
+		catch(std::exception& e)
+		{}
+	}
+}
+
+void Provider::ForActiveUser(uint64_t time, std::function<bool(const std::string&, uint32_t)> func) const
+{
+
+}
+
+void Provider::ForActiveUser(const std::string& key, std::function<bool(const std::string&, uint32_t)> func) const
+{
+
+}
+
+std::shared_ptr<ioremap::elliptics::session> Provider::CreateSession(uint64_t ioflags) const
+{
+	auto session = std::make_shared<ioremap::elliptics::session>(*node_);
+
+	session->set_cflags(0);
+	session->set_ioflags(ioflags);
+
+	session->set_groups(groups_);
+
+	return session;
+}
+
+template<typename K, typename V>
+void Merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
+{
+	auto mIt = res_map.begin();
+	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it)
+	{
+		auto size = res_map.size();
+		mIt = res_map.insert(mIt, *it);
+		if(size == res_map.size())
+			mIt->second += it->second;
+	}
 }
 
 void Provider::Clean() const

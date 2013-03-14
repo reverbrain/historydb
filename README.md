@@ -22,7 +22,7 @@ Interface of the History DB presented in iprovider header file.
 
 	IProvider::ForEachActiveUser() - Iterates by active user for certain day and call for each such user callback functor.
 
-	IProvider::ForEachUserActivities - Iterates by activities for certain user in specified time period and call for each activity callback functor.
+	IProvider::ForEachUserActivities() - Iterates by activities for certain user in specified time period and call for each activity callback functor.
 
 
 

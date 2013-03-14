@@ -2,6 +2,9 @@
 #include <iostream>
 #include <time.h>
 
+char kBB[] = "User made money ";
+char kUser1[] = "BlaUser1";
+
 int main(int argc, char* argv[])
 {
 	auto provider = History::CreateProvider();
@@ -12,17 +15,31 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	provider->Connect();
+	provider->Connect("localhost", 1025);
+	std::vector<int> groups;
+	groups.push_back(2);
 
-	auto tm = time(NULL);
+	provider->SetSessionParameters(groups, 1);
 
-	provider->AddActivity("BlaUser1", History::kRead, tm++);
-	provider->AddActivity("BlaUser1", History::kRead, tm++);
-	provider->AddActivity("BlaUser1", History::kRead, tm - 40 * 60 * 60);
-	provider->AddActivity("BlaUser1", History::kWrite, tm++);
-	provider->AddActivity("BlaUser1", History::kWrite, tm++);
+	auto tm = 0;
 
-	tm -= 24 * 60 * 60;
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+
+	provider->ForUserLogs(kUser1, 0, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size)
+	{
+		std::cout << "LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+		return true;
+	});
+
+	/*tm -= 24 * 60 * 60;
 
 	provider->AddActivity("BlaUser2", History::kRead, tm++);
 	provider->AddActivity("BlaUser2", History::kWrite, tm++);
@@ -63,7 +80,7 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "USER LAMBDA: " << user << " " << count << std::endl;
 		return true;
-	});
+	});*/
 
 	return 0;
 }

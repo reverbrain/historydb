@@ -12,43 +12,33 @@ namespace History
 		Provider();
 		virtual ~Provider();
 
-		/* Connects to elliptics
-		*/
-		virtual void Connect();
-
-		/* Disconnects from elliptics
-		*/
+		virtual void Connect(const char* server_addr, const int server_port);
 		virtual void Disconnect();
 
-		/* Add activity record to certain user
-		*/
-		virtual void AddActivity(const std::string& user, Activity activity, uint32_t time) const;
+		virtual void SetSessionParameters(const std::vector<int>& groups, uint32_t min_writes);
 
-		/* Gets activities statistics for certain user for specified period
-		*/
-		virtual std::list<ActivityData> GetActivities(const std::string& user, uint32_t begin_time, uint32_t end_time) const;
+		virtual void AddUserActivity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string()) const;
 
-		/* Gets activities for all users for specified period
-		*/
-		virtual std::map<std::string, uint32_t> GetActivities(Activity activity, uint32_t begin_time, uint32_t end_time) const;
+		virtual void RepartitionActivity(const std::string& key, uint32_t parts) const;
+		virtual void RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const;
+		virtual void RepartitionActivity(uint64_t time, uint32_t parts) const;
+		virtual void RepartitionActivity(uint32_t time, const std::string& new_key, uint32_t parts) const;
 
-		/* Iterates by active users
-		*/
-		virtual void ForEachUser(Activity activity, uint32_t begin_time, uint32_t end_time, std::function<bool(const std::string&, uint32_t)> func) const;
+		virtual void ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const;
 
-		/* Iterates by certain user activities for specified period
-		*/
-		virtual void ForEachActivities(const std::string& user, uint32_t begin_time, uint32_t end_time, std::function<bool(ActivityData)> func) const;
+		virtual void ForActiveUser(uint64_t time, std::function<bool(const std::string&, uint32_t)> func) const;
+		virtual void ForActiveUser(const std::string& key, std::function<bool(const std::string&, uint32_t)> func) const;
+
 
 	private:
-
 		ELLIPTICS_DISABLE_COPY(Provider)
 		std::shared_ptr<ioremap::elliptics::session> CreateSession(uint64_t ioflags = 0) const;
-		inline ioremap::elliptics::key GetUserKey(const std::string& user, uint32_t time) const;
-		inline ioremap::elliptics::key GetLogKey(Activity activity, uint32_t time, uint32_t file = -1) const;
 
-		void AddActivityToUser(const std::string& user, Activity activity, uint32_t time) const;
-		void AddActivityToLog(const std::string& user, Activity activiy, uint32_t time) const;
+		void AddUserData(const std::string& user, uint64_t time, void* data, uint32_t size) const;
+		void IncrementActivity(const std::string& user, uint64_t time) const;
+		void IncrementActivity(const std::string& user, const std::string& key) const;
+
+		void GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const;
 
 		//Temporary
 		void Clean() const;
@@ -56,6 +46,8 @@ namespace History
 		dnet_node_status								node_status_;
 		std::auto_ptr<ioremap::elliptics::file_logger>	log_;
 		std::auto_ptr<ioremap::elliptics::node> 		node_;
+		std::vector<int>								groups_;
+		uint32_t										min_writes_;
 	};
 }
 
