@@ -3,6 +3,7 @@
 
 #include <iprovider.h>
 #include <elliptics/cppdef.h>
+#include <map>
 
 namespace History
 {
@@ -22,7 +23,7 @@ namespace History
 		virtual void RepartitionActivity(const std::string& key, uint32_t parts) const;
 		virtual void RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const;
 		virtual void RepartitionActivity(uint64_t time, uint32_t parts) const;
-		virtual void RepartitionActivity(uint32_t time, const std::string& new_key, uint32_t parts) const;
+		virtual void RepartitionActivity(uint64_t time, const std::string& new_key, uint32_t parts) const;
 
 		virtual void ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const;
 
@@ -40,6 +41,8 @@ namespace History
 
 		uint32_t GetKeySpreadSize(ioremap::elliptics::session& s, const std::string& key) const;
 		void GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const;
+
+		void GetMapFromKey(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret) const;
 
 		//Temporary
 		void Clean() const;

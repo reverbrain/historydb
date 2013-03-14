@@ -26,7 +26,6 @@ namespace Const
 
 	//Temporary must be deleted later!!!
 	std::set<std::string>	kKeys;
-	std::string kKeyName	= "Blabla";
 }
 
 template<typename K, typename V>
@@ -105,7 +104,7 @@ void Provider::AddUserData(const std::string& user, uint64_t time, void* data, u
 {
 	auto s = CreateSession(DNET_IO_FLAGS_APPEND);
 
-	auto skey = str(boost::format("%s%015d") % user % (time / Const::kSecPerDay));
+	auto skey = str(boost::format("%s%020d") % user % (time / Const::kSecPerDay));
 
 	if(Const::kKeys.find(skey) == Const::kKeys.end())
 		Const::kKeys.insert(skey);
@@ -121,7 +120,7 @@ void Provider::AddUserData(const std::string& user, uint64_t time, void* data, u
 
 void Provider::IncrementActivity(const std::string& user, uint64_t time) const
 {
-	IncrementActivity(user, str(boost::format("%015d") % (time / Const::kSecPerDay)));
+	IncrementActivity(user, str(boost::format("%020d") % (time / Const::kSecPerDay)));
 }
 
 uint32_t Provider::GetKeySpreadSize(ioremap::elliptics::session& s, const std::string& key) const
@@ -217,21 +216,11 @@ void Provider::RepartitionActivity(const std::string& old_key, const std::string
 
 	for(uint32_t i = 0; i < size; ++i)
 	{
+		skey = old_key + str(boost::format("%010d") % i);
+		GetMapFromKey(*s, skey, tmp);
+		Merge(res, tmp);
 		try
 		{
-			skey = old_key + str(boost::format("%010d") % i);
-			auto file = s->read_data(skey, 0, 0)->file();
-			if(!file.empty())
-			{
-				tmp.clear();
-				file = file.skip<uint32_t>();
-				msgpack::unpacked msg;
-				msgpack::unpack(&msg, file.data<const char>(), file.size());
-				msg.get().convert(&tmp);
-
-				Merge(res, tmp);
-			}
-
 			s->remove(skey);
 		}
 		catch(std::exception& e)
@@ -269,12 +258,12 @@ void Provider::RepartitionActivity(const std::string& old_key, const std::string
 
 void Provider::RepartitionActivity(uint64_t time, uint32_t parts) const
 {
-	RepartitionActivity(str(boost::format("%015d") % (time / Const::kSecPerDay)), parts);
+	RepartitionActivity(str(boost::format("%020d") % (time / Const::kSecPerDay)), parts);
 }
 
-void Provider::RepartitionActivity(uint32_t time, const std::string& new_key, uint32_t parts) const
+void Provider::RepartitionActivity(uint64_t time, const std::string& new_key, uint32_t parts) const
 {
-	RepartitionActivity(str(boost::format("%015d") % (time / Const::kSecPerDay)), new_key, parts);
+	RepartitionActivity(str(boost::format("%020d") % (time / Const::kSecPerDay)), new_key, parts);
 }
 
 void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const
@@ -288,7 +277,7 @@ void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_
 	{
 		try
 		{
-			auto skey = str(boost::format("%s%015d") % user % (time / Const::kSecPerDay));
+			auto skey = str(boost::format("%s%020d") % user % (time / Const::kSecPerDay));
 			auto read_res = s->read_data(skey, 0, 0);
 			auto file = read_res->file();
 
@@ -317,7 +306,25 @@ void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_
 
 void Provider::ForActiveUser(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) const
 {
-	ForActiveUser(str(boost::format("%015d") % (time / Const::kSecPerDay)), func);
+	ForActiveUser(str(boost::format("%020d") % (time / Const::kSecPerDay)), func);
+}
+
+void Provider::GetMapFromKey(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret) const
+{
+	ret.clear();
+	try
+	{
+		auto file = s.read_data(key, 0, 0)->file();
+		if(!file.empty())
+		{
+			file = file.skip<uint32_t>();
+			msgpack::unpacked msg;
+			msgpack::unpack(&msg, file.data<const char>(), file.size());
+			msg.get().convert(&ret);
+		}
+	}
+	catch(std::exception& e)
+	{}
 }
 
 void Provider::ForActiveUser(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const
@@ -334,24 +341,8 @@ void Provider::ForActiveUser(const std::string& key, std::function<bool(const st
 	
 	for(uint32_t i = 0; i < size; ++i)
 	{
-		try
-		{
-			skey = key + str(boost::format("%010d") % i);
-			auto file = s->read_data(skey, 0, 0)->file();
-			if(!file.empty())
-			{
-				tmp.clear();
-				file = file.skip<uint32_t>();
-				msgpack::unpacked msg;
-				msgpack::unpack(&msg, file.data<const char>(), file.size());
-				msg.get().convert(&tmp);
-
-				Merge(res, tmp);
-
-			}
-		}
-		catch(std::exception& e)
-		{}
+		GetMapFromKey(*s, key + str(boost::format("%010d") % i), tmp);
+		Merge(res, tmp);
 	}
 
 	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it)

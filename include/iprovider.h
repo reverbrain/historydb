@@ -41,7 +41,7 @@ namespace History
 		virtual void RepartitionActivity(const std::string& key, uint32_t parts) const = 0;
 		virtual void RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const = 0;
 		virtual void RepartitionActivity(uint64_t time, uint32_t parts) const = 0;
-		virtual void RepartitionActivity(uint32_t time, const std::string& new_key, uint32_t parts) const = 0;
+		virtual void RepartitionActivity(uint64_t time, const std::string& new_key, uint32_t parts) const = 0;
 
 		/* Iterates by user's logs and calls func for each log record
 		*/
