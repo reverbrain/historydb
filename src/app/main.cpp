@@ -2,8 +2,12 @@
 #include <iostream>
 #include <time.h>
 
-char kBB[] = "User made money ";
+char kUMM[] = "User made money ";
+char kUCM[] = "User check mail ";
+char kUCR[]	= "User clear recycle ";
+
 char kUser1[] = "BlaUser1";
+char kUser2[] = "BlaUser2";
 
 int main(int argc, char* argv[])
 {
@@ -23,70 +27,49 @@ int main(int argc, char* argv[])
 
 	auto tm = 0;
 
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
-	provider->AddUserActivity(kUser1, tm++, kBB, sizeof(kBB));
+	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
+	provider->AddUserActivity(kUser1, tm++, kUCM, sizeof(kUCM));
+	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
+	provider->AddUserActivity(kUser1, tm++, kUCR, sizeof(kUCR));
+	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
+	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
+	provider->AddUserActivity(kUser1, tm++, kUCR, sizeof(kUCR));
+	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
+	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
 
-	provider->ForUserLogs(kUser1, 0, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size)
+	provider->AddUserActivity(kUser2, tm++, kUCR, sizeof(kUCR));
+	provider->AddUserActivity(kUser2, tm++, kUCR, sizeof(kUCR));
+	provider->AddUserActivity(kUser2, tm++, kUCM, sizeof(kUCM));
+	provider->AddUserActivity(kUser2, tm++, kUMM, sizeof(kUMM));
+	provider->AddUserActivity(kUser2, tm++, kUCR, sizeof(kUCR));
+	provider->AddUserActivity(kUser2, tm++, kUMM, sizeof(kUMM));
+	provider->AddUserActivity(kUser2, tm++, kUCM, sizeof(kUCM));
+
+	provider->ForUserLogs(kUser1, 3, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size)
 	{
-		std::cout << "LOG LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+		std::cout << "LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+		return true;
+	});
+
+	provider->ForUserLogs(kUser2, 0, 10, [](const std::string& user, uint64_t time, void* data, uint32_t size)
+	{
+		std::cout << "LOG2 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
 		return true;
 	});
 
 	provider->ForActiveUser(tm, [](const std::string& user, uint32_t number)
 	{
-		std::cout << "ACT LAMBDA: " << user << " " << number << std::endl;
+		std::cout << "ACT1 LAMBDA: " << user << " " << number << std::endl;
 		return true;
 	});
 
-	/*tm -= 24 * 60 * 60;
+	provider->RepartitionActivity(tm, 10);
 
-	provider->AddActivity("BlaUser2", History::kRead, tm++);
-	provider->AddActivity("BlaUser2", History::kWrite, tm++);
-	provider->AddActivity("BlaUser2", History::kRead, tm++);
-	provider->AddActivity("BlaUser2", History::kRead, tm - 10 * 60 * 60);
-	provider->AddActivity("BlaUser2", History::kWrite, tm++);
-
-	auto a1 = provider->GetActivities("BlaUser1", time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60);
-	for(auto it = a1.begin(), itEnd = a1.end(); it != itEnd; ++it)
+	provider->ForActiveUser(tm, [](const std::string& user, uint32_t number)
 	{
-		std::cout << it->user << " " << it->activity << " " << it->time << std::endl;
-	}
-
-	std::cout << std::endl;
-
-	auto a2 = provider->GetActivities("BlaUser2", time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60);
-	for(auto it = a2.begin(), itEnd = a2.end(); it != itEnd; ++it)
-	{
-		std::cout << it->user << " " << it->activity << " " << it->time << std::endl;
-	}
-
-	std::cout << std::endl;
-
-	auto map = provider->GetActivities(History::kRead, time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60);
-
-	for(auto it = map.begin(), itEnd = map.end(); it != itEnd; ++it)
-	{
-		std::cout << it->first << " " << it->second << std::endl;
-	}
-
-	provider->ForEachActivities("BlaUser1", time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60, [](History::ActivityData data)
-	{
-		std::cout << "ACTIV LAMBDA: " << data.user << " " << data.activity << " " << data.time << std::endl;
+		std::cout << "ACT2 LAMBDA: " << user << " " << number << std::endl;
 		return true;
 	});
-
-	provider->ForEachUser(History::kRead, time(NULL) - 50 * 60 * 60, time(NULL) + 50 * 60 * 60, [](const std::string& user, uint32_t count)
-	{
-		std::cout << "USER LAMBDA: " << user << " " << count << std::endl;
-		return true;
-	});*/
 
 	return 0;
 }
