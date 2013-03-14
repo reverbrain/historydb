@@ -19,7 +19,7 @@ lib_objects			:= $(lib_objects:.cpp=.o)
 all : $(program_name)
 
 $(program_name): obj_dirs $(app_objects) $(lib_objects)
-	g++ -shared -o ../../bin/libclient.so $(lib_objects)
+	g++ -shared -o ../../bin/libclient.so $(lib_objects) -lboost_thread
 	g++ -o $@ $(app_objects) $(link_flags) $(libraries) -L../../bin -lclient -lelliptics_cpp -Xlinker -rpath='./bin'
  
 obj_dirs :

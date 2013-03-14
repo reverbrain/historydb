@@ -4,6 +4,7 @@
 #include <msgpack.hpp>
 #include <iomanip>
 #include <boost/format.hpp>
+#include <boost/thread/locks.hpp>
 
 //Temporary includes
 #include <iostream>
@@ -58,6 +59,7 @@ Provider::~Provider()
 
 void Provider::Connect(const char* server_addr, const int server_port)
 {
+	boost::unique_lock<boost::shared_mutex> lock(connect_mutex_);
 	try
 	{
 		log_.reset(new ioremap::elliptics::file_logger(Const::kLogFile, Const::kLogLevel));
@@ -77,6 +79,8 @@ void Provider::Connect(const char* server_addr, const int server_port)
 
 void Provider::Disconnect()
 {
+	boost::unique_lock<boost::shared_mutex> lock(connect_mutex_);
+
 	//Temporary must be deleted later!!!
 	Clean();
 
@@ -92,6 +96,7 @@ void Provider::SetSessionParameters(const std::vector<int>& groups, uint32_t min
 
 void Provider::AddUserActivity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	AddUserData(user, time, data, size);
 
 	if(key.empty())
@@ -102,6 +107,7 @@ void Provider::AddUserActivity(const std::string& user, uint64_t time, void* dat
 
 void Provider::AddUserData(const std::string& user, uint64_t time, void* data, uint32_t size) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	auto s = CreateSession(DNET_IO_FLAGS_APPEND);
 
 	auto skey = str(boost::format("%s%020d") % user % (time / Const::kSecPerDay));
@@ -123,6 +129,7 @@ void Provider::AddUserData(const std::string& user, uint64_t time, void* data, u
 
 void Provider::IncrementActivity(const std::string& user, uint64_t time) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	IncrementActivity(user, str(boost::format("%020d") % (time / Const::kSecPerDay)));
 }
 
@@ -143,6 +150,7 @@ uint32_t Provider::GetKeySpreadSize(ioremap::elliptics::session& s, const std::s
 
 void Provider::GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	res_key = base_key;
 	auto s = CreateSession();
 	size = GetKeySpreadSize(*s, base_key);
@@ -160,6 +168,7 @@ void Provider::GenerateActivityKey(const std::string& base_key, std::string& res
 
 void Provider::IncrementActivity(const std::string& user, const std::string& key) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	auto s = CreateSession();
 	std::map<std::string, uint32_t> map;
 	std::string skey;
@@ -211,6 +220,7 @@ void Provider::RepartitionActivity(const std::string& key, uint32_t parts) const
 
 void Provider::RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	auto s = CreateSession();
 	auto size = GetKeySpreadSize(*s, old_key);
 	if(size == (uint32_t)-1)
@@ -281,6 +291,7 @@ void Provider::RepartitionActivity(uint64_t time, const std::string& new_key, ui
 
 void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	auto s = CreateSession();
 
 	uint64_t tm = 0;
@@ -342,6 +353,7 @@ void Provider::GetMapFromKey(ioremap::elliptics::session& s, const std::string& 
 
 void Provider::ForActiveUser(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	auto s = CreateSession();
 	std::map<std::string, uint32_t> res;
 	std::map<std::string, uint32_t> tmp;
@@ -379,6 +391,7 @@ std::shared_ptr<ioremap::elliptics::session> Provider::CreateSession(uint64_t io
 
 void Provider::Clean() const
 {
+	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	if(node_.get() != NULL && log_.get() != NULL)
 	{
 		auto s = CreateSession();

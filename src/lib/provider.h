@@ -4,6 +4,7 @@
 #include <iprovider.h>
 #include <elliptics/cppdef.h>
 #include <map>
+#include <boost/thread/shared_mutex.hpp>
 
 namespace History
 {
@@ -52,6 +53,7 @@ namespace History
 		std::auto_ptr<ioremap::elliptics::node> 		node_;
 		std::vector<int>								groups_;
 		uint32_t										min_writes_;
+		boost::shared_mutex								connect_mutex_;
 	};
 }
 
