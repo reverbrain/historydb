@@ -53,7 +53,7 @@ namespace History
 		std::auto_ptr<ioremap::elliptics::node> 		node_;
 		std::vector<int>								groups_;
 		uint32_t										min_writes_;
-		boost::shared_mutex								connect_mutex_;
+		mutable boost::shared_mutex						connect_mutex_;
 	};
 }
 
