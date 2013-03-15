@@ -12,6 +12,13 @@ char kUCR[]	= "User clear recycle ";
 char kUser1[] = "BlaUser1";
 char kUser2[] = "BlaUser2";
 
+void print_usage(char* s)
+{
+	std::cout << "Usage: " << s << "\n"
+	<< " -r addr:port:family    - adds a route to the given node\n"
+	<< " -g groups              - groups id to connect which are separated by ','\n";
+}
+
 int main(int argc, char* argv[])
 {
 	int ch, err = 0;
@@ -20,39 +27,49 @@ int main(int argc, char* argv[])
 	int family = -1;
 	std::vector<int> groups;
 
-	while((ch = getopt(argc, argv, "r:g:")) != -1)
+	try
 	{
-		switch(ch)
+		while((ch = getopt(argc, argv, "r:g:")) != -1)
 		{
-			case 'r':
+			switch(ch)
 			{
-				std::cout << "OPT: " << optarg << std::endl;
-				std::vector<std::string> strs;
-				boost::split(strs, optarg, boost::is_any_of(":"));
-				if(strs.size() != 3)
-					err = -1;
-
-				if(err)
-					return err;
-
-				remote_addr = strs[0];
-				port = boost::lexical_cast<int>(strs[1]);
-				family = boost::lexical_cast<int>(strs[2]);
-			}
-			break;
-			case 'g':
-			{
-				std::cout << "OPT: " << optarg << std::endl;
-				std::vector<std::string> strs;
-				boost::split(strs, optarg, boost::is_any_of(","));
-				groups.reserve(strs.size());
-				for(auto it = strs.begin(), itEnd = strs.end(); it != itEnd; ++it)
+				case 'r':
 				{
-					groups.push_back(boost::lexical_cast<int>(*it));
+					std::vector<std::string> strs;
+					boost::split(strs, optarg, boost::is_any_of(":"));
+
+					if(strs.size() != 3)
+						throw std::invalid_argument("-r");
+
+					remote_addr = strs[0];
+					port = boost::lexical_cast<int>(strs[1]);
+					family = boost::lexical_cast<int>(strs[2]);
 				}
+				break;
+				case 'g':
+				{
+					std::vector<std::string> strs;
+					boost::split(strs, optarg, boost::is_any_of(","));
+
+					groups.reserve(strs.size());
+					for(auto it = strs.begin(), itEnd = strs.end(); it != itEnd; ++it)
+					{
+						groups.push_back(boost::lexical_cast<int>(*it));
+					}
+				}
+				break;
 			}
-			break;
 		}
+	}
+	catch(...)
+	{
+		err = -1;
+	}
+
+	if(err)
+	{
+		print_usage(argv[0]);
+		return err;
 	}
 
 	auto provider = History::CreateProvider();
