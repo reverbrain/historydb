@@ -36,7 +36,11 @@ namespace History
 		*/
 		virtual void AddUserActivity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string()) const = 0;
 
-		/*	Repartitions activity's statistics. 
+		/*	Repartitions activity's statistics.
+			key/old_key - current key of activity files
+			new_key - new key for activity files
+			time - timstamp of activity
+			parts - numbers of parts in new decomposition
 		*/
 		virtual void RepartitionActivity(const std::string& key, uint32_t parts) const = 0;
 		virtual void RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const = 0;
