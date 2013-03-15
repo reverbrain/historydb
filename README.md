@@ -3,8 +3,7 @@ historydb
 
 History DB is a trully scalable (hundreds of millions updates per day) distributed archive system with per user and per day activity statistics.
 
-History DB uses elliptics at the storage layer. All activity statistics are kept in files. Such files are devided in 2 type: user's statistics and activity's statistics. User's statistics files have id equal to username + timestamp (days from 1 january 1990). Such files contains all activities with full timestamps that user commited at the day. Those files are append-only. Activity's statistics files have id equal to activity id + timestamp (days from 1 january 1990) + number(0 to X). Numbers(0 to X) are used for separating huge files and for supporting multiple changes at one moment. Such files contains key-value serialized tree where key is username and value is how many times the user commited this activity for the day.
-So each files conains statistics per day and for activity's statistics separates for each days by random numbers from 0 to X.
+History DB uses elliptics at the storage layer. At the elliptics backend all data is stored in files. Each file has unique string id. Elliptics files for History DB are devides into user's logs files and activity's statistics and by day. User logs files have id: user_name + timestamp where timestamp is twenty character number. Activity statistics files have id: timestamp + number_from_0_to_x where timestamp is twenty character number and the number is a random number from 0 to X. Activity statistics file can has a custom key which sets by using special function for updating and reading statistics. Records in user logs files has follow structure: uint64_t_timestamp + uint32_t_size_of_custom_data + void*_custom_data. Each activity statistics file contains key-value tree where key is user name and value is the user activity statistics.
 
 User guide.
 
@@ -12,21 +11,23 @@ Interface of the History DB presented in iprovider header file.
 
 	CreateProvider() - creates instance of IProvider. The instance is used to manipulate the library.
 
-	IProvider::Connect() - connects to elliptics. It creates only node and do not starts session.
+	IProvider::Connect() - connects to elliptics. It creates only node and do not starts any session.
 
 	IProvider::Disconnect() - disconnects from elliptics. Kills node created in IProvider::Connect().
 
-	IProvider::AddActivity() - add activity record to user's and activity's statistics.
+	IProvider::SetSessionParameters() - sets parameters for all sessions. It includes vector of elliptics groups in which History DB will store data.
 
-	IProvider::GetActivities() - reads and returns all activities which is made by the user in specified time period.
+	IProvider::AddUserActivity() - add record to user logs and increased activity statistics for this user. 
 
-	IProvider::ForEachActiveUser() - Iterates by active user for certain day and call for each such user callback functor.
+	IProvider::RepartitionActivity() - number of methods which repartitions activity statistics tree with new parts.
 
-	IProvider::ForEachUserActivities() - Iterates by activities for certain user in specified time period and call for each activity callback functor.
+	IProvider::ForUserLogs() - Iterates by user logs for certain user in specified time period and calls for each record callback functior.
 
+	IProvider::ForActiveUser() - Iterates by activity statistics for certain day and calls for each user callback functor.
 
+Elliptics backend.
 
-
+At the elliptics backend all data is stored in files. Each file has unique string id. User logs and activity statistics have daily structure. User logs has id: user_name + timestamp where timestamp is twenty character number. Activity statistics has id: timestamp + number_from_0_to_X where timestamp is twenty character number and number - is a random number from 0 to X. Activity statistics file can has custom key which sets by using special functions. Record in user's logs file is timestamp + size_of_custom_data + custom_data. Each activity statistics file contain key-value tree with key <-> user name and value <-> the user activity statistic.
 
 
 TODO:
@@ -34,10 +35,6 @@ TODO:
 Add:
 	Project description:
 		Tutorial
-	Read function for certain user for specified time period
-	Read activity statistics for specified time period
-	Iterator function by active user for certain day
-	Iterator function by certain user for specified time period
 
 Remove:
 
