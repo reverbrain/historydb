@@ -14,7 +14,7 @@ namespace History
 		Provider();
 		virtual ~Provider();
 
-		virtual void Connect(const char* server_addr, const int server_port);
+		virtual void Connect(const char* server_addr, const int server_port, const int family);
 		virtual void Disconnect();
 
 		virtual void SetSessionParameters(const std::vector<int>& groups, uint32_t min_writes);

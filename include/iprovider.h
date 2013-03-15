@@ -15,7 +15,7 @@ namespace History
 
 		/* Connects to elliptics
 		*/
-		virtual void Connect(const char* server_addr, const int server_port) = 0;
+		virtual void Connect(const char* server_addr, const int server_port, const int family) = 0;
 
 		/* Disconnects from elliptics
 		*/

@@ -57,7 +57,7 @@ Provider::~Provider()
 	Disconnect();
 }
 
-void Provider::Connect(const char* server_addr, const int server_port)
+void Provider::Connect(const char* server_addr, const int server_port, const int family)
 {
 	boost::unique_lock<boost::shared_mutex> lock(connect_mutex_);
 	try
@@ -65,7 +65,7 @@ void Provider::Connect(const char* server_addr, const int server_port)
 		log_.reset(new ioremap::elliptics::file_logger(Const::kLogFile, Const::kLogLevel));
 		node_.reset(new ioremap::elliptics::node(*log_));
 
-		if(dnet_add_state(node_->get_native(), const_cast<char*>(server_addr), server_port, AF_INET, 0))
+		if(dnet_add_state(node_->get_native(), const_cast<char*>(server_addr), server_port, family, 0))
 		{
 			std::cout << "Error! Cannot connect to elliptics\n";
 			return;
@@ -137,7 +137,7 @@ uint32_t Provider::GetKeySpreadSize(ioremap::elliptics::session& s, const std::s
 {
 	try
 	{
-		auto file = s.read_data(key + Const::k0, 0, 0)->file();
+		auto file = s.read_latest(key + Const::k0, 0, 0)->file();
 		if(!file.empty())
 		{
 			return file.data<uint32_t>()[0];
@@ -181,7 +181,7 @@ void Provider::IncrementActivity(const std::string& user, const std::string& key
 	
 	try
 	{
-		auto file = s->read_data(skey, 0, 0)->file();
+		auto file = s->read_latest(skey, 0, 0)->file();
 		file = file.skip<uint32_t>();
 		if(!file.empty())
 		{
@@ -302,7 +302,7 @@ void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_
 		try
 		{
 			auto skey = str(boost::format("%s%020d") % user % (time / Const::kSecPerDay));
-			auto read_res = s->read_data(skey, 0, 0);
+			auto read_res = s->read_latest(skey, 0, 0);
 			auto file = read_res->file();
 
 			while(!file.empty())
@@ -338,7 +338,7 @@ void Provider::GetMapFromKey(ioremap::elliptics::session& s, const std::string& 
 	ret.clear();
 	try
 	{
-		auto file = s.read_data(key, 0, 0)->file();
+		auto file = s.read_latest(key, 0, 0)->file();
 		if(!file.empty())
 		{
 			file = file.skip<uint32_t>();
@@ -391,7 +391,6 @@ std::shared_ptr<ioremap::elliptics::session> Provider::CreateSession(uint64_t io
 
 void Provider::Clean() const
 {
-	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	if(node_.get() != NULL && log_.get() != NULL)
 	{
 		auto s = CreateSession();
