@@ -37,3 +37,6 @@ Interface of the History DB presented in iprovider header file.
 
 	IProvider::ForUserLogs() - iterates over user's logs in specified time period.
 	IProvider::ForActiveUser() - iterates over activity logs in specified time period.
+
+One can grab user logs for specified for specified period of time as well as list of all users,
+who were active (had at least one log update) during requested period of time.
