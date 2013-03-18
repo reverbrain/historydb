@@ -26,6 +26,11 @@ namespace History
 		virtual void RepartitionActivity(uint64_t time, uint32_t parts) const;
 		virtual void RepartitionActivity(uint64_t time, const std::string& new_key, uint32_t parts) const;
 
+		virtual std::list<std::vector<char>> GetUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time) const;
+
+		virtual std::map<std::string, uint32_t> GetActiveUser(uint64_t time) const;
+		virtual std::map<std::string, uint32_t> GetActiveUser(const std::string& key) const;
+
 		virtual void ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const;
 
 		virtual void ForActiveUser(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) const;
@@ -45,15 +50,14 @@ namespace History
 
 		void GetMapFromKey(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret) const;
 
-		//Temporary
-		void Clean() const;
-
 		dnet_node_status								node_status_;
 		std::auto_ptr<ioremap::elliptics::file_logger>	log_;
 		std::auto_ptr<ioremap::elliptics::node> 		node_;
 		std::vector<int>								groups_;
 		uint32_t										min_writes_;
 		mutable boost::shared_mutex						connect_mutex_;
+		mutable boost::mutex							key_mutex_;
+		mutable std::map<std::string, uint32_t>			key_cache_;
 	};
 }
 

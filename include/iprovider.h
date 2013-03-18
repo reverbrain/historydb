@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <map>
+#include <list>
 
 namespace History
 {
@@ -46,6 +48,17 @@ namespace History
 		virtual void RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const = 0;
 		virtual void RepartitionActivity(uint64_t time, uint32_t parts) const = 0;
 		virtual void RepartitionActivity(uint64_t time, const std::string& new_key, uint32_t parts) const = 0;
+
+		/* Gets user's logs for specified period
+		*/
+		virtual std::list<std::vector<char>> GetUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time) const = 0;
+		/* Gets active users with activity statistics for specified day
+		*/
+		virtual std::map<std::string, uint32_t> GetActiveUser(uint64_t time) const = 0;
+		/* Gets active users with activity statistics for specified key
+		*/
+		virtual std::map<std::string, uint32_t> GetActiveUser(const std::string& key) const = 0;
+
 
 		/* Iterates by user's logs and calls func for each log record
 		*/
