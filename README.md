@@ -1,41 +1,39 @@
 historydb
 =========
 
-History DB is a trully scalable (hundreds of millions updates per day) distributed archive system with per user and per day activity statistics.
+History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
+with per user and per day activity statistics.
 
-History DB uses elliptics at the storage layer. At the elliptics backend all data is stored in files. Each file has unique string id. Elliptics files for History DB are devides into user's logs files and activity's statistics and by day. User logs files have id: user_name + timestamp where timestamp is twenty character number. Activity statistics files have id: timestamp + number_from_0_to_x where timestamp is twenty character number and the number is a random number from 0 to X. Activity statistics file can has a custom key which sets by using special function for updating and reading statistics. Records in user logs files has follow structure: uint64_t_timestamp + uint32_t_size_of_custom_data + void*_custom_data. Each activity statistics file contains key-value tree where key is user name and value is the user activity statistics.
+History DB uses elliptics (http://reverbrain.com/elliptics) as storage backend.
+It supports 2 record types: user logs (updated via append or write) and activity.
+Each HistoryDB record has unique string id, which is used as primary key.
+Activity is a secondary index which hosts information about what primary keys were
+updated during specified period (by default this equals to 1 day).
 
-User guide.
+User log key consists of two fields: username (string prefix) and timestamp (this is actually 20-bytes string)
+Activity key is timestamp only, but it is shareded among N subkeys (where N is specified in config).
+One can specify own activity prefix if needed.
+
+User log is a blob which can be either appended or rewritten.
+Activity is a map of usernames and update counters.
+
+
+User guide
+===========
 
 Interface of the History DB presented in iprovider header file.
 
 	CreateProvider() - creates instance of IProvider. The instance is used to manipulate the library.
 
-	IProvider::Connect() - connects to elliptics. It creates only node and do not starts any session.
-
+	IProvider::Connect() - connects to elliptics.
 	IProvider::Disconnect() - disconnects from elliptics. Kills node created in IProvider::Connect().
 
-	IProvider::SetSessionParameters() - sets parameters for all sessions. It includes vector of elliptics groups in which History DB will store data.
+	IProvider::SetSessionParameters() - sets parameters for all sessions.
+		It includes vector of elliptics groups (replicas) in which HistoryDB stores data.
 
-	IProvider::AddUserActivity() - add record to user logs and increased activity statistics for this user. 
+	IProvider::AddUserActivity() - appends data to user log and increments its activity counter.
 
-	IProvider::RepartitionActivity() - number of methods which repartitions activity statistics tree with new parts.
+	IProvider::RepartitionActivity() - repartition current activy shards.
 
-	IProvider::ForUserLogs() - Iterates by user logs for certain user in specified time period and calls for each record callback functior.
-
-	IProvider::ForActiveUser() - Iterates by activity statistics for certain day and calls for each user callback functor.
-
-Elliptics backend.
-
-At the elliptics backend all data is stored in files. Each file has unique string id. User logs and activity statistics have daily structure. User logs has id: user_name + timestamp where timestamp is twenty character number. Activity statistics has id: timestamp + number_from_0_to_X where timestamp is twenty character number and number - is a random number from 0 to X. Activity statistics file can has custom key which sets by using special functions. Record in user's logs file is timestamp + size_of_custom_data + custom_data. Each activity statistics file contain key-value tree with key <-> user name and value <-> the user activity statistic.
-
-
-TODO:
-
-Add:
-	Project description:
-		Tutorial
-
-Remove:
-
-Fix:
+	IProvider::ForUserLogs() - iterates over user's logs in specified time period.
+	IProvider::ForActiveUser() - iterates over activity logs in specified time period.
