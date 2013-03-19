@@ -3,10 +3,9 @@
 
 #include <memory>
 
-namespace history
-{
+namespace history {
 	class iprovider;
-}
+} /* namespace history */
 
 void test2(std::shared_ptr<history::iprovider> provider);
 

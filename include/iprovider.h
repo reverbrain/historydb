@@ -8,8 +8,8 @@
 #include <map>
 #include <list>
 
-namespace history
-{
+namespace history {
+
 	class iprovider
 	{
 	public:
@@ -63,6 +63,6 @@ namespace history
 	};
 
 	extern std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family);
-}
+} /* namespace history */
 
 #endif //HISTORY_IPROVIDER_H

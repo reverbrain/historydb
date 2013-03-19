@@ -10,11 +10,8 @@
 #include <iostream>
 #include <set>
 
-namespace history
-{
-
-namespace consts
-{
+namespace history {
+namespace consts {
 	const char* 	LOG_FILE		= "/dev/stderr";
 	const int		LOG_LEVEL		= DNET_LOG_ERROR;
 
@@ -22,17 +19,16 @@ namespace consts
 
 	const uint32_t	RAND_SIZE		= 100;
 	const auto		NULL_KEY_STR	= "0000000000";
-}
+} /* namespace consts */
 
 template<typename K, typename V>
 void merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
 {
 	auto mIt = res_map.begin();
-	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it)
-	{
+	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it) {
 		auto size = res_map.size();
 		mIt = res_map.insert(mIt, *it);
-		if(size == res_map.size())
+		if (size == res_map.size())
 			mIt->second += it->second;
 	}
 }
@@ -65,7 +61,7 @@ void provider::add_user_activity(const std::string& user, uint64_t time, void* d
 {
 	add_user_data(user, time, data, size);
 
-	if(key.empty())
+	if (key.empty())
 		increment_activity(user, time);
 	else
 		increment_activity(user, key);
@@ -79,7 +75,7 @@ void provider::add_user_data(const std::string& user, uint64_t time, void* data,
 
 	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(data, size), 0);
 
-	if(write_res.size() < m_min_writes)
+	if (write_res.size() < m_min_writes)
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 }
 
@@ -91,19 +87,15 @@ void provider::increment_activity(const std::string& user, uint64_t time) const
 uint32_t provider::get_key_spread_size(ioremap::elliptics::session& s, const std::string& key) const
 {
 	auto it = m_key_cache.find(key);
-	if(it != m_key_cache.end())
+	if (it != m_key_cache.end())
 		return it->second;
 
-	try
-	{
+	try {
 		auto file = s.read_latest(key + consts::NULL_KEY_STR, 0, 0)->file();
-		if(!file.empty())
-		{
+		if (!file.empty())
 			return file.data<uint32_t>()[0];
-		}
 	}
-	catch(std::exception& e)
-	{}
+	catch(std::exception& e) {}
 	return -1;
 }
 
@@ -112,28 +104,22 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 	res_key = base_key;
 	auto s = create_session();
 	size = get_key_spread_size(*s, base_key);
-	if(size != (uint32_t)-1)
-	{
-		{
-			boost::lock_guard<boost::mutex> lock(m_key_mutex);
-			static uint32_t val = 0;
-			val = (val + 1) % size;
-			res_key += str(boost::format("%010d") % val);
-		}
+	if (size != (uint32_t)-1) {
+		boost::lock_guard<boost::mutex> lock(m_key_mutex);
+		static uint32_t val = 0;
+		val = (val + 1) % size;
+		res_key += str(boost::format("%010d") % val);
 		return;
 	}
 
 	size = get_key_spread_size(*s, base_key);
 
-	if(size == (uint32_t)-1)
-	{
+	if (size == (uint32_t)-1) {
 		size = consts::RAND_SIZE;
 		res_key += consts::NULL_KEY_STR;
 	}
 	else
-	{
 		res_key += str(boost::format("%010d") % (rand() % size));
-	}
 
 	m_key_cache.insert(std::pair<std::string, uint32_t>(base_key, size));
 }
@@ -148,25 +134,20 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 
 	auto s = create_session();
 
-	try
-	{
+	try {
 		auto file = s->read_latest(skey, 0, 0)->file();
 		file = file.skip<uint32_t>();
-		if(!file.empty())
-		{
+		if (!file.empty()) {
 			msgpack::unpacked msg;
 			msgpack::unpack(&msg, file.data<const char>(), file.size());
 			msg.get().convert(&map);
 		}
 	}
-	catch(std::exception& e)
-	{}
+	catch(std::exception& e) {}
 
 	auto res = map.insert(std::make_pair(user, 1));
-	if(!res.second)
-	{
+	if (!res.second)
 		++res.first->second;
-	}
 
 	msgpack::sbuffer sbuf;
 	msgpack::pack(sbuf, map);
@@ -178,7 +159,7 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 
 	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 
-	if(write_res.size() < m_min_writes)
+	if (write_res.size() < m_min_writes)
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 }
 
@@ -191,24 +172,21 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 {
 	auto s = create_session();
 	auto size = get_key_spread_size(*s, old_key);
-	if(size == (uint32_t)-1)
+	if (size == (uint32_t)-1)
 		return;
 
 	std::map<std::string, uint32_t> res;
 	std::map<std::string, uint32_t> tmp;
 	std::string skey;
 
-	for(uint32_t i = 0; i < size; ++i)
-	{
+	for(uint32_t i = 0; i < size; ++i) {
 		skey = old_key + str(boost::format("%010d") % i);
 		get_map_from_key(*s, skey, tmp);
 		merge(res, tmp);
-		try
-		{
+		try {
 			s->remove(skey);
 		}
-		catch(std::exception& e)
-		{}
+		catch(std::exception& e) {}
 	}
 
 	auto elements_in_part = res.size() / parts;
@@ -218,8 +196,7 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 	uint32_t part_no = 0;
 	bool written = true;
 
-	for(auto it = res.begin(), it_next = res.begin(), itEnd = res.end(); it != itEnd; it = it_next)
-	{
+	for(auto it = res.begin(), it_next = res.begin(), itEnd = res.end(); it != itEnd; it = it_next) {
 		it_next = std::next(it, elements_in_part);
 		std::map<std::string, uint32_t> tmp(it, it_next);
 
@@ -234,7 +211,7 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 
 		auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 
-		if(write_res.size() < m_min_writes)
+		if (write_res.size() < m_min_writes)
 			written = false;
 
 		++part_no;
@@ -243,12 +220,12 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 	{
 		boost::lock_guard<boost::mutex> lock_g(m_key_mutex);
 		auto it = m_key_cache.find(old_key);
-		if(it != m_key_cache.end())
+		if (it != m_key_cache.end())
 			m_key_cache.erase(it);
 		m_key_cache.insert(std::make_pair(new_key, parts));
 	}
 
-	if(!written)
+	if (!written)
 		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
 }
 
@@ -266,8 +243,7 @@ std::list<std::vector<char>> provider::get_user_logs(const std::string& user, ui
 {
 	std::list<std::vector<char>> ret;
 
-	for_user_logs(user, begin_time, end_time, [&ret](const std::string& user, uint64_t time, void* data, uint32_t size)
-	{
+	for_user_logs(user, begin_time, end_time, [&ret](const std::string& user, uint64_t time, void* data, uint32_t size) {
 		ret.push_back(std::vector<char>((char*)data, (char*)data + size));
 		return true;
 	});
@@ -288,13 +264,12 @@ std::map<std::string, uint32_t> provider::get_active_user(const std::string& key
 	std::map<std::string, uint32_t> tmp;
 
 	uint32_t size = get_key_spread_size(*s, key);
-	if(size == (uint32_t)-1)
+	if (size == (uint32_t)-1)
 		return ret;
 
 	std::string skey;
 	
-	for(uint32_t i = 0; i < size; ++i)
-	{
+	for(uint32_t i = 0; i < size; ++i) {
 		get_map_from_key(*s, key + str(boost::format("%010d") % i), tmp);
 		merge(ret, tmp);
 	}
@@ -307,22 +282,19 @@ void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 {
 	auto s = create_session();
 
-	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY)
-	{
-		try
-		{
+	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {
+		try {
 			auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
 			auto read_res = s->read_latest(skey, 0, 0);
 			auto file = read_res->file();
 
-			if(file.empty())
+			if (file.empty())
 				continue;
 
-			if(!func(user, time, file.data(), file.size()))
+			if (!func(user, time, file.data(), file.size()))
 				return;
 		}
-		catch(std::exception& e)
-		{}
+		catch(std::exception& e) {}
 	}
 }
 
@@ -334,28 +306,24 @@ void provider::for_active_user(uint64_t time, std::function<bool(const std::stri
 void provider::get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret) const
 {
 	ret.clear();
-	try
-	{
+	try {
 		auto file = s.read_latest(key, 0, 0)->file();
-		if(!file.empty())
-		{
+		if (!file.empty()) {
 			file = file.skip<uint32_t>();
 			msgpack::unpacked msg;
 			msgpack::unpack(&msg, file.data<const char>(), file.size());
 			msg.get().convert(&ret);
 		}
 	}
-	catch(std::exception& e)
-	{}
+	catch(std::exception& e) {}
 }
 
 void provider::for_active_user(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const
 {
 	std::map<std::string, uint32_t> res = get_active_user(key);
 
-	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it)
-	{
-		if(!func(it->first, it->second))
+	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
+		if (!func(it->first, it->second))
 			break;
 	}
 }
@@ -372,4 +340,4 @@ std::shared_ptr<ioremap::elliptics::session> provider::create_session(uint64_t i
 	return session;
 }
 
-}
+} /* namespace history */

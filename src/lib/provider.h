@@ -6,8 +6,8 @@
 #include <map>
 #include <boost/thread/shared_mutex.hpp>
 
-namespace history
-{
+namespace history {
+
 	class provider: public iprovider
 	{
 	public:
@@ -56,6 +56,6 @@ namespace history
 		ioremap::elliptics::file_logger				m_log;
 		ioremap::elliptics::node					m_node;
 	};
-}
+} /* namespace history */
 
 #endif //HISTORY_SRC_LIB_PROVIDER_H
