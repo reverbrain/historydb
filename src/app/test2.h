@@ -3,11 +3,11 @@
 
 #include <memory>
 
-namespace History
+namespace history
 {
-	class IProvider;
+	class iprovider;
 }
 
-void Test2(std::shared_ptr<History::IProvider> provider);
+void test2(std::shared_ptr<history::iprovider> provider);
 
 #endif //APP_TEST2_H

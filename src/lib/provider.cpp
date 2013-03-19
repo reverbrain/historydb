@@ -10,22 +10,22 @@
 #include <iostream>
 #include <set>
 
-namespace History
+namespace history
 {
 
-namespace Const
+namespace consts
 {
-	const char* 	kLogFile		= "/dev/stderr";
-	const int		kLogLevel		= DNET_LOG_ERROR;
+	const char* 	LOG_FILE		= "/dev/stderr";
+	const int		LOG_LEVEL		= DNET_LOG_ERROR;
 
-	const uint32_t	kSecPerDay		= 24 * 60 * 60;
+	const uint32_t	SEC_PER_DAY		= 24 * 60 * 60;
 
-	const uint32_t	kRandSize		= 100;
-	const auto		k0				= "0000000000";
+	const uint32_t	RAND_SIZE		= 100;
+	const auto		NULL_KEY_STR	= "0000000000";
 }
 
 template<typename K, typename V>
-void Merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
+void merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
 {
 	auto mIt = res_map.begin();
 	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it)
@@ -37,30 +37,30 @@ void Merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
 	}
 }
 
-std::shared_ptr<IProvider> CreateProvider()
+std::shared_ptr<iprovider> create_provider()
 {
-	return std::make_shared<Provider>();
+	return std::make_shared<provider>();
 }
 
-Provider::Provider()
+provider::provider()
 {
 	srand(time(NULL));
 }
 
-Provider::~Provider()
+provider::~provider()
 {
-	Disconnect();
+	disconnect();
 }
 
-void Provider::Connect(const char* server_addr, const int server_port, const int family)
+void provider::connect(const char* server_addr, const int server_port, const int family)
 {
-	boost::unique_lock<boost::shared_mutex> lock(connect_mutex_);
+	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
 	try
 	{
-		log_.reset(new ioremap::elliptics::file_logger(Const::kLogFile, Const::kLogLevel));
-		node_.reset(new ioremap::elliptics::node(*log_));
+		m_log.reset(new ioremap::elliptics::file_logger(consts::LOG_FILE, consts::LOG_LEVEL));
+		m_node.reset(new ioremap::elliptics::node(*m_log));
 
-		if(dnet_add_state(node_->get_native(), const_cast<char*>(server_addr), server_port, family, 0))
+		if(dnet_add_state(m_node->get_native(), const_cast<char*>(server_addr), server_port, family, 0))
 			throw ioremap::elliptics::error(-1, "Cannot connect to elliptics\n");
 	}
 	catch(const ioremap::elliptics::error& e)
@@ -73,58 +73,58 @@ void Provider::Connect(const char* server_addr, const int server_port, const int
 	}
 }
 
-void Provider::Disconnect()
+void provider::disconnect()
 {
-	boost::unique_lock<boost::shared_mutex> lock(connect_mutex_);
+	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
 
-	node_.reset(nullptr);
-	log_.reset(nullptr);
+	m_node.reset(nullptr);
+	m_log.reset(nullptr);
 }
 
-void Provider::SetSessionParameters(const std::vector<int>& groups, uint32_t min_writes)
+void provider::set_session_parameters(const std::vector<int>& groups, uint32_t min_writes)
 {
-	boost::unique_lock<boost::shared_mutex> lock(connect_mutex_);
-	groups_ = groups;
-	min_writes_ = min_writes > groups_.size() ? groups_.size() : min_writes;
+	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
+	m_groups = groups;
+	m_min_writes = min_writes > m_groups.size() ? m_groups.size() : min_writes;
 }
 
-void Provider::AddUserActivity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key) const
+void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key) const
 {
-	AddUserData(user, time, data, size);
+	add_user_data(user, time, data, size);
 
 	if(key.empty())
-		IncrementActivity(user, time);
+		increment_activity(user, time);
 	else
-		IncrementActivity(user, key);
+		increment_activity(user, key);
 }
 
-void Provider::AddUserData(const std::string& user, uint64_t time, void* data, uint32_t size) const
+void provider::add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
-	auto s = CreateSession(DNET_IO_FLAGS_APPEND);
+	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
+	auto s = create_session(DNET_IO_FLAGS_APPEND);
 
-	auto skey = str(boost::format("%s%020d") % user % (time / Const::kSecPerDay));
+	auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
 
 	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(data, size), 0);
 
-	if(write_res.size() < min_writes_)
+	if(write_res.size() < m_min_writes)
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 }
 
-void Provider::IncrementActivity(const std::string& user, uint64_t time) const
+void provider::increment_activity(const std::string& user, uint64_t time) const
 {
-	IncrementActivity(user, str(boost::format("%020d") % (time / Const::kSecPerDay)));
+	increment_activity(user, str(boost::format("%020d") % (time / consts::SEC_PER_DAY)));
 }
 
-uint32_t Provider::GetKeySpreadSize(ioremap::elliptics::session& s, const std::string& key) const
+uint32_t provider::get_key_spread_size(ioremap::elliptics::session& s, const std::string& key) const
 {
-	auto it = key_cache_.find(key);
-	if(it != key_cache_.end())
+	auto it = m_key_cache.find(key);
+	if(it != m_key_cache.end())
 		return it->second;
 
 	try
 	{
-		auto file = s.read_latest(key + Const::k0, 0, 0)->file();
+		auto file = s.read_latest(key + consts::NULL_KEY_STR, 0, 0)->file();
 		if(!file.empty())
 		{
 			return file.data<uint32_t>()[0];
@@ -135,15 +135,15 @@ uint32_t Provider::GetKeySpreadSize(ioremap::elliptics::session& s, const std::s
 	return -1;
 }
 
-void Provider::GenerateActivityKey(const std::string& base_key, std::string& res_key, uint32_t& size) const
+void provider::generate_activity_key(const std::string& base_key, std::string& res_key, uint32_t& size) const
 {
 	res_key = base_key;
-	auto s = CreateSession();
-	size = GetKeySpreadSize(*s, base_key);
+	auto s = create_session();
+	size = get_key_spread_size(*s, base_key);
 	if(size != (uint32_t)-1)
 	{
 		{
-			boost::lock_guard<boost::mutex> lock(key_mutex_);
+			boost::lock_guard<boost::mutex> lock(m_key_mutex);
 			static uint32_t val = 0;
 			val = (val + 1) % size;
 			res_key += str(boost::format("%010d") % val);
@@ -151,32 +151,32 @@ void Provider::GenerateActivityKey(const std::string& base_key, std::string& res
 		return;
 	}
 
-	boost::unique_lock<boost::shared_mutex> lock(connect_mutex_);
-	size = GetKeySpreadSize(*s, base_key);
+	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
+	size = get_key_spread_size(*s, base_key);
 
 	if(size == (uint32_t)-1)
 	{
-		size = Const::kRandSize;
-		res_key += Const::k0;
+		size = consts::RAND_SIZE;
+		res_key += consts::NULL_KEY_STR;
 	}
 	else
 	{
 		res_key += str(boost::format("%010d") % (rand() % size));
 	}
 
-	key_cache_.insert(std::pair<std::string, uint32_t>(base_key, size));
+	m_key_cache.insert(std::pair<std::string, uint32_t>(base_key, size));
 }
 
-void Provider::IncrementActivity(const std::string& user, const std::string& key) const
+void provider::increment_activity(const std::string& user, const std::string& key) const
 {
 	std::map<std::string, uint32_t> map;
 	std::string skey;
 	uint32_t size;
 
-	GenerateActivityKey(key, skey, size);
+	generate_activity_key(key, skey, size);
 
-	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
-	auto s = CreateSession();
+	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
+	auto s = create_session();
 
 	try
 	{
@@ -208,20 +208,20 @@ void Provider::IncrementActivity(const std::string& user, const std::string& key
 
 	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 
-	if(write_res.size() < min_writes_)
+	if(write_res.size() < m_min_writes)
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 }
 
-void Provider::RepartitionActivity(const std::string& key, uint32_t parts) const
+void provider::repartition_activity(const std::string& key, uint32_t parts) const
 {
-	RepartitionActivity(key, key, parts);
+	repartition_activity(key, key, parts);
 }
 
-void Provider::RepartitionActivity(const std::string& old_key, const std::string& new_key, uint32_t parts) const
+void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
-	auto s = CreateSession();
-	auto size = GetKeySpreadSize(*s, old_key);
+	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
+	auto s = create_session();
+	auto size = get_key_spread_size(*s, old_key);
 	if(size == (uint32_t)-1)
 		return;
 
@@ -232,8 +232,8 @@ void Provider::RepartitionActivity(const std::string& old_key, const std::string
 	for(uint32_t i = 0; i < size; ++i)
 	{
 		skey = old_key + str(boost::format("%010d") % i);
-		GetMapFromKey(*s, skey, tmp);
-		Merge(res, tmp);
+		get_map_from_key(*s, skey, tmp);
+		merge(res, tmp);
 		try
 		{
 			s->remove(skey);
@@ -249,10 +249,10 @@ void Provider::RepartitionActivity(const std::string& old_key, const std::string
 	uint32_t part_no = 0;
 	bool written = true;
 
-	for(auto it = res.begin(), itNext = res.begin(), itEnd = res.end(); it != itEnd; it = itNext)
+	for(auto it = res.begin(), it_next = res.begin(), itEnd = res.end(); it != itEnd; it = it_next)
 	{
-		itNext = std::next(it, elements_in_part);
-		std::map<std::string, uint32_t> tmp(it, itNext);
+		it_next = std::next(it, elements_in_part);
+		std::map<std::string, uint32_t> tmp(it, it_next);
 
 		msgpack::sbuffer sbuf;
 		msgpack::pack(sbuf, tmp);
@@ -265,39 +265,39 @@ void Provider::RepartitionActivity(const std::string& old_key, const std::string
 
 		auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 
-		if(write_res.size() < min_writes_)
+		if(write_res.size() < m_min_writes)
 			written = false;
 
 		++part_no;
 	}
 
 	{
-		boost::lock_guard<boost::mutex> lock_g(key_mutex_);
-		auto it = key_cache_.find(old_key);
-		if(it != key_cache_.end())
-			key_cache_.erase(it);
-		key_cache_.insert(std::make_pair(new_key, parts));
+		boost::lock_guard<boost::mutex> lock_g(m_key_mutex);
+		auto it = m_key_cache.find(old_key);
+		if(it != m_key_cache.end())
+			m_key_cache.erase(it);
+		m_key_cache.insert(std::make_pair(new_key, parts));
 	}
 
 	if(!written)
 		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
 }
 
-void Provider::RepartitionActivity(uint64_t time, uint32_t parts) const
+void provider::repartition_activity(uint64_t time, uint32_t parts) const
 {
-	RepartitionActivity(str(boost::format("%020d") % (time / Const::kSecPerDay)), parts);
+	repartition_activity(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)), parts);
 }
 
-void Provider::RepartitionActivity(uint64_t time, const std::string& new_key, uint32_t parts) const
+void provider::repartition_activity(uint64_t time, const std::string& new_key, uint32_t parts) const
 {
-	RepartitionActivity(str(boost::format("%020d") % (time / Const::kSecPerDay)), new_key, parts);
+	repartition_activity(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)), new_key, parts);
 }
 
-std::list<std::vector<char>> Provider::GetUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time) const
+std::list<std::vector<char>> provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time) const
 {
 	std::list<std::vector<char>> ret;
 
-	ForUserLogs(user, begin_time, end_time, [&ret](const std::string& user, uint64_t time, void* data, uint32_t size)
+	for_user_logs(user, begin_time, end_time, [&ret](const std::string& user, uint64_t time, void* data, uint32_t size)
 	{
 		ret.push_back(std::vector<char>((char*)data, (char*)data + size));
 		return true;
@@ -306,20 +306,20 @@ std::list<std::vector<char>> Provider::GetUserLogs(const std::string& user, uint
 	return ret;
 }
 
-std::map<std::string, uint32_t> Provider::GetActiveUser(uint64_t time) const
+std::map<std::string, uint32_t> provider::get_active_user(uint64_t time) const
 {
-	return GetActiveUser(str(boost::format("%020d") % (time / Const::kSecPerDay)));
+	return get_active_user(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)));
 }
 
-std::map<std::string, uint32_t> Provider::GetActiveUser(const std::string& key) const
+std::map<std::string, uint32_t> provider::get_active_user(const std::string& key) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
-	auto s = CreateSession();
+	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
+	auto s = create_session();
 
 	std::map<std::string, uint32_t> ret;
 	std::map<std::string, uint32_t> tmp;
 
-	uint32_t size = GetKeySpreadSize(*s, key);
+	uint32_t size = get_key_spread_size(*s, key);
 	if(size == (uint32_t)-1)
 		return ret;
 
@@ -327,24 +327,24 @@ std::map<std::string, uint32_t> Provider::GetActiveUser(const std::string& key) 
 	
 	for(uint32_t i = 0; i < size; ++i)
 	{
-		GetMapFromKey(*s, key + str(boost::format("%010d") % i), tmp);
-		Merge(ret, tmp);
+		get_map_from_key(*s, key + str(boost::format("%010d") % i), tmp);
+		merge(ret, tmp);
 	}
 
 	return ret;
 }
 
-void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time,
+void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
 		std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
-	auto s = CreateSession();
+	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
+	auto s = create_session();
 
-	for(auto time = begin_time; time <= end_time; time += Const::kSecPerDay)
+	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY)
 	{
 		try
 		{
-			auto skey = str(boost::format("%s%020d") % user % (time / Const::kSecPerDay));
+			auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
 			auto read_res = s->read_latest(skey, 0, 0);
 			auto file = read_res->file();
 
@@ -359,12 +359,12 @@ void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_
 	}
 }
 
-void Provider::ForActiveUser(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) const
+void provider::for_active_user(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) const
 {
-	ForActiveUser(str(boost::format("%020d") % (time / Const::kSecPerDay)), func);
+	for_active_user(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)), func);
 }
 
-void Provider::GetMapFromKey(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret) const
+void provider::get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret) const
 {
 	ret.clear();
 	try
@@ -382,9 +382,9 @@ void Provider::GetMapFromKey(ioremap::elliptics::session& s, const std::string& 
 	{}
 }
 
-void Provider::ForActiveUser(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const
+void provider::for_active_user(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const
 {
-	std::map<std::string, uint32_t> res = GetActiveUser(key);
+	std::map<std::string, uint32_t> res = get_active_user(key);
 
 	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it)
 	{
@@ -393,14 +393,14 @@ void Provider::ForActiveUser(const std::string& key, std::function<bool(const st
 	}
 }
 
-std::shared_ptr<ioremap::elliptics::session> Provider::CreateSession(uint64_t ioflags) const
+std::shared_ptr<ioremap::elliptics::session> provider::create_session(uint64_t ioflags) const
 {
-	auto session = std::make_shared<ioremap::elliptics::session>(*node_);
+	auto session = std::make_shared<ioremap::elliptics::session>(*m_node);
 
 	session->set_cflags(0);
 	session->set_ioflags(ioflags | DNET_IO_FLAGS_CACHE );
 
-	session->set_groups(groups_);
+	session->set_groups(m_groups);
 
 	return session;
 }

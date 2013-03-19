@@ -4,56 +4,56 @@
 #include <boost/thread.hpp>
 #include <boost/format.hpp>
 
-namespace Const
+namespace consts
 {
-	const uint32_t kThreadNo		= 10;
-	const uint32_t kActivitiesNo	= 10000;//500000000;
-	const uint32_t kUsersNo			= 30;//30000000;
-	char kRequest[]					= "OP*Y)(*YHJBOUIyr79r6fiukv3ou4yg89s&T^(AS*&DGILASughjo987t2439ygLIYsg&UIA%^EDTR920upIDHSBKITF897tygd";
+	const uint32_t THREADS_NO		= 10;
+	const uint32_t ACTIVITIES_NO	= 10000;//500000000;
+	const uint32_t USERS_NO			= 30;//30000000;
+	char REQUEST[]					= "OP*Y)(*YHJBOUIyr79r6fiukv3ou4yg89s&T^(AS*&DGILASughjo987t2439ygLIYsg&UIA%^EDTR920upIDHSBKITF897tygd";
 }
 
 uint32_t requests	= 0;
 boost::mutex		mutex;
 uint64_t			current_time;
 
-bool Update()
+bool update()
 {
 	boost::lock_guard<boost::mutex> lock(mutex);
 
-	if(requests++ < Const::kActivitiesNo)
+	if(requests++ < consts::ACTIVITIES_NO)
 		return true;
 
 	return false;
 }
 
-void TestMethod(std::shared_ptr<History::IProvider> provider, uint32_t no)
+void test_method(std::shared_ptr<history::iprovider> provider, uint32_t no)
 {
-	while(Update())
+	while(update())
 	{
-		auto user = str(boost::format("user%d") % (rand() % Const::kUsersNo));
-		provider->AddUserActivity(user, current_time, Const::kRequest, sizeof(Const::kRequest));
+		auto user = str(boost::format("user%d") % (rand() % consts::USERS_NO));
+		provider->add_user_activity(user, current_time, consts::REQUEST, sizeof(consts::REQUEST));
 	}
-	//std::cout << "TestMethod: " << no << std::endl;
+	//std::cout << "test_method: " << no << std::endl;
 }
 
-void Test2(std::shared_ptr<History::IProvider> provider)
+void test2(std::shared_ptr<history::iprovider> provider)
 {
-	std::cout << "Run Test2" << std::endl;
+	std::cout << "Run test2" << std::endl;
 
 	current_time = time(NULL);
 
-	Update();
-	auto user = str(boost::format("user%d") % (rand() % Const::kUsersNo));
-	provider->AddUserActivity(user, current_time, Const::kRequest, sizeof(Const::kRequest));
+	update();
+	auto user = str(boost::format("user%d") % (rand() % consts::USERS_NO));
+	provider->add_user_activity(user, current_time, consts::REQUEST, sizeof(consts::REQUEST));
 
 	srand(current_time);
 
 	std::list<boost::thread> threads;
-	for(uint32_t i = 0; i < Const::kThreadNo; ++i)
+	for(uint32_t i = 0; i < consts::THREADS_NO; ++i)
 	{
 		threads.push_back(boost::thread([provider, i]()
 		{
-			TestMethod(provider, i);
+			test_method(provider, i);
 		}));
 	}
 
@@ -69,7 +69,7 @@ void Test2(std::shared_ptr<History::IProvider> provider)
 
 	uint32_t total = 0;
 
-	provider->ForActiveUser(current_time, [&total](const std::string& user, uint32_t number)
+	provider->for_active_user(current_time, [&total](const std::string& user, uint32_t number)
 	{
 		total += number;
 		//std::cout << "WW " << user << " " << number << std::endl;

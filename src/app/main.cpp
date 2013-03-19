@@ -6,12 +6,12 @@
 #include <boost/algorithm/string/classification.hpp>
 #include "test2.h"
 
-char kUMM[] = "User made money\n";
-char kUCM[] = "User check mail\n";
-char kUCR[]	= "User clear recycle\n";
+char UMM[] = "User made money\n";
+char UCM[] = "User check mail\n";
+char UCR[]	= "User clear recycle\n";
 
-char kUser1[] = "BlaUser1";
-char kUser2[] = "BlaUser2";
+char USER1[] = "BlaUser1";
+char USER2[] = "BlaUser2";
 
 void print_usage(char* s)
 {
@@ -22,62 +22,62 @@ void print_usage(char* s)
 	;
 }
 
-void Test1(std::shared_ptr<History::IProvider> provider)
+void test1(std::shared_ptr<history::iprovider> provider)
 {
-	std::cout << "Run Test1" << std::endl;
+	std::cout << "Run test1" << std::endl;
 	auto tm = 0;
 
-	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
-	provider->AddUserActivity(kUser1, tm++, kUCM, sizeof(kUCM));
-	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
-	provider->AddUserActivity(kUser1, tm++, kUCR, sizeof(kUCR));
-	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
-	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
-	provider->AddUserActivity(kUser1, tm++, kUCR, sizeof(kUCR));
-	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
-	provider->AddUserActivity(kUser1, tm++, kUMM, sizeof(kUMM));
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
+	provider->add_user_activity(USER1, tm++, UCM, sizeof(UCM));
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
+	provider->add_user_activity(USER1, tm++, UCR, sizeof(UCR));
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
+	provider->add_user_activity(USER1, tm++, UCR, sizeof(UCR));
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
 
-	provider->AddUserActivity(kUser2, tm++, kUCR, sizeof(kUCR));
-	provider->AddUserActivity(kUser2, tm++, kUCR, sizeof(kUCR));
-	provider->AddUserActivity(kUser2, tm++, kUCM, sizeof(kUCM));
-	provider->AddUserActivity(kUser2, tm++, kUMM, sizeof(kUMM));
-	provider->AddUserActivity(kUser2, tm++, kUCR, sizeof(kUCR));
-	provider->AddUserActivity(kUser2, tm++, kUMM, sizeof(kUMM));
-	provider->AddUserActivity(kUser2, tm++, kUCM, sizeof(kUCM));
+	provider->add_user_activity(USER2, tm++, UCR, sizeof(UCR));
+	provider->add_user_activity(USER2, tm++, UCR, sizeof(UCR));
+	provider->add_user_activity(USER2, tm++, UCM, sizeof(UCM));
+	provider->add_user_activity(USER2, tm++, UMM, sizeof(UMM));
+	provider->add_user_activity(USER2, tm++, UCR, sizeof(UCR));
+	provider->add_user_activity(USER2, tm++, UMM, sizeof(UMM));
+	provider->add_user_activity(USER2, tm++, UCM, sizeof(UCM));
 
-	provider->ForUserLogs(kUser1, 3, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size)
+	provider->for_user_logs(USER1, 3, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size)
 	{
 		std::cout << "LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
 		return true;
 	});
 
-	provider->ForUserLogs(kUser2, 0, 10, [](const std::string& user, uint64_t time, void* data, uint32_t size)
+	provider->for_user_logs(USER2, 0, 10, [](const std::string& user, uint64_t time, void* data, uint32_t size)
 	{
 		std::cout << "LOG2 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
 		return true;
 	});
 
-	provider->ForActiveUser(tm, [](const std::string& user, uint32_t number)
+	provider->for_active_user(tm, [](const std::string& user, uint32_t number)
 	{
 		std::cout << "ACT1 LAMBDA: " << user << " " << number << std::endl;
 		return true;
 	});
 
-	provider->RepartitionActivity(tm, 10);
+	provider->repartition_activity(tm, 10);
 
-	provider->ForActiveUser(tm, [](const std::string& user, uint32_t number)
+	provider->for_active_user(tm, [](const std::string& user, uint32_t number)
 	{
 		std::cout << "ACT2 LAMBDA: " << user << " " << number << std::endl;
 		return true;
 	});
 }
 
-void RunTest(int test_no, std::shared_ptr<History::IProvider> provider)
+void run_test(int test_no, std::shared_ptr<history::iprovider> provider)
 {
 	switch(test_no)
 	{
-		case 1:	Test1(provider); break;
-		case 2:	Test2(provider); break;
+		case 1:	test1(provider); break;
+		case 2:	test2(provider); break;
 	}
 }
 
@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
 		return err;
 	}
 
-	std::shared_ptr<History::IProvider> provider(History::CreateProvider());
+	std::shared_ptr<history::iprovider> provider(history::create_provider());
 	
 	if(provider.get() == NULL)
 	{
@@ -155,13 +155,13 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	provider->Connect(remote_addr.c_str(), port, family);
+	provider->connect(remote_addr.c_str(), port, family);
 
-	provider->SetSessionParameters(groups, 1);
+	provider->set_session_parameters(groups, 1);
 
 	for(auto it = tests.begin(), itEnd = tests.end(); it != itEnd; ++it)
 	{
-		RunTest(*it, provider);
+		run_test(*it, provider);
 	}
 
 	return 0;
