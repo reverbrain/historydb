@@ -73,7 +73,7 @@ void provider::add_user_data(const std::string& user, uint64_t time, void* data,
 
 	auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
 
-	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(data, size), 0);
+	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(data, size), 0);
 
 	if (write_res.size() < m_min_writes)
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
@@ -103,7 +103,7 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 {
 	res_key = base_key;
 	auto s = create_session();
-	size = get_key_spread_size(*s, base_key);
+	size = get_key_spread_size(s, base_key);
 	if (size != (uint32_t)-1) {
 		boost::lock_guard<boost::mutex> lock(m_key_mutex);
 		static uint32_t val = 0;
@@ -112,7 +112,7 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 		return;
 	}
 
-	size = get_key_spread_size(*s, base_key);
+	size = get_key_spread_size(s, base_key);
 
 	if (size == (uint32_t)-1) {
 		size = consts::RAND_SIZE;
@@ -135,7 +135,7 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 	auto s = create_session();
 
 	try {
-		auto file = s->read_latest(skey, 0, 0)->file();
+		auto file = s.read_latest(skey, 0, 0)->file();
 		file = file.skip<uint32_t>();
 		if (!file.empty()) {
 			msgpack::unpacked msg;
@@ -157,7 +157,7 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));
 	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());
 
-	auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
+	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 
 	if (write_res.size() < m_min_writes)
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
@@ -171,7 +171,7 @@ void provider::repartition_activity(const std::string& key, uint32_t parts) cons
 void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts) const
 {
 	auto s = create_session();
-	auto size = get_key_spread_size(*s, old_key);
+	auto size = get_key_spread_size(s, old_key);
 	if (size == (uint32_t)-1)
 		return;
 
@@ -181,10 +181,10 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 
 	for(uint32_t i = 0; i < size; ++i) {
 		skey = old_key + str(boost::format("%010d") % i);
-		get_map_from_key(*s, skey, tmp);
+		get_map_from_key(s, skey, tmp);
 		merge(res, tmp);
 		try {
-			s->remove(skey);
+			s.remove(skey);
 		}
 		catch(std::exception& e) {}
 	}
@@ -209,7 +209,7 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 
 		skey = new_key + str(boost::format("%010d") % part_no);
 
-		auto write_res = s->write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
+		auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
 
 		if (write_res.size() < m_min_writes)
 			written = false;
@@ -263,14 +263,14 @@ std::map<std::string, uint32_t> provider::get_active_user(const std::string& key
 	std::map<std::string, uint32_t> ret;
 	std::map<std::string, uint32_t> tmp;
 
-	uint32_t size = get_key_spread_size(*s, key);
+	uint32_t size = get_key_spread_size(s, key);
 	if (size == (uint32_t)-1)
 		return ret;
 
 	std::string skey;
 	
 	for(uint32_t i = 0; i < size; ++i) {
-		get_map_from_key(*s, key + str(boost::format("%010d") % i), tmp);
+		get_map_from_key(s, key + str(boost::format("%010d") % i), tmp);
 		merge(ret, tmp);
 	}
 
@@ -285,7 +285,7 @@ void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {
 		try {
 			auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
-			auto read_res = s->read_latest(skey, 0, 0);
+			auto read_res = s.read_latest(skey, 0, 0);
 			auto file = read_res->file();
 
 			if (file.empty())
@@ -328,14 +328,14 @@ void provider::for_active_user(const std::string& key, std::function<bool(const 
 	}
 }
 
-std::shared_ptr<ioremap::elliptics::session> provider::create_session(uint64_t ioflags) const
+ioremap::elliptics::session provider::create_session(uint64_t ioflags) const
 {
-	auto session = std::make_shared<ioremap::elliptics::session>(m_node);
+	ioremap::elliptics::session session(m_node);
 
-	session->set_cflags(0);
-	session->set_ioflags(ioflags | DNET_IO_FLAGS_CACHE );
+	session.set_cflags(0);
+	session.set_ioflags(ioflags | DNET_IO_FLAGS_CACHE );
 
-	session->set_groups(m_groups);
+	session.set_groups(m_groups);
 
 	return session;
 }

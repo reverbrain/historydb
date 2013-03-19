@@ -36,7 +36,7 @@ namespace history {
 
 	private:
 		ELLIPTICS_DISABLE_COPY(provider)
-		std::shared_ptr<ioremap::elliptics::session> create_session(uint64_t ioflags = 0) const;
+		ioremap::elliptics::session create_session(uint64_t ioflags = 0) const;
 
 		void add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size) const;
 		void increment_activity(const std::string& user, uint64_t time) const;
