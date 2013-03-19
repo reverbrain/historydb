@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <boost/format.hpp>
 #include <boost/thread/locks.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/thread/thread.hpp>
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -23,15 +25,18 @@ namespace consts {
 	const auto		NULL_KEY_STR	= "0000000000";
 } /* namespace consts */
 
+/*Merges two map. res_map will contain result of merging it with merge_map
+*/
 template<typename K, typename V>
 void merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
 {
-	auto mIt = res_map.begin();
-	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it) {
-		auto size = res_map.size();
-		mIt = res_map.insert(mIt, *it);
-		if (size == res_map.size())
-			mIt->second += it->second;
+	auto res_it = res_map.begin(); // sets res_it to begin of res_map
+	size_t size;
+	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it) {	// iterates by merge_map pairs
+		size = res_map.size(); 														// saves old res_map size
+		res_it = res_map.insert(res_it, *it);										// trys insert pair from merge_map into res_map at res_it and sets to res_it iterator to the inserted element. If pair would be inserted then size of res_map will be increased.
+		if (size == res_map.size())													// checks saved size with current size of res_map if they are equal - item wasn't inserted and we should add data from it with res_it.
+			res_it->second += it->second;
 	}
 }
 
@@ -46,7 +51,7 @@ provider::provider(const char* server_addr, const int server_port, const int fam
 {
 	srand(time(NULL));
 
-	m_node.add_remote(server_addr, server_port, family);
+	m_node.add_remote(server_addr, server_port, family);	// Adds connection parameters to the node.
 
 	LOG(DNET_LOG_INFO, "Created provider for %s:%d:%d\n", server_addr, server_port, family);
 }
@@ -70,12 +75,13 @@ void provider::set_session_parameters(const std::vector<int>& groups, uint32_t m
 void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
 {
 	LOG(DNET_LOG_INFO, "Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", user.c_str(), time, size, key.c_str());
-	add_user_data(user, time, data, size);
+
+	add_user_data(user, time, data, size);	// Adds data to the user log
 
 	if (key.empty())
-		increment_activity(user, time);
+		increment_activity(user, time);		// Increments user's activity statistics which are stored by time id.
 	else
-		increment_activity(user, key);
+		increment_activity(user, key);		// Increments user's activity statistics which are stored by custom key.
 }
 
 void provider::add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size)
@@ -84,9 +90,9 @@ void provider::add_user_data(const std::string& user, uint64_t time, void* data,
 
 	auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
 
-	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(data, size), 0);
+	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(data, size), 0);	// Trys to write data to user's log
 
-	if (write_res.size() < m_min_writes) {
+	if (write_res.size() < m_min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception 
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log. Success write: %zu minimum: %d, key: %s\n", write_res.size(), m_min_writes, skey.c_str());
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
@@ -104,11 +110,11 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 	std::string skey;
 	uint32_t size;
 
-	generate_activity_key(key, skey, size);
+	generate_activity_key(key, skey, size);		// Generates key and number of chunks for activity statistics.
 
 	auto s = create_session();
 
-	try {
+	try {	// trys to read current data from key and unpack it into map.
 		auto file = s.read_latest(skey, 0, 0)->file();
 		file = file.skip<uint32_t>();
 		if (!file.empty()) {
@@ -119,65 +125,64 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 	}
 	catch(std::exception& e) {}
 
-	auto res = map.insert(std::make_pair(user, 1));
-	if (!res.second)
-		++res.first->second;
+	auto res = map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
+	if (!res.second)								// if the record wasn't inserted
+		++res.first->second;						// increments old statistics
 
 	msgpack::sbuffer sbuf;
-	msgpack::pack(sbuf, map);
+	msgpack::pack(sbuf, map);						// packs map
 
 	std::vector<char> data;
-	data.reserve(sizeof(uint32_t) + sbuf.size());
-	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));
-	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());
+	data.reserve(sizeof(uint32_t) + sbuf.size());						// reserves place in vector for the data
+	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));	// inserts into vector number of chunks for the key 
+	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());	// inserts packed map
 
-	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
+	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);	// write data into elliptics
 
-	if (write_res.size() < m_min_writes) {
+	if (write_res.size() < m_min_writes) { // checks number of successfull results and if it is less then minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity. Success write: %zu minimum: %d, key: %s\n", write_res.size(), m_min_writes, skey.c_str());
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
-	LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), key.c_str());
+	LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), skey.c_str());
 }
 
-uint32_t provider::get_key_spread_size(ioremap::elliptics::session& s, const std::string& key)
+uint32_t provider::get_chunks_count(ioremap::elliptics::session& s, const std::string& key)
 {
-	auto it = m_key_cache.find(key);
-	if (it != m_key_cache.end())
-		return it->second;
+	{
+		boost::lock_guard<boost::mutex> lock(m_key_mutex);	// lock mutex to synchronize number of chunks creation
+		auto it = m_key_cache.find(key);	// trys to get it from cache
+		if (it != m_key_cache.end())		// if it is in cache
+			return it->second;				// return data from cache
+	}
 
 	try {
-		auto file = s.read_latest(key + consts::NULL_KEY_STR, 0, 0)->file();
-		if (!file.empty())
-			return file.data<uint32_t>()[0];
+		auto file = s.read_latest(key + consts::NULL_KEY_STR, 0, 0)->file();	// trys to read it from zero chunk
+		if (!file.empty())														// if it isn't empty
+			return file.data<uint32_t>()[0];									// returns it
 	}
 	catch(std::exception& e) {}
-	return -1;
+	return -1;	// in the other case returns -1
 }
 
 void provider::generate_activity_key(const std::string& base_key, std::string& res_key, uint32_t& size)
 {
 	res_key = base_key;
 	auto s = create_session();
-	size = get_key_spread_size(s, base_key);
-	if (size != (uint32_t)-1) {
-		boost::lock_guard<boost::mutex> lock(m_key_mutex);
-		static uint32_t val = 0;
-		val = (val + 1) % size;
-		res_key += str(boost::format("%010d") % val);
-		return;
-	}
-
-	size = get_key_spread_size(s, base_key);
-
-	if (size == (uint32_t)-1) {
-		size = consts::RAND_SIZE;
-		res_key += consts::NULL_KEY_STR;
+	size = get_chunks_count(s, base_key);					// get number of chunks for the base_key
+	if (size == (uint32_t)-1) {								// if number of chunks is unknown
+		boost::lock_guard<boost::mutex> lock(m_key_mutex);	// lock mutex to synchronize number of chunks creation
+		size = consts::RAND_SIZE;									// set number
+		res_key += consts::NULL_KEY_STR;							// set key to zero chunk key
+		m_key_cache.insert(std::pair<std::string, uint32_t>(base_key, size));	// saves number of chunks for base_key in cache
 	}
 	else
-		res_key += str(boost::format("%010d") % (rand() % size));
+	{
+		boost::lock_guard<boost::mutex> lock(m_key_mutex);	// lock mutex to synchronize number of chunks creation
+		auto rnd = rand() % size;
+		res_key += str(boost::format("%010d") % rnd);
+	}
 
-	m_key_cache.insert(std::pair<std::string, uint32_t>(base_key, size));
+	LOG(DNET_LOG_DEBUG, "Generated key: %s", res_key.c_str());
 }
 
 void provider::repartition_activity(const std::string& key, uint32_t parts)
@@ -188,52 +193,52 @@ void provider::repartition_activity(const std::string& key, uint32_t parts)
 void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts)
 {
 	auto s = create_session();
-	auto size = get_key_spread_size(s, old_key);
-	if (size == (uint32_t)-1)
+	auto size = get_chunks_count(s, old_key);	// gets number of chunk for old key
+	if (size == (uint32_t)-1)					// if it is equal to -1 then data in old_key doesn't exsists so nothin to repartition
 		return;
 
-	std::map<std::string, uint32_t> res;
-	std::map<std::string, uint32_t> tmp;
+	std::map<std::string, uint32_t> res;					// full map
+	std::map<std::string, uint32_t> tmp;					// temporary map
 	std::string skey;
 
 	for(uint32_t i = 0; i < size; ++i) {
-		skey = old_key + str(boost::format("%010d") % i);
-		get_map_from_key(s, skey, tmp);
-		merge(res, tmp);
+		skey = old_key + str(boost::format("%010d") % i);	// iterates chunks by old_key 
+		get_map_from_key(s, skey, tmp);						// gets map from chunk
+		merge(res, tmp);									// merges it with result map
 		try {
-			s.remove(skey);
+			s.remove(skey);									// try to remove old chunk becase it is useless now
 		}
 		catch(std::exception& e) {}
 	}
 
-	auto elements_in_part = res.size() / parts;
-	elements_in_part = elements_in_part == 0 ? 1 : elements_in_part;
+	auto elements_in_chunk = res.size() / parts;						// calculates number of elements in new chunk
+	elements_in_chunk = elements_in_chunk == 0 ? 1 : elements_in_chunk;	// if number of chunk more then elements in result map then keep only 1 element in first chunks
 	std::vector<char> data;
 
-	uint32_t part_no = 0;
+	uint32_t chunk_no = 0;	// chunk number in which data will be written
 	bool written = true;
 
-	for(auto it = res.begin(), it_next = res.begin(), itEnd = res.end(); it != itEnd; it = it_next) {
-		it_next = std::next(it, elements_in_part);
-		std::map<std::string, uint32_t> tmp(it, it_next);
+	for(auto it = res.begin(), it_next = res.begin(), itEnd = res.end(); it != itEnd; it = it_next) {	// iterates throw result map
+		it_next = std::next(it, elements_in_chunk);			// sets it_next by it plus number of elements in one chunk
+		std::map<std::string, uint32_t> tmp(it, it_next);	// creates sub-map from it to it_next
 
 		msgpack::sbuffer sbuf;
-		msgpack::pack(sbuf, tmp);
+		msgpack::pack(sbuf, tmp);							// packs the sub-map
 		data.clear();
-		data.reserve(sizeof(uint32_t) + sbuf.size());
-		data.insert(data.end(), (char*)&parts, (char*)&parts + sizeof(size));
-		data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());
+		data.reserve(sizeof(uint32_t) + sbuf.size());		// reserves place for packed sub-map
+		data.insert(data.end(), (char*)&parts, (char*)&parts + sizeof(size));	// inserts number of chunks
+		data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());		// inserts packed sub-map
 
-		skey = new_key + str(boost::format("%010d") % part_no);
+		skey = new_key + str(boost::format("%010d") % chunk_no);
 
-		auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);
+		auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);	// writes data to the elliptics
 
-		if (write_res.size() < m_min_writes) {
+		if (write_res.size() < m_min_writes) {	// checks number of successfull results and if it is less then minimum then mark that some write was failed
 			LOG(DNET_LOG_ERROR, "Can't write data while repartition activity. Success write: %zu minimum: %d, key: %s\n", write_res.size(), m_min_writes, skey.c_str());
 			written = false;
 		}
 
-		++part_no;
+		++chunk_no; // increments chunk number
 	}
 
 	{
@@ -244,7 +249,7 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 		m_key_cache.insert(std::make_pair(new_key, parts));
 	}
 
-	if (!written)
+	if (!written)	// checks if some writes was failed if so throw exception
 		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
 }
 
@@ -263,20 +268,20 @@ std::list<std::vector<char>> provider::get_user_logs(const std::string& user, ui
 	LOG(DNET_LOG_INFO, "Getting logs for user: %s begin_time: %" PRIu64 " end_time: %" PRIu64 "\n", user.c_str(), begin_time, end_time);
 	std::list<std::vector<char>> ret;
 
-	for_user_logs(user, begin_time, end_time, [=, &ret](const std::string& user, uint64_t time, void* data, uint32_t size) {
-		ret.push_back(std::vector<char>((char*)data, (char*)data + size));
+	for_user_logs(user, begin_time, end_time, [=, &ret](const std::string& user, uint64_t time, void* data, uint32_t size) {	// iterates by user logs
+		ret.push_back(std::vector<char>((char*)data, (char*)data + size));														// combine all logs in result list
 		LOG(DNET_LOG_INFO, "Got log for user: %s time: %" PRIu64 " size: %d\n", user.c_str(), time, size);
 		return true;
 	});
-	return ret;
+	return ret;	//returns combined user logs.
 }
 
-std::map<std::string, uint32_t> provider::get_active_user(uint64_t time)
+std::map<std::string, uint32_t> provider::get_active_users(uint64_t time)
 {
-	return get_active_user(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)));
+	return get_active_users(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)));
 }
 
-std::map<std::string, uint32_t> provider::get_active_user(const std::string& key)
+std::map<std::string, uint32_t> provider::get_active_users(const std::string& key)
 {
 	LOG(DNET_LOG_INFO, "Getting active users with key: %s\n", key.c_str());
 	auto s = create_session();
@@ -284,20 +289,20 @@ std::map<std::string, uint32_t> provider::get_active_user(const std::string& key
 	std::map<std::string, uint32_t> ret;
 	std::map<std::string, uint32_t> tmp;
 
-	uint32_t size = get_key_spread_size(s, key);
-	if (size == (uint32_t)-1) {
+	uint32_t size = get_chunks_count(s, key);	// gets number of chunks for the key
+	if (size == (uint32_t)-1) {					// if it is equal to -1 so there is no activity statistics yet
 		LOG(DNET_LOG_INFO, "Active users statistics is empty for key:%s\n", key.c_str());
-		return ret;
+		return ret;								// returns empty map
 	}
 
 	std::string skey;
 	
-	for(uint32_t i = 0; i < size; ++i) {
-		get_map_from_key(s, key + str(boost::format("%010d") % i), tmp);
-		merge(ret, tmp);
+	for(uint32_t i = 0; i < size; ++i) {									// iterates by chunks
+		get_map_from_key(s, key + str(boost::format("%010d") % i), tmp);	// gets map from chunk
+		merge(ret, tmp);													// merge map from chunk into result map
 	}
 
-	return ret;
+	return ret;		// returns result map
 }
 
 void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
@@ -306,62 +311,62 @@ void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 	LOG(DNET_LOG_INFO, "Iterating by user logs for user: %s, begin time: %" PRIu64 " end time: %" PRIu64 " \n", user.c_str(), begin_time, end_time);
 	auto s = create_session();
 
-	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {
+	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {	// iterates by user logs
 		try {
 			auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
 			LOG(DNET_LOG_INFO, "Try to read user logs for user: %s time: %" PRIu64 " key: %s\n", user.c_str(), time, skey.c_str());
 			auto read_res = s.read_latest(skey, 0, 0);
-			auto file = read_res->file();
+			auto file = read_res->file();	// reads user log file
 
-			if (file.empty())
-				continue;
+			if (file.empty())	// if the file is empty
+				continue;		// skip it and go to the next
 
-			if (!func(user, time, file.data(), file.size()))
+			if (!func(user, time, file.data(), file.size()))	// calls user's callback with user's log file data
 				return;
 		}
-		catch(std::exception& e) {}
+		catch(std::exception& e) {} // skips standard exception while iterating
 	}
 }
 
-void provider::for_active_user(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func)
+void provider::for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func)
 {
-	for_active_user(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)), func);
+	for_active_users(str(boost::format("%020d") % (time / consts::SEC_PER_DAY)), func);
 }
 
 void provider::get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret)
 {
-	ret.clear();
+	ret.clear();	// clear result map
 	try {
-		auto file = s.read_latest(key, 0, 0)->file();
-		if (!file.empty()) {
-			file = file.skip<uint32_t>();
+		auto file = s.read_latest(key, 0, 0)->file();	// reads file from elliptics
+		if (!file.empty()) {							// if the file isn't empty
+			file = file.skip<uint32_t>();				// skips number of chunks
 			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());
+			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack map
 			msg.get().convert(&ret);
 		}
 	}
 	catch(std::exception& e) {}
 }
 
-void provider::for_active_user(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func)
+void provider::for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func)
 {
 	LOG(DNET_LOG_INFO, "Iterating by active users for key:%s\n", key.c_str());
-	std::map<std::string, uint32_t> res = get_active_user(key);
+	std::map<std::string, uint32_t> res = get_active_users(key);	// gets activity map for the key
 
-	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
-		if (!func(it->first, it->second))
+	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {	// iterates by users from activity map
+		if (!func(it->first, it->second))	//calls callback for each user activity from activity map
 			break;
 	}
 }
 
 ioremap::elliptics::session provider::create_session(uint64_t ioflags)
 {
-	ioremap::elliptics::session session(m_node);
+	ioremap::elliptics::session session(m_node);	// creates session and connects it with node
 
-	session.set_cflags(0);
-	session.set_ioflags(ioflags | DNET_IO_FLAGS_CACHE );
+	session.set_cflags(0);							// sets cflags to 0
+	session.set_ioflags(ioflags | DNET_IO_FLAGS_CACHE );	// sets ioflags with DNET_IO_FLAGS_CACHE
 
-	session.set_groups(m_groups);
+	session.set_groups(m_groups);	// sets groups
 
 	return session;
 }

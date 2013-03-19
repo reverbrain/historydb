@@ -55,14 +55,14 @@ void test1(std::shared_ptr<history::iprovider> provider)
 		return true;
 	});
 
-	provider->for_active_user(tm, [](const std::string& user, uint32_t number) {
+	provider->for_active_users(tm, [](const std::string& user, uint32_t number) {
 		std::cout << "ACT1 LAMBDA: " << user << " " << number << std::endl;
 		return true;
 	});
 
 	provider->repartition_activity(tm, 10);
 
-	provider->for_active_user(tm, [](const std::string& user, uint32_t number) {
+	provider->for_active_users(tm, [](const std::string& user, uint32_t number) {
 		std::cout << "ACT2 LAMBDA: " << user << " " << number << std::endl;
 		return true;
 	});

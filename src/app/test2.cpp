@@ -64,7 +64,7 @@ void test2(std::shared_ptr<history::iprovider> provider)
 
 	uint32_t total = 0;
 
-	provider->for_active_user(current_time, [&total](const std::string& user, uint32_t number) {
+	provider->for_active_users(current_time, [&total](const std::string& user, uint32_t number) {
 		total += number;
 		//std::cout << "WW " << user << " " << number << std::endl;
 		return true;
