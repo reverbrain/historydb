@@ -48,8 +48,7 @@ provider::provider(const char* server_addr, const int server_port, const int fam
 {
 	srand(time(NULL));
 
-	if(dnet_add_state(m_node.get_native(), const_cast<char*>(server_addr), server_port, family, 0))
-		throw ioremap::elliptics::error(-1, "Cannot connect to elliptics\n");
+	m_node.add_remote(server_addr, server_port, family);
 }
 
 provider::~provider()
