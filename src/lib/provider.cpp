@@ -334,7 +334,8 @@ std::map<std::string, uint32_t> Provider::GetActiveUser(const std::string& key) 
 	return ret;
 }
 
-void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const
+void Provider::ForUserLogs(const std::string& user, uint64_t begin_time, uint64_t end_time,
+		std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const
 {
 	boost::shared_lock<boost::shared_mutex> lock(connect_mutex_);
 	auto s = CreateSession();
