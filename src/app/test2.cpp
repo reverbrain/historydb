@@ -6,7 +6,7 @@
 
 namespace consts {
 	const uint32_t THREADS_NO		= 10;
-	const uint32_t ACTIVITIES_NO	= 10000;//500000000;
+	const uint32_t ACTIVITIES_NO	= 100;//500000000;
 	const uint32_t USERS_NO			= 30;//30000000;
 	char REQUEST[]					= "OP*Y)(*YHJBOUIyr79r6fiukv3ou4yg89s&T^(AS*&DGILASughjo987t2439ygLIYsg&UIA%^EDTR920upIDHSBKITF897tygd";
 } /* namespace consts */
