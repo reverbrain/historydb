@@ -147,15 +147,13 @@ int main(int argc, char* argv[])
 		return err;
 	}
 
-	std::shared_ptr<history::iprovider> provider(history::create_provider());
+	std::shared_ptr<history::iprovider> provider(history::create_provider(remote_addr.c_str(), port, family));
 	
 	if(provider.get() == NULL)
 	{
 		std::cout << "Error! Provider hasn't been created!\n";
 		return -1;
 	}
-
-	provider->connect(remote_addr.c_str(), port, family);
 
 	provider->set_session_parameters(groups, 1);
 

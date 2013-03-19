@@ -23,20 +23,17 @@ User guide
 
 Interface of the History DB presented in iprovider header file.
 
-	CreateProvider() - creates instance of IProvider. The instance is used to manipulate the library.
+	create_provider() - creates instance of iprovider. The instance is used to manipulate the library.
 
-	IProvider::Connect() - connects to elliptics.
-	IProvider::Disconnect() - disconnects from elliptics. Kills node created in IProvider::Connect().
-
-	IProvider::SetSessionParameters() - sets parameters for all sessions.
+	iprovider::set_session_parameters() - sets parameters for all sessions.
 		It includes vector of elliptics groups (replicas) in which HistoryDB stores data.
 
-	IProvider::AddUserActivity() - appends data to user log and increments its activity counter.
+	iprovider::add_user_activity() - appends data to user log and increments its activity counter.
 
-	IProvider::RepartitionActivity() - repartition current activy shards.
+	iprovider::repartition_activity() - repartition current activy shards.
 
-	IProvider::ForUserLogs() - iterates over user's logs in specified time period.
-	IProvider::ForActiveUser() - iterates over activity logs in specified time period.
+	iprovider::for_user_logs() - iterates over user's logs in specified time period.
+	iprovider::for_active_user() - iterates over activity logs in specified time period.
 
 One can grab user logs for specified for specified period of time as well as list of all users,
 who were active (had at least one log update) during requested period of time.

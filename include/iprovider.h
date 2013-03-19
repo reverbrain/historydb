@@ -15,14 +15,6 @@ namespace history
 	public:
 		virtual ~iprovider() {}
 
-		/* Connects to elliptics
-		*/
-		virtual void connect(const char* server_addr, const int server_port, const int family) = 0;
-
-		/* Disconnects from elliptics
-		*/
-		virtual void disconnect() = 0;
-
 		/* Sets parameters for elliptic's sessions.
 			groups - groups with which History DB will works
 			min_writes - for each write attempt some group or groups could fail write. min_writes - minimum numbers of groups which not failed write.
@@ -70,7 +62,7 @@ namespace history
 		virtual void for_active_user(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) const = 0;
 	};
 
-	extern std::shared_ptr<iprovider> create_provider();
+	extern std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family);
 }
 
 #endif //HISTORY_IPROVIDER_H

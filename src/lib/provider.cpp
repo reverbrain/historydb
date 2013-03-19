@@ -37,53 +37,27 @@ void merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
 	}
 }
 
-std::shared_ptr<iprovider> create_provider()
+std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family)
 {
-	return std::make_shared<provider>();
+	return std::make_shared<provider>(server_addr, server_port, family);
 }
 
-provider::provider()
+provider::provider(const char* server_addr, const int server_port, const int family)
+: m_log(consts::LOG_FILE, consts::LOG_LEVEL)
+, m_node(m_log)
 {
 	srand(time(NULL));
+
+	if(dnet_add_state(m_node.get_native(), const_cast<char*>(server_addr), server_port, family, 0))
+		throw ioremap::elliptics::error(-1, "Cannot connect to elliptics\n");
 }
 
 provider::~provider()
 {
-	disconnect();
-}
-
-void provider::connect(const char* server_addr, const int server_port, const int family)
-{
-	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
-	try
-	{
-		m_log.reset(new ioremap::elliptics::file_logger(consts::LOG_FILE, consts::LOG_LEVEL));
-		m_node.reset(new ioremap::elliptics::node(*m_log));
-
-		if(dnet_add_state(m_node->get_native(), const_cast<char*>(server_addr), server_port, family, 0))
-			throw ioremap::elliptics::error(-1, "Cannot connect to elliptics\n");
-	}
-	catch(const ioremap::elliptics::error& e)
-	{
-		throw;
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << e.what() << std::endl;
-	}
-}
-
-void provider::disconnect()
-{
-	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
-
-	m_node.reset(nullptr);
-	m_log.reset(nullptr);
 }
 
 void provider::set_session_parameters(const std::vector<int>& groups, uint32_t min_writes)
 {
-	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
 	m_groups = groups;
 	m_min_writes = min_writes > m_groups.size() ? m_groups.size() : min_writes;
 }
@@ -100,7 +74,6 @@ void provider::add_user_activity(const std::string& user, uint64_t time, void* d
 
 void provider::add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
 	auto s = create_session(DNET_IO_FLAGS_APPEND);
 
 	auto skey = str(boost::format("%s%020d") % user % (time / consts::SEC_PER_DAY));
@@ -151,7 +124,6 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 		return;
 	}
 
-	boost::unique_lock<boost::shared_mutex> lock(m_connect_mutex);
 	size = get_key_spread_size(*s, base_key);
 
 	if(size == (uint32_t)-1)
@@ -175,7 +147,6 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 
 	generate_activity_key(key, skey, size);
 
-	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
 	auto s = create_session();
 
 	try
@@ -219,7 +190,6 @@ void provider::repartition_activity(const std::string& key, uint32_t parts) cons
 
 void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
 	auto s = create_session();
 	auto size = get_key_spread_size(*s, old_key);
 	if(size == (uint32_t)-1)
@@ -313,7 +283,6 @@ std::map<std::string, uint32_t> provider::get_active_user(uint64_t time) const
 
 std::map<std::string, uint32_t> provider::get_active_user(const std::string& key) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
 	auto s = create_session();
 
 	std::map<std::string, uint32_t> ret;
@@ -337,7 +306,6 @@ std::map<std::string, uint32_t> provider::get_active_user(const std::string& key
 void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
 		std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(m_connect_mutex);
 	auto s = create_session();
 
 	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY)
@@ -395,7 +363,7 @@ void provider::for_active_user(const std::string& key, std::function<bool(const 
 
 std::shared_ptr<ioremap::elliptics::session> provider::create_session(uint64_t ioflags) const
 {
-	auto session = std::make_shared<ioremap::elliptics::session>(*m_node);
+	auto session = std::make_shared<ioremap::elliptics::session>(m_node);
 
 	session->set_cflags(0);
 	session->set_ioflags(ioflags | DNET_IO_FLAGS_CACHE );

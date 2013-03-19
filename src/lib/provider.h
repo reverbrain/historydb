@@ -11,11 +11,8 @@ namespace history
 	class provider: public iprovider
 	{
 	public:
-		provider();
+		provider(const char* server_addr, const int server_port, const int family);
 		virtual ~provider();
-
-		virtual void connect(const char* server_addr, const int server_port, const int family);
-		virtual void disconnect();
 
 		virtual void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes);
 
@@ -50,14 +47,14 @@ namespace history
 
 		void get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret) const;
 
-		dnet_node_status								m_node_status;
-		std::auto_ptr<ioremap::elliptics::file_logger>	m_log;
-		std::auto_ptr<ioremap::elliptics::node> 		m_node;
-		std::vector<int>								m_groups;
-		uint32_t										m_min_writes;
-		mutable boost::shared_mutex						m_connect_mutex;
-		mutable boost::mutex							m_key_mutex;
-		mutable std::map<std::string, uint32_t>			m_key_cache;
+		std::vector<int>							m_groups;
+		uint32_t									m_min_writes;
+		mutable boost::mutex						m_key_mutex;
+		mutable std::map<std::string, uint32_t>		m_key_cache;
+
+		dnet_node_status							m_node_status;
+		ioremap::elliptics::file_logger				m_log;
+		ioremap::elliptics::node					m_node;
 	};
 }
 
