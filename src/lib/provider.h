@@ -5,6 +5,7 @@
 #include <elliptics/cppdef.h>
 #include <map>
 #include <boost/thread/shared_mutex.hpp>
+#include <set>
 
 namespace history {
 
@@ -52,16 +53,24 @@ namespace history {
 		void add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size);
 
 		/* Increments user activity statistics
-			user - name of user
-			time - timestamp
-		*/
-		void increment_activity(const std::string& user, uint64_t time);
-
-		/* Increments user activity statistics
 			user -nane of user
 			time - timestamp
 		*/
 		void increment_activity(const std::string& user, const std::string& key);
+
+		/* Makes user log id from user name and timestamp
+			user - name of user
+			time - timestamp
+		*/
+		std::string make_key(const std::string& user, uint64_t time);
+
+		/* Makes general activity statistics key
+		*/
+		std::string make_key(uint64_t time);
+
+		/* Makes chunk key from general key
+		*/
+		std::string make_chunk_key(const std::string& key, uint32_t chunk);
 
 		/*	Gets number of chunks for key
 			s - session
@@ -83,13 +92,58 @@ namespace history {
 		*/
 		void get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret);
 
+		uint32_t rand(uint32_t max);
+
+
 		std::vector<int>							m_groups;		// groups of elliptics
 		uint32_t									m_min_writes;	// minimum number of succeeded writes for each write attempt
-		mutable boost::mutex						m_key_mutex;	// mutex for sync working with m_key_cache
-		mutable std::map<std::string, uint32_t>		m_key_cache;	// cache of numbers of activity statistics chunks
 
 		ioremap::elliptics::file_logger				m_log;			// logger
 		ioremap::elliptics::node					m_node;			// elliptics node
+
+		class keys_size_cache
+		{
+		public:
+			/* Gets count of chunk for key. If key isn't in cache return -1
+				key - activity statistics key
+			*/
+			inline uint32_t get(const std::string& key);
+			/* Sets count of chunk for key: saves it for future gets
+				key - activity statistics key
+				size - count of chunk for key
+			*/
+			inline void set(const std::string& key, uint32_t size);
+			/* Removed value from cache.
+				key - activity statistics key
+			*/
+			inline void remove(const std::string& key);
+		private:
+			boost::shared_mutex				m_mutex;		// mutex for sync working with cache
+			std::map<std::string, uint32_t>	m_keys_sizes;	// counts of activity statistics chunks cache
+		};
+
+		keys_size_cache								m_keys_cache;
+
+		/* Keeps locked key for escaping case when different threads tries to rewrite one file at the same time
+		*/
+		class key_locker
+		{
+		public:
+			/* Tries to lock given key. If it is already locked returns false otherwise locks key and returns true
+				key - key which should be locked
+				returns true if key has been locked and false if key is already locked
+			*/
+			inline bool lock(const std::string& key);
+			/* Unlock given key
+				key - key which should be unlocked
+			*/
+			inline void unlock(const std::string& key);
+		private:
+			boost::mutex			m_mutex;	// mutex for sync working with m_keys.
+			std::set<std::string>	m_keys;		// keeps locked key. While key are in m_keys it is locked.
+		};
+
+		key_locker									m_key_locker;
 	};
 } /* namespace history */
 
