@@ -92,6 +92,12 @@ namespace history {
 		*/
 		void get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret);
 
+		/* Tries increments user activity statistics. If fails return false. It is used by increment_activity.
+			user - name of user
+			key - key of activity statistics
+		*/
+		bool try_increment_activity(const std::string& user, const std::string& key);
+
 		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size);
 		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& id);
 
@@ -126,27 +132,6 @@ namespace history {
 		};
 
 		keys_size_cache								m_keys_cache;
-
-		/* Keeps locked key for escaping case when different threads tries to rewrite one file at the same time
-		*/
-		class key_locker
-		{
-		public:
-			/* Tries to lock given key. If it is already locked returns false otherwise locks key and returns true
-				key - key which should be locked
-				returns true if key has been locked and false if key is already locked
-			*/
-			inline bool lock(const std::string& key);
-			/* Unlock given key
-				key - key which should be unlocked
-			*/
-			inline void unlock(const std::string& key);
-		private:
-			boost::mutex			m_mutex;	// mutex for sync working with m_keys.
-			std::set<std::string>	m_keys;		// keeps locked key. While key are in m_keys it is locked.
-		};
-
-		key_locker									m_key_locker;
 	};
 } /* namespace history */
 

@@ -15,12 +15,14 @@
 
 namespace history {
 namespace consts {
-	const char* 	LOG_FILE		= "log.log";
-	const int		LOG_LEVEL		= DNET_LOG_DEBUG;
+	const char* 	LOG_FILE			= "log.log";
+	const int		LOG_LEVEL			= DNET_LOG_DEBUG;
 
-	const uint32_t	SEC_PER_DAY		= 24 * 60 * 60;
+	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60;
 
-	const uint32_t	RAND_SIZE		= 1000;
+	const uint32_t	RAND_SIZE			= 1000;
+
+	const uint32_t	WRITES_BEFORE_FAIL	= 3; // Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
 std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family)
@@ -265,50 +267,14 @@ void provider::add_user_data(const std::string& user, uint64_t time, void* data,
 
 void provider::increment_activity(const std::string& user, const std::string& key)
 {
-	std::map<std::string, uint32_t> map;
-	std::string skey;
-	uint32_t size;
+	uint32_t attempt = 0;
+	
+	while(attempt++ < consts::WRITES_BEFORE_FAIL &&
+	 !try_increment_activity(user, key)) {}
 
-	generate_activity_key(key, skey, size);		// Generates key and number of chunks for activity statistics.
-
-	auto s = create_session();
-
-	dnet_id id;
-	s.transform(std::string(), id);
-
-	try {	// trys to read current data from key and unpack it into map.
-		auto file = s.read_latest(skey, 0, 0)->file();
-		s.transform(file, id);
-		file = file.skip<uint32_t>();
-		if (!file.empty()) {
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());
-			msg.get().convert(&map);
-		}
-	}
-	catch(std::exception& e) {}
-
-	auto res = map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
-	if (!res.second)								// if the record wasn't inserted
-		++res.first->second;						// increments old statistics
-
-	msgpack::sbuffer sbuf;
-	msgpack::pack(sbuf, map);						// packs map
-
-	std::vector<char> data;
-	data.reserve(sizeof(uint32_t) + sbuf.size());						// reserves place in vector for the data
-	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));	// inserts into vector number of chunks for the key 
-	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());	// inserts packed map
-
-	auto write_res = write_data(s, skey, &data.front(), data.size(), id);	// write data into elliptics
-
-	m_key_locker.unlock(skey);
-
-	if (!write_res) { // checks number of successfull results and if it is less then minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
+	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
-	LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), skey.c_str());
 }
 
 std::string provider::make_key(const std::string& user, uint64_t time)
@@ -354,11 +320,8 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 		res_key = make_chunk_key(base_key, 0);
 		m_keys_cache.set(base_key, size);					// saves number of chunks for base_key in cache
 	}
-	else {
-		do {
-			res_key = make_chunk_key(base_key, rand(size));
-		} while(!m_key_locker.lock(res_key));
-	}
+	else
+		res_key = make_chunk_key(base_key, rand(size));
 
 	LOG(DNET_LOG_DEBUG, "Generated key: %s", res_key.c_str());
 }
@@ -376,6 +339,53 @@ void provider::get_map_from_key(ioremap::elliptics::session& s, const std::strin
 		}
 	}
 	catch(std::exception& e) {}
+}
+
+bool provider::try_increment_activity(const std::string& user, const std::string& key)
+{
+	std::map<std::string, uint32_t> map;
+	std::string skey;
+	uint32_t size;
+
+	generate_activity_key(key, skey, size);		// Generates key and number of chunks for activity statistics.
+
+	auto s = create_session();
+
+	dnet_id id;
+	s.transform(std::string(), id);
+
+	try {	// trys to read current data from key and unpack it into map.
+		auto file = s.read_latest(skey, 0, 0)->file();
+		s.transform(file, id);
+		file = file.skip<uint32_t>();
+		if (!file.empty()) {
+			msgpack::unpacked msg;
+			msgpack::unpack(&msg, file.data<const char>(), file.size());
+			msg.get().convert(&map);
+		}
+	}
+	catch(std::exception& e) {}
+
+	auto res = map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
+	if (!res.second)								// if the record wasn't inserted
+		++res.first->second;						// increments old statistics
+
+	msgpack::sbuffer sbuf;
+	msgpack::pack(sbuf, map);						// packs map
+
+	std::vector<char> data;
+	data.reserve(sizeof(uint32_t) + sbuf.size());						// reserves place in vector for the data
+	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));	// inserts into vector number of chunks for the key 
+	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());	// inserts packed map
+
+	auto write_res = write_data(s, skey, &data.front(), data.size(), id);	// write data into elliptics
+
+	if(!write_res)
+		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
+	else
+		LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), skey.c_str());
+
+	return write_res;
 }
 
 bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size)
@@ -422,22 +432,5 @@ void provider::keys_size_cache::remove(const std::string& key)
 	boost::unique_lock<boost::shared_mutex> lock(m_mutex);
 	m_keys_sizes.erase(key);	// removes key
 }
-
-bool provider::key_locker::lock(const std::string& key)
-{
-	boost::lock_guard<boost::mutex> lock(m_mutex);
-	if(m_keys.find(key) != m_keys.end())	// if key already in m_keys so it is locked
-		return false;						// return false - key is already locked
-
-	m_keys.insert(key);						// inserts key in locked set
-	return true;							// returns true - key has successfully been locked
-}
-
-void provider::key_locker::unlock(const std::string& key)
-{
-	boost::lock_guard<boost::mutex> lock(m_mutex);
-	m_keys.erase(key);						// removes key from m_keys. key has been unlocked
-}
-
 
 } /* namespace history */
