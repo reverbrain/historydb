@@ -15,14 +15,14 @@
 
 namespace history {
 namespace consts {
-	const char* 	LOG_FILE			= "log.log";
-	const int		LOG_LEVEL			= DNET_LOG_DEBUG;
+	const char* 	LOG_FILE			= "log.log";		// path to log file
+	const int		LOG_LEVEL			= DNET_LOG_DEBUG;	// log level
 
-	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60;
+	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60;		// number of seconds in one day. used for calculation days
 
-	const uint32_t	RAND_SIZE			= 1000;
+	const uint32_t	CHUNKS_COUNT		= 1000;				// default count of activtiy statistics chucks
 
-	const uint32_t	WRITES_BEFORE_FAIL	= 3; // Number of attempts of write_cas before returning fail result
+	const uint32_t	WRITES_BEFORE_FAIL	= 3;				// Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
 std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family)
@@ -269,8 +269,8 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 {
 	uint32_t attempt = 0;
 	
-	while(attempt++ < consts::WRITES_BEFORE_FAIL &&
-	 !try_increment_activity(user, key)) {}
+	while(attempt++ < consts::WRITES_BEFORE_FAIL &&		// Tries const::WRITES_BEFORE_FAIL times
+	 !try_increment_activity(user, key)) {}				// to increment user activity statistics
 
 	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
@@ -299,7 +299,7 @@ uint32_t provider::get_chunks_count(ioremap::elliptics::session& s, const std::s
 		return count;
 
 	try {
-		auto skey = make_chunk_key(key, 0);
+		auto skey = make_chunk_key(key, 0);		// generate zero chank key
 		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read it from zero chunk
 		if (!file.empty()) {							// if it isn't empty
 			count = file.data<uint32_t>()[0];
@@ -316,7 +316,7 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 	auto s = create_session();
 	size = get_chunks_count(s, base_key);					// get number of chunks for the base_key
 	if (size == (uint32_t)-1) {								// if number of chunks is unknown
-		size = consts::RAND_SIZE;							// set number
+		size = consts::CHUNKS_COUNT							// set number
 		res_key = make_chunk_key(base_key, 0);
 		m_keys_cache.set(base_key, size);					// saves number of chunks for base_key in cache
 	}
@@ -351,17 +351,17 @@ bool provider::try_increment_activity(const std::string& user, const std::string
 
 	auto s = create_session();
 
-	dnet_id id;
-	s.transform(std::string(), id);
+	dnet_id checksum;
+	s.transform(std::string(), checksum);		// Calculates null checksum
 
 	try {	// trys to read current data from key and unpack it into map.
-		auto file = s.read_latest(skey, 0, 0)->file();
-		s.transform(file, id);
-		file = file.skip<uint32_t>();
-		if (!file.empty()) {
+		auto file = s.read_latest(skey, 0, 0)->file();	// read latest version of file by skey
+		s.transform(file, checksum);					// Calculates checksum of the file
+		file = file.skip<uint32_t>();					// skips chunks count
+		if (!file.empty()) {							// checks file on empty
 			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());
-			msg.get().convert(&map);
+			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpacks map from file
+			msg.get().convert(&map);										// convert unpacked data to map
 		}
 	}
 	catch(std::exception& e) {}
@@ -378,7 +378,7 @@ bool provider::try_increment_activity(const std::string& user, const std::string
 	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));	// inserts into vector number of chunks for the key 
 	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());	// inserts packed map
 
-	auto write_res = write_data(s, skey, &data.front(), data.size(), id);	// write data into elliptics
+	auto write_res = write_data(s, skey, &data.front(), data.size(), checksum);	// write data into elliptics with checksum
 
 	if(!write_res)
 		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
@@ -396,10 +396,10 @@ bool provider::write_data(ioremap::elliptics::session& s, const std::string& key
 	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
 }
 
-bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& id)
+bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
-	auto write_res = s.write_cas(key, dp, id, 0);	// write data into elliptics
+	auto write_res = s.write_cas(key, dp, checksum, 0);	// write data into elliptics
 
 	return write_res.size() >= m_min_writes;
 }

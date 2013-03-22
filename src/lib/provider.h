@@ -98,9 +98,26 @@ namespace history {
 		*/
 		bool try_increment_activity(const std::string& user, const std::string& key);
 
+		/* Writes data to elliptics in specified session
+			s - elliptics session
+			key - id of file where data should be written
+			data - pointer to the data
+			size - size of data.
+		*/
 		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size);
-		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& id);
 
+		/* Writes data to elliptics in specified session by using write_cas method and checksum
+			s - elliptics session
+			key - id of file where data should be written
+			data - pointer to the data
+			size - size of data
+			checksum - checksum
+		*/
+		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum);
+
+		/* Generate random value in range [0, max)
+			max - the upper limit of random range
+		*/
 		uint32_t rand(uint32_t max);
 
 
