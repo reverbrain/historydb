@@ -31,21 +31,6 @@ std::shared_ptr<iprovider> create_provider(const char* server_addr, const int se
 	return std::make_shared<provider>(server_addr, server_port, family);
 }
 
-/*Merges two map. res_map will contain result of merging it with merge_map
-*/
-template<typename K, typename V>
-void merge(std::map<K, V>& res_map, const std::map<K, V>& merge_map)
-{
-	auto res_it = res_map.begin(); // sets res_it to begin of res_map
-	size_t size;
-	for(auto it = merge_map.begin(), itEnd = merge_map.end(); it != itEnd; ++it) {	// iterates by merge_map pairs
-		size = res_map.size(); 														// saves old res_map size
-		res_it = res_map.insert(res_it, *it);										// trys insert pair from merge_map into res_map at res_it and sets to res_it iterator to the inserted element. If pair would be inserted then size of res_map will be increased.
-		if (size == res_map.size())													// checks saved size with current size of res_map if they are equal - item wasn't inserted and we should add data from it with res_it.
-			res_it->second += it->second;
-	}
-}
-
 provider::provider(const char* server_addr, const int server_port, const int family)
 : m_log(consts::LOG_FILE, consts::LOG_LEVEL)
 , m_node(m_log)
@@ -102,9 +87,10 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 	std::string skey;
 
 	for(uint32_t i = 0; i < size; ++i) {
-		skey = make_chunk_key(old_key, i);
-		get_from_key(s, skey, tmp);			// gets activity statistics from chunk
-		merge(res.map, tmp.map);			// merges it with result map
+		if(!get_chunk(s, old_key, i, tmp))	// Tries to get activity chunk
+			continue;						// if no chunk continue to the next chunk
+
+		merge(res, tmp);					// merges chunk
 		try {
 			s.remove(skey);					// try to remove old chunk becase it is useless now
 		}
@@ -189,9 +175,11 @@ std::map<std::string, uint32_t> provider::get_active_users(const std::string& ke
 
 	std::string skey;
 	
-	for(uint32_t i = 0; i < size; ++i) {				// iterates by chunks
-		get_from_key(s, make_chunk_key(key, i), tmp);	// gets map from chunk
-		merge(ret.map, tmp.map);						// merge map from chunk into result map
+	for(uint32_t i = 0; i < size; ++i) {	// iterates by chunks
+		tmp.map.clear();
+		if(get_chunk(s, key, i, tmp)) {		// gets chunk
+			merge(ret, tmp);				// merge map from chunk into result map
+		}
 	}
 
 	return ret.map;		// returns result map
@@ -290,79 +278,59 @@ std::string provider::make_chunk_key(const std::string& key, uint32_t chunk)
 	return key + "." + boost::lexical_cast<std::string>(chunk);
 }
 
+bool provider::get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum)
+{
+	if(checksum)
+		s.transform(std::string(), *checksum);
+	try
+	{
+		auto skey = make_chunk_key(key, chunk);			// generate chunk key
+		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read chunk data
+		if(checksum)
+			s.transform(file, *checksum);
+		if (!file.empty()) {							// if it isn't empty
+			msgpack::unpacked msg;
+			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack chunk
+			msg.get().convert(&act);
+			return true;								// returns it
+		}
+	}
+	catch(std::exception& e) {}
+	return false;
+}
+
 uint32_t provider::get_chunks_count(ioremap::elliptics::session& s, const std::string& key)
 {
 	auto count = m_keys_cache.get(key);
 	if(count != (uint32_t)-1)
 		return count;
 
-	try {
-		activity act;
-		auto skey = make_chunk_key(key, 0);		// generate zero chank key
-		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read it from zero chunk
-		if (!file.empty()) {							// if it isn't empty
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());
-			msg.get().convert(&act);
-			m_keys_cache.set(key, act.size);
-			return act.size;							// returns it
-		}
+	activity act;
+	if(get_chunk(s, key, 0, act)) {			// if chunk has successfully readed
+		m_keys_cache.set(key, act.size);	// saves size in cache
+		return act.size;					// returns count of chunks
 	}
-	catch(std::exception& e) {}
+
 	return -1;	// in the other case returns -1
-}
-
-void provider::generate_activity_key(const std::string& base_key, std::string& res_key, uint32_t& size)
-{
-	auto s = create_session();
-	size = get_chunks_count(s, base_key);					// get number of chunks for the base_key
-	if (size == (uint32_t)-1) {								// if number of chunks is unknown
-		size = consts::CHUNKS_COUNT;						// set number
-		res_key = make_chunk_key(base_key, 0);
-		m_keys_cache.set(base_key, size);					// saves number of chunks for base_key in cache
-	}
-	else
-		res_key = make_chunk_key(base_key, rand(size));
-
-	LOG(DNET_LOG_DEBUG, "Generated key: %s", res_key.c_str());
-}
-
-void provider::get_from_key(ioremap::elliptics::session& s, const std::string& key, activity& ret)
-{
-	ret.map.clear();	// clear result map
-	try {
-		auto file = s.read_latest(key, 0, 0)->file();	// reads file from elliptics
-		if (!file.empty()) {							// if the file isn't empty
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack activity statistics chunk
-			msg.get().convert(&ret);
-		}
-	}
-	catch(std::exception& e) {}
 }
 
 bool provider::try_increment_activity(const std::string& user, const std::string& key)
 {
 	activity act;
-	std::string skey;
-
-	generate_activity_key(key, skey, act.size);		// Generates key and number of chunks for activity statistics.
+	uint32_t chunk = 0;
 
 	auto s = create_session();
 
-	dnet_id checksum;
-	s.transform(std::string(), checksum);		// Calculates null checksum
-
-	try {	// trys to read current data from key and unpack it into activity.
-		auto file = s.read_latest(skey, 0, 0)->file();	// read latest version of file by skey
-		s.transform(file, checksum);					// Calculates checksum of the file
-		if (!file.empty()) {							// checks file on empty
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpacks activity statistics chunk from file
-			msg.get().convert(&act);										// convert unpacked data to activity statistics chunk
-		}
+	act.size = get_chunks_count(s, key);
+	if(act.size == (uint32_t)-1) {
+		act.size = consts::CHUNKS_COUNT;
+		chunk = 0;
 	}
-	catch(std::exception& e) {}
+	else
+		chunk = rand(act.size);
+
+	dnet_id checksum;
+	get_chunk(s, key, chunk, act, &checksum);
 
 	auto res = act.map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
 	if (!res.second)									// if the record wasn't inserted
@@ -370,6 +338,8 @@ bool provider::try_increment_activity(const std::string& user, const std::string
 
 	msgpack::sbuffer sbuf;
 	msgpack::pack(sbuf, act);							// packs activity statistics chunk
+
+	auto skey = make_chunk_key(key, chunk);
 
 	auto write_res = write_data(s, skey, sbuf.data(), sbuf.size(), checksum);	// write data into elliptics with checksum
 
@@ -400,6 +370,19 @@ bool provider::write_data(ioremap::elliptics::session& s, const std::string& key
 uint32_t provider::rand(uint32_t max)
 {
 	return ::rand() % max;
+}
+
+void provider::merge(activity& res_chunk, const activity& merge_chunk) const
+{
+	res_chunk.size = merge_chunk.size;
+	auto res_it = res_chunk.map.begin(); // sets res_it to begin of res_map
+	size_t size;
+	for(auto it = merge_chunk.map.begin(), itEnd = merge_chunk.map.end(); it != itEnd; ++it) {	// iterates by merge_chunk map pairs
+		size = res_chunk.map.size(); 															// saves old res_map size
+		res_it = res_chunk.map.insert(res_it, *it);												// trys insert pair from merge_chunk map into res_map at res_it and sets to res_it iterator to the inserted element. If pair would be inserted then size of res_map will be increased.
+		if (size == res_chunk.map.size())														// checks saved size with current size of res_map if they are equal - item wasn't inserted and we should add data from it with res_it.
+			res_it->second += it->second;
+	}
 }
 
 uint32_t provider::keys_size_cache::get(const std::string& key)

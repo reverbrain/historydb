@@ -5,7 +5,8 @@
 #include <elliptics/cppdef.h>
 #include <map>
 #include <boost/thread/shared_mutex.hpp>
-#include <set>
+
+namespace ioremap { namespace elliptics { class session; }}
 
 namespace history {
 
@@ -38,7 +39,8 @@ namespace history {
 
 
 	private:
-		ELLIPTICS_DISABLE_COPY(provider)
+		provider(const provider&);
+		provider &operator =(const provider &);
 
 		/* Creates and initializes session
 			ioflags - io flags
@@ -74,25 +76,13 @@ namespace history {
 		*/
 		std::string make_chunk_key(const std::string& key, uint32_t chunk);
 
+		bool get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum = NULL);
+
 		/*	Gets number of chunks for key
 			s - session
 			key - key of activity statistics
 		*/
 		uint32_t get_chunks_count(ioremap::elliptics::session& s, const std::string& key);
-
-		/*	Generates activity statistics chunk key by random
-			base_key - activity statistics main key
-			res_key - used to return generated activity statistics chunk key
-			size - used to return number of chunks for key
-		*/
-		void generate_activity_key(const std::string& base_key, std::string& res_key, uint32_t& size);
-
-		/* Gets activity statistics chunk map from key
-			s - session
-			key - key of activity statistics chunk
-			ret - result map
-		*/
-		void get_from_key(ioremap::elliptics::session& s, const std::string& key, activity& ret);
 
 		/* Tries increments user activity statistics. If fails return false. It is used by increment_activity.
 			user - name of user
@@ -121,6 +111,12 @@ namespace history {
 			max - the upper limit of random range
 		*/
 		uint32_t rand(uint32_t max);
+
+		/*Merges two chunks. res_chunk will contain result of merging
+			res_chunk - chunk in which result will be written
+			merge_chunk - chunk data from which will be added to res_chunk
+		*/
+		void merge(activity& res_chunk, const activity& merge_chunk) const;
 
 
 		std::vector<int>							m_groups;		// groups of elliptics
