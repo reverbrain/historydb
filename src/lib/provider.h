@@ -92,6 +92,9 @@ namespace history {
 		*/
 		void get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret);
 
+		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size);
+		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& id);
+
 		uint32_t rand(uint32_t max);
 
 

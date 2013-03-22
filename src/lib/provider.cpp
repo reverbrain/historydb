@@ -21,7 +21,6 @@ namespace consts {
 	const uint32_t	SEC_PER_DAY		= 24 * 60 * 60;
 
 	const uint32_t	RAND_SIZE		= 1000;
-	const auto		NULL_KEY_STR	= "0000000000";
 } /* namespace consts */
 
 std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family)
@@ -129,10 +128,10 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 
 		skey = make_chunk_key(new_key, chunk_no);
 
-		auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);	// writes data to the elliptics
+		auto write_res = write_data(s, skey, &data.front(), data.size());	// writes data to the elliptics
 
-		if (write_res.size() < m_min_writes) {	// checks number of successfull results and if it is less then minimum then mark that some write was failed
-			LOG(DNET_LOG_ERROR, "Can't write data while repartition activity. Success write: %zu minimum: %d, key: %s\n", write_res.size(), m_min_writes, skey.c_str());
+		if (!write_res) {	// checks number of successfull results and if it is less then minimum then mark that some write was failed
+			LOG(DNET_LOG_ERROR, "Can't write data while repartition activity key: %s\n", skey.c_str());
 			written = false;
 		}
 
@@ -190,9 +189,9 @@ std::map<std::string, uint32_t> provider::get_active_users(const std::string& ke
 
 	std::string skey;
 	
-	for(uint32_t i = 0; i < size; ++i) {									// iterates by chunks
+	for(uint32_t i = 0; i < size; ++i) {					// iterates by chunks
 		get_map_from_key(s, make_chunk_key(key, i), tmp);	// gets map from chunk
-		merge(ret, tmp);													// merge map from chunk into result map
+		merge(ret, tmp);									// merge map from chunk into result map
 	}
 
 	return ret;		// returns result map
@@ -241,8 +240,8 @@ ioremap::elliptics::session provider::create_session(uint64_t ioflags)
 {
 	ioremap::elliptics::session session(m_node);	// creates session and connects it with node
 
-	session.set_cflags(0);							// sets cflags to 0
-	session.set_ioflags(ioflags | DNET_IO_FLAGS_CACHE );	// sets ioflags with DNET_IO_FLAGS_CACHE
+	session.set_cflags(0);	// sets cflags to 0
+	session.set_ioflags(ioflags /*| DNET_IO_FLAGS_CACHE */);	// sets ioflags with DNET_IO_FLAGS_CACHE
 
 	session.set_groups(m_groups);	// sets groups
 
@@ -255,10 +254,10 @@ void provider::add_user_data(const std::string& user, uint64_t time, void* data,
 
 	auto skey = make_key(user, time);
 
-	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(data, size), 0);	// Trys to write data to user's log
+	auto write_res = write_data(s, skey, data, size);	// Trys to write data to user's log
 
-	if (write_res.size() < m_min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception 
-		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log. Success write: %zu minimum: %d, key: %s\n", write_res.size(), m_min_writes, skey.c_str());
+	if (!write_res) {	// Checks number of successfull results and if it is less minimum then throw exception 
+		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", skey.c_str());
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
 	LOG(DNET_LOG_DEBUG, "Writed data to user log user: %s time: %" PRIu64 " data size: %d\n", user.c_str(), time, size);
@@ -272,12 +271,14 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 
 	generate_activity_key(key, skey, size);		// Generates key and number of chunks for activity statistics.
 
-//	std::cout << "<< KEY: " << skey << " " << boost::this_thread::get_id() << std::endl;
-
 	auto s = create_session();
+
+	dnet_id id;
+	s.transform(std::string(), id);
 
 	try {	// trys to read current data from key and unpack it into map.
 		auto file = s.read_latest(skey, 0, 0)->file();
+		s.transform(file, id);
 		file = file.skip<uint32_t>();
 		if (!file.empty()) {
 			msgpack::unpacked msg;
@@ -299,16 +300,15 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));	// inserts into vector number of chunks for the key 
 	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());	// inserts packed map
 
-	auto write_res = s.write_data(skey, ioremap::elliptics::data_pointer::from_raw(&data.front(), data.size()), 0);	// write data into elliptics
+	auto write_res = write_data(s, skey, &data.front(), data.size(), id);	// write data into elliptics
 
 	m_key_locker.unlock(skey);
 
-	if (write_res.size() < m_min_writes) { // checks number of successfull results and if it is less then minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity. Success write: %zu minimum: %d, key: %s\n", write_res.size(), m_min_writes, skey.c_str());
+	if (!write_res) { // checks number of successfull results and if it is less then minimum then throw exception
+		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
 	LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), skey.c_str());
-	//std::cout << ">> KEY: " << skey << " " << boost::this_thread::get_id() << std::endl;
 }
 
 std::string provider::make_key(const std::string& user, uint64_t time)
@@ -333,8 +333,9 @@ uint32_t provider::get_chunks_count(ioremap::elliptics::session& s, const std::s
 		return count;
 
 	try {
-		auto file = s.read_latest(key + consts::NULL_KEY_STR, 0, 0)->file();	// trys to read it from zero chunk
-		if (!file.empty()) {													// if it isn't empty
+		auto skey = make_chunk_key(key, 0);
+		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read it from zero chunk
+		if (!file.empty()) {							// if it isn't empty
 			count = file.data<uint32_t>()[0];
 			m_keys_cache.set(key, count);
 			return count;									// returns it
@@ -375,6 +376,22 @@ void provider::get_map_from_key(ioremap::elliptics::session& s, const std::strin
 		}
 	}
 	catch(std::exception& e) {}
+}
+
+bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size)
+{
+	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	auto write_res = s.write_data(key, dp, 0);	// write data into elliptics
+
+	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
+}
+
+bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& id)
+{
+	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	auto write_res = s.write_cas(key, dp, id, 0);	// write data into elliptics
+
+	return write_res.size() >= m_min_writes;
 }
 
 uint32_t provider::rand(uint32_t max)
