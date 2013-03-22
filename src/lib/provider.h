@@ -9,6 +9,8 @@
 
 namespace history {
 
+	struct activity;
+
 	class provider: public iprovider
 	{
 	public:
@@ -90,7 +92,7 @@ namespace history {
 			key - key of activity statistics chunk
 			ret - result map
 		*/
-		void get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret);
+		void get_from_key(ioremap::elliptics::session& s, const std::string& key, activity& ret);
 
 		/* Tries increments user activity statistics. If fails return false. It is used by increment_activity.
 			user - name of user

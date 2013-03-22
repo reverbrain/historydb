@@ -6,6 +6,7 @@
 #include <boost/thread/locks.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/thread/thread.hpp>
+#include "activity.h"
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -84,53 +85,51 @@ void provider::add_user_activity(const std::string& user, uint64_t time, void* d
 		increment_activity(user, key);		// Increments user's activity statistics which are stored by custom key.
 }
 
-void provider::repartition_activity(const std::string& key, uint32_t parts)
+void provider::repartition_activity(const std::string& key, uint32_t chunks)
 {
-	repartition_activity(key, key, parts);
+	repartition_activity(key, key, chunks);
 }
 
-void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts)
+void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks)
 {
 	auto s = create_session();
 	auto size = get_chunks_count(s, old_key);	// gets number of chunk for old key
 	if (size == (uint32_t)-1)					// if it is equal to -1 then data in old_key doesn't exsists so nothin to repartition
 		return;
 
-	std::map<std::string, uint32_t> res;					// full map
-	std::map<std::string, uint32_t> tmp;					// temporary map
+	activity res, tmp;
+	res.size = chunks;
 	std::string skey;
 
 	for(uint32_t i = 0; i < size; ++i) {
 		skey = make_chunk_key(old_key, i);
-		get_map_from_key(s, skey, tmp);						// gets map from chunk
-		merge(res, tmp);									// merges it with result map
+		get_from_key(s, skey, tmp);			// gets activity statistics from chunk
+		merge(res.map, tmp.map);			// merges it with result map
 		try {
-			s.remove(skey);									// try to remove old chunk becase it is useless now
+			s.remove(skey);					// try to remove old chunk becase it is useless now
 		}
 		catch(std::exception& e) {}
 	}
 
-	auto elements_in_chunk = res.size() / parts;						// calculates number of elements in new chunk
+	auto elements_in_chunk = res.map.size() / chunks;						// calculates number of elements in new chunk
 	elements_in_chunk = elements_in_chunk == 0 ? 1 : elements_in_chunk;	// if number of chunk more then elements in result map then keep only 1 element in first chunks
 	std::vector<char> data;
 
 	uint32_t chunk_no = 0;	// chunk number in which data will be written
 	bool written = true;
 
-	for(auto it = res.begin(), it_next = res.begin(), itEnd = res.end(); it != itEnd; it = it_next) {	// iterates throw result map
+	tmp.size = chunks;
+
+	for(auto it = res.map.begin(), it_next = res.map.begin(), itEnd = res.map.end(); it != itEnd; it = it_next) {	// iterates throw result map
 		it_next = std::next(it, elements_in_chunk);			// sets it_next by it plus number of elements in one chunk
-		std::map<std::string, uint32_t> tmp(it, it_next);	// creates sub-map from it to it_next
+		tmp.map = std::map<std::string, uint32_t>(it, it_next);	// creates sub-map from it to it_next
 
 		msgpack::sbuffer sbuf;
-		msgpack::pack(sbuf, tmp);							// packs the sub-map
-		data.clear();
-		data.reserve(sizeof(uint32_t) + sbuf.size());		// reserves place for packed sub-map
-		data.insert(data.end(), (char*)&parts, (char*)&parts + sizeof(size));	// inserts number of chunks
-		data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());		// inserts packed sub-map
+		msgpack::pack(sbuf, tmp);							// packs the activity statistics chunk
 
 		skey = make_chunk_key(new_key, chunk_no);
 
-		auto write_res = write_data(s, skey, &data.front(), data.size());	// writes data to the elliptics
+		auto write_res = write_data(s, skey, sbuf.data(), sbuf.size());	// writes data to the elliptics
 
 		if (!write_res) {	// checks number of successfull results and if it is less then minimum then mark that some write was failed
 			LOG(DNET_LOG_ERROR, "Can't write data while repartition activity key: %s\n", skey.c_str());
@@ -141,20 +140,20 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 	}
 
 	m_keys_cache.remove(old_key);
-	m_keys_cache.set(new_key, parts);
+	m_keys_cache.set(new_key, chunks);
 
 	if (!written)	// checks if some writes was failed if so throw exception
 		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
 }
 
-void provider::repartition_activity(uint64_t time, uint32_t parts)
+void provider::repartition_activity(uint64_t time, uint32_t chunks)
 {
-	repartition_activity(make_key(time), parts);
+	repartition_activity(make_key(time), chunks);
 }
 
-void provider::repartition_activity(uint64_t time, const std::string& new_key, uint32_t parts)
+void provider::repartition_activity(uint64_t time, const std::string& new_key, uint32_t chunks)
 {
-	repartition_activity(make_key(time), new_key, parts);
+	repartition_activity(make_key(time), new_key, chunks);
 }
 
 std::list<std::vector<char>> provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
@@ -180,23 +179,22 @@ std::map<std::string, uint32_t> provider::get_active_users(const std::string& ke
 	LOG(DNET_LOG_INFO, "Getting active users with key: %s\n", key.c_str());
 	auto s = create_session();
 
-	std::map<std::string, uint32_t> ret;
-	std::map<std::string, uint32_t> tmp;
+	activity ret, tmp;
 
 	uint32_t size = get_chunks_count(s, key);	// gets number of chunks for the key
 	if (size == (uint32_t)-1) {					// if it is equal to -1 so there is no activity statistics yet
 		LOG(DNET_LOG_INFO, "Active users statistics is empty for key:%s\n", key.c_str());
-		return ret;								// returns empty map
+		return ret.map;							// returns empty map
 	}
 
 	std::string skey;
 	
-	for(uint32_t i = 0; i < size; ++i) {					// iterates by chunks
-		get_map_from_key(s, make_chunk_key(key, i), tmp);	// gets map from chunk
-		merge(ret, tmp);									// merge map from chunk into result map
+	for(uint32_t i = 0; i < size; ++i) {				// iterates by chunks
+		get_from_key(s, make_chunk_key(key, i), tmp);	// gets map from chunk
+		merge(ret.map, tmp.map);						// merge map from chunk into result map
 	}
 
-	return ret;		// returns result map
+	return ret.map;		// returns result map
 }
 
 void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
@@ -269,8 +267,8 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 {
 	uint32_t attempt = 0;
 	
-	while(attempt++ < consts::WRITES_BEFORE_FAIL &&		// Tries const::WRITES_BEFORE_FAIL times
-	 !try_increment_activity(user, key)) {}				// to increment user activity statistics
+	while(	attempt++ < consts::WRITES_BEFORE_FAIL &&		// Tries const::WRITES_BEFORE_FAIL times
+			!try_increment_activity(user, key)) {}			// to increment user activity statistics
 
 	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
@@ -299,12 +297,15 @@ uint32_t provider::get_chunks_count(ioremap::elliptics::session& s, const std::s
 		return count;
 
 	try {
+		activity act;
 		auto skey = make_chunk_key(key, 0);		// generate zero chank key
 		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read it from zero chunk
 		if (!file.empty()) {							// if it isn't empty
-			count = file.data<uint32_t>()[0];
-			m_keys_cache.set(key, count);
-			return count;									// returns it
+			msgpack::unpacked msg;
+			msgpack::unpack(&msg, file.data<const char>(), file.size());
+			msg.get().convert(&act);
+			m_keys_cache.set(key, act.size);
+			return act.size;							// returns it
 		}
 	}
 	catch(std::exception& e) {}
@@ -316,7 +317,7 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 	auto s = create_session();
 	size = get_chunks_count(s, base_key);					// get number of chunks for the base_key
 	if (size == (uint32_t)-1) {								// if number of chunks is unknown
-		size = consts::CHUNKS_COUNT							// set number
+		size = consts::CHUNKS_COUNT;						// set number
 		res_key = make_chunk_key(base_key, 0);
 		m_keys_cache.set(base_key, size);					// saves number of chunks for base_key in cache
 	}
@@ -326,15 +327,14 @@ void provider::generate_activity_key(const std::string& base_key, std::string& r
 	LOG(DNET_LOG_DEBUG, "Generated key: %s", res_key.c_str());
 }
 
-void provider::get_map_from_key(ioremap::elliptics::session& s, const std::string& key, std::map<std::string, uint32_t>& ret)
+void provider::get_from_key(ioremap::elliptics::session& s, const std::string& key, activity& ret)
 {
-	ret.clear();	// clear result map
+	ret.map.clear();	// clear result map
 	try {
 		auto file = s.read_latest(key, 0, 0)->file();	// reads file from elliptics
 		if (!file.empty()) {							// if the file isn't empty
-			file = file.skip<uint32_t>();				// skips number of chunks
 			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack map
+			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack activity statistics chunk
 			msg.get().convert(&ret);
 		}
 	}
@@ -343,42 +343,35 @@ void provider::get_map_from_key(ioremap::elliptics::session& s, const std::strin
 
 bool provider::try_increment_activity(const std::string& user, const std::string& key)
 {
-	std::map<std::string, uint32_t> map;
+	activity act;
 	std::string skey;
-	uint32_t size;
 
-	generate_activity_key(key, skey, size);		// Generates key and number of chunks for activity statistics.
+	generate_activity_key(key, skey, act.size);		// Generates key and number of chunks for activity statistics.
 
 	auto s = create_session();
 
 	dnet_id checksum;
 	s.transform(std::string(), checksum);		// Calculates null checksum
 
-	try {	// trys to read current data from key and unpack it into map.
+	try {	// trys to read current data from key and unpack it into activity.
 		auto file = s.read_latest(skey, 0, 0)->file();	// read latest version of file by skey
 		s.transform(file, checksum);					// Calculates checksum of the file
-		file = file.skip<uint32_t>();					// skips chunks count
 		if (!file.empty()) {							// checks file on empty
 			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpacks map from file
-			msg.get().convert(&map);										// convert unpacked data to map
+			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpacks activity statistics chunk from file
+			msg.get().convert(&act);										// convert unpacked data to activity statistics chunk
 		}
 	}
 	catch(std::exception& e) {}
 
-	auto res = map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
-	if (!res.second)								// if the record wasn't inserted
-		++res.first->second;						// increments old statistics
+	auto res = act.map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
+	if (!res.second)									// if the record wasn't inserted
+		++res.first->second;							// increments old statistics
 
 	msgpack::sbuffer sbuf;
-	msgpack::pack(sbuf, map);						// packs map
+	msgpack::pack(sbuf, act);							// packs activity statistics chunk
 
-	std::vector<char> data;
-	data.reserve(sizeof(uint32_t) + sbuf.size());						// reserves place in vector for the data
-	data.insert(data.end(), (char*)&size, (char*)&size + sizeof(size));	// inserts into vector number of chunks for the key 
-	data.insert(data.end(), sbuf.data(), sbuf.data() + sbuf.size());	// inserts packed map
-
-	auto write_res = write_data(s, skey, &data.front(), data.size(), checksum);	// write data into elliptics with checksum
+	auto write_res = write_data(s, skey, sbuf.data(), sbuf.size(), checksum);	// write data into elliptics with checksum
 
 	if(!write_res)
 		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
