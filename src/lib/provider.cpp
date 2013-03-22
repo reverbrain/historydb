@@ -78,27 +78,14 @@ void provider::repartition_activity(const std::string& key, uint32_t chunks)
 void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks)
 {
 	auto s = create_session();
-	auto size = get_chunks_count(s, old_key);	// gets number of chunk for old key
-	if (size == (uint32_t)-1)					// if it is equal to -1 then data in old_key doesn't exsists so nothin to repartition
+	activity res, tmp;
+
+	res = get_activity(s, old_key);
+	if(res.size == 0)
 		return;
 
-	activity res, tmp;
-	res.size = chunks;
-	std::string skey;
-
-	for(uint32_t i = 0; i < size; ++i) {
-		if(!get_chunk(s, old_key, i, tmp))	// Tries to get activity chunk
-			continue;						// if no chunk continue to the next chunk
-
-		merge(res, tmp);					// merges chunk
-		try {
-			s.remove(skey);					// try to remove old chunk becase it is useless now
-		}
-		catch(std::exception& e) {}
-	}
-
-	auto elements_in_chunk = res.map.size() / chunks;						// calculates number of elements in new chunk
-	elements_in_chunk = elements_in_chunk == 0 ? 1 : elements_in_chunk;	// if number of chunk more then elements in result map then keep only 1 element in first chunks
+	auto per_chunk = res.map.size() / chunks;	// calculates number of elements in new chunk
+	per_chunk = per_chunk == 0 ? 1 : per_chunk;	// if number of chunk more then elements in result map then keep only 1 element in first chunks
 	std::vector<char> data;
 
 	uint32_t chunk_no = 0;	// chunk number in which data will be written
@@ -107,13 +94,13 @@ void provider::repartition_activity(const std::string& old_key, const std::strin
 	tmp.size = chunks;
 
 	for(auto it = res.map.begin(), it_next = res.map.begin(), itEnd = res.map.end(); it != itEnd; it = it_next) {	// iterates throw result map
-		it_next = std::next(it, elements_in_chunk);			// sets it_next by it plus number of elements in one chunk
+		it_next = std::next(it, per_chunk);	// sets it_next by it plus number of elements in one chunk
 		tmp.map = std::map<std::string, uint32_t>(it, it_next);	// creates sub-map from it to it_next
 
 		msgpack::sbuffer sbuf;
 		msgpack::pack(sbuf, tmp);							// packs the activity statistics chunk
 
-		skey = make_chunk_key(new_key, chunk_no);
+		auto skey = make_chunk_key(new_key, chunk_no);
 
 		auto write_res = write_data(s, skey, sbuf.data(), sbuf.size());	// writes data to the elliptics
 
@@ -165,24 +152,7 @@ std::map<std::string, uint32_t> provider::get_active_users(const std::string& ke
 	LOG(DNET_LOG_INFO, "Getting active users with key: %s\n", key.c_str());
 	auto s = create_session();
 
-	activity ret, tmp;
-
-	uint32_t size = get_chunks_count(s, key);	// gets number of chunks for the key
-	if (size == (uint32_t)-1) {					// if it is equal to -1 so there is no activity statistics yet
-		LOG(DNET_LOG_INFO, "Active users statistics is empty for key:%s\n", key.c_str());
-		return ret.map;							// returns empty map
-	}
-
-	std::string skey;
-	
-	for(uint32_t i = 0; i < size; ++i) {	// iterates by chunks
-		tmp.map.clear();
-		if(get_chunk(s, key, i, tmp)) {		// gets chunk
-			merge(ret, tmp);				// merge map from chunk into result map
-		}
-	}
-
-	return ret.map;		// returns result map
+	return get_activity(s, key).map;	// returns result map
 }
 
 void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
@@ -263,57 +233,6 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 	}
 }
 
-std::string provider::make_key(const std::string& user, uint64_t time)
-{
-	return user + "." + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
-}
-
-std::string provider::make_key(uint64_t time)
-{
-	return boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
-}
-
-std::string provider::make_chunk_key(const std::string& key, uint32_t chunk)
-{
-	return key + "." + boost::lexical_cast<std::string>(chunk);
-}
-
-bool provider::get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum)
-{
-	if(checksum)
-		s.transform(std::string(), *checksum);
-	try
-	{
-		auto skey = make_chunk_key(key, chunk);			// generate chunk key
-		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read chunk data
-		if(checksum)
-			s.transform(file, *checksum);
-		if (!file.empty()) {							// if it isn't empty
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack chunk
-			msg.get().convert(&act);
-			return true;								// returns it
-		}
-	}
-	catch(std::exception& e) {}
-	return false;
-}
-
-uint32_t provider::get_chunks_count(ioremap::elliptics::session& s, const std::string& key)
-{
-	auto count = m_keys_cache.get(key);
-	if(count != (uint32_t)-1)
-		return count;
-
-	activity act;
-	if(get_chunk(s, key, 0, act)) {			// if chunk has successfully readed
-		m_keys_cache.set(key, act.size);	// saves size in cache
-		return act.size;					// returns count of chunks
-	}
-
-	return -1;	// in the other case returns -1
-}
-
 bool provider::try_increment_activity(const std::string& user, const std::string& key)
 {
 	activity act;
@@ -321,16 +240,24 @@ bool provider::try_increment_activity(const std::string& user, const std::string
 
 	auto s = create_session();
 
-	act.size = get_chunks_count(s, key);
-	if(act.size == (uint32_t)-1) {
-		act.size = consts::CHUNKS_COUNT;
-		chunk = 0;
-	}
-	else
-		chunk = rand(act.size);
-
 	dnet_id checksum;
-	get_chunk(s, key, chunk, act, &checksum);
+
+	auto size = m_keys_cache.get(key);	// gets number of chunks from cache
+	if(	size == (uint32_t)-1 &&	// if it isn't in cache
+		get_chunk(s, key, 0, act, &checksum)) {	// gets chunk with zero chunk number
+		size = act.size;
+	}
+
+	if(size != (uint32_t)-1) {
+		chunk = rand(size);
+		get_chunk(s, key, chunk, act, &checksum);	// gets chunk from this chunk
+	}
+	else {
+		act.size = consts::CHUNKS_COUNT;	// sets default value for act.size
+		chunk = 0;	// and writes chunk to zero chunk
+	}
+
+	m_keys_cache.set(key, size);
 
 	auto res = act.map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
 	if (!res.second)									// if the record wasn't inserted
@@ -349,6 +276,43 @@ bool provider::try_increment_activity(const std::string& user, const std::string
 		LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), skey.c_str());
 
 	return write_res;
+}
+
+std::string provider::make_key(const std::string& user, uint64_t time)
+{
+	return user + "." + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
+}
+
+std::string provider::make_key(uint64_t time)
+{
+	return boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
+}
+
+std::string provider::make_chunk_key(const std::string& key, uint32_t chunk)
+{
+	return key + "." + boost::lexical_cast<std::string>(chunk);
+}
+
+bool provider::get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum)
+{
+	act.map.clear();
+	if(checksum)
+		s.transform(std::string(), *checksum);
+	try
+	{
+		auto skey = make_chunk_key(key, chunk);	// generate chunk key
+		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read chunk data
+		if(checksum)
+			s.transform(file, *checksum);
+		if (!file.empty()) {	// if it isn't empty
+			msgpack::unpacked msg;
+			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack chunk
+			msg.get().convert(&act);
+			return true;	// returns it
+		}
+	}
+	catch(std::exception& e) {}
+	return false;
 }
 
 bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size)
@@ -383,6 +347,34 @@ void provider::merge(activity& res_chunk, const activity& merge_chunk) const
 		if (size == res_chunk.map.size())														// checks saved size with current size of res_map if they are equal - item wasn't inserted and we should add data from it with res_it.
 			res_it->second += it->second;
 	}
+}
+
+activity provider::get_activity(ioremap::elliptics::session& s, const std::string& key)
+{
+	activity ret, tmp;
+	ret.size = 0;
+
+	auto size = m_keys_cache.get(key);	// gets size from cache
+	uint32_t i = 0;
+	if(size == (uint32_t)-1) {
+		if(!get_chunk(s, key, i++, tmp)) {	// gets data from zero chunk
+			LOG(DNET_LOG_INFO, "Activity statistics is empty for key:%s\n", key.c_str());
+			return ret;	// if it is no zero chunk so nothing to return and returns empty map
+		}
+
+		merge(ret, tmp);	// merge chunks
+
+		size = ret.size;	// set number of chunks to size
+		m_keys_cache.set(key, size);
+	}
+
+	for(; i < size; ++i) {	// iterates by chunks
+		if(get_chunk(s, key, i, tmp)) {		// gets chunk
+			merge(ret, tmp);				// merge map from chunk into result map
+		}
+	}
+
+	return ret;		// returns result map
 }
 
 uint32_t provider::keys_size_cache::get(const std::string& key)

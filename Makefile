@@ -42,7 +42,7 @@ release:
 	mkdir -p bin
 	mkdir -p obj
 	mkdir -p obj/Release
-	make --directory=./obj/Release --makefile=../../Makefile build_flags="-O2 -fomit-frame-pointer" program_name=../../bin/app
+	make --directory=./obj/Release --makefile=../../Makefile build_flags="-O1 -fomit-frame-pointer" program_name=../../bin/app
 
 debug:
 	mkdir -p bin

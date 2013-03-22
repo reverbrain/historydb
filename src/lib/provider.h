@@ -62,6 +62,12 @@ namespace history {
 		*/
 		void increment_activity(const std::string& user, const std::string& key);
 
+		/* Tries increments user activity statistics. If fails return false. It is used by increment_activity.
+			user - name of user
+			key - key of activity statistics
+		*/
+		bool try_increment_activity(const std::string& user, const std::string& key);
+
 		/* Makes user log id from user name and timestamp
 			user - name of user
 			time - timestamp
@@ -73,22 +79,21 @@ namespace history {
 		std::string make_key(uint64_t time);
 
 		/* Makes chunk key from general key
+			key - general activity statistics key
+			chunk - number of chunk
 		*/
 		std::string make_chunk_key(const std::string& key, uint32_t chunk);
 
-		bool get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum = NULL);
-
-		/*	Gets number of chunks for key
+		/* Gets chunk data
 			s - session
-			key - key of activity statistics
+			key - general activity statistics key
+			chunk - number of chunk
+			act - where chunk data should be data written
+			checksum - where checksum should be written
+			returns true if chunk has successfully read and has been written to act (and to checksum)
+					otherwise returns false
 		*/
-		uint32_t get_chunks_count(ioremap::elliptics::session& s, const std::string& key);
-
-		/* Tries increments user activity statistics. If fails return false. It is used by increment_activity.
-			user - name of user
-			key - key of activity statistics
-		*/
-		bool try_increment_activity(const std::string& user, const std::string& key);
+		bool get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum = NULL);
 
 		/* Writes data to elliptics in specified session
 			s - elliptics session
@@ -117,6 +122,12 @@ namespace history {
 			merge_chunk - chunk data from which will be added to res_chunk
 		*/
 		void merge(activity& res_chunk, const activity& merge_chunk) const;
+
+		/* Gets full activity statistics for specified general tree
+			s - session
+			key - general key
+		*/
+		activity get_activity(ioremap::elliptics::session& s, const std::string& key);
 
 
 		std::vector<int>							m_groups;		// groups of elliptics

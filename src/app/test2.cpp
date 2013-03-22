@@ -2,12 +2,12 @@
 #include <iprovider.h>
 #include <iostream>
 #include <boost/thread.hpp>
-#include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
 
 namespace consts {
-	const uint32_t THREADS_NO		= 10;
-	const uint32_t ACTIVITIES_NO	= 10000;	//500000000;
-	const uint32_t USERS_NO			= 30;	//30000000;
+	const uint32_t THREADS_NO		= 100;
+	const uint32_t ACTIVITIES_NO	= 100000;	//500000000;
+	const uint32_t USERS_NO			= 30000000;
 	char REQUEST[]					= "OP*Y)(*YHJBOUIyr79r6fiukv3ou4yg89s&T^(AS*&DGILASughjo987t2439ygLIYsg&UIA%^EDTR920upIDHSBKITF897tygd";
 } /* namespace consts */
 
@@ -28,10 +28,9 @@ bool update()
 void test_method(std::shared_ptr<history::iprovider> provider, uint32_t no)
 {
 	while(update()) {
-		auto user = str(boost::format("user%d") % (rand() % consts::USERS_NO));
+		auto user = "user" + boost::lexical_cast<std::string>(rand() % consts::USERS_NO);
 		provider->add_user_activity(user, current_time, consts::REQUEST, sizeof(consts::REQUEST));
 	}
-	//std::cout << "test_method: " << no << std::endl;
 }
 
 void test2(std::shared_ptr<history::iprovider> provider)
@@ -39,10 +38,6 @@ void test2(std::shared_ptr<history::iprovider> provider)
 	std::cout << "Run test2" << std::endl;
 
 	current_time = time(NULL);
-
-	update();
-	auto user = str(boost::format("user%d") % (rand() % consts::USERS_NO));
-	provider->add_user_activity(user, current_time, consts::REQUEST, sizeof(consts::REQUEST));
 
 	srand(current_time);
 
@@ -66,7 +61,6 @@ void test2(std::shared_ptr<history::iprovider> provider)
 
 	provider->for_active_users(current_time, [&total](const std::string& user, uint32_t number) {
 		total += number;
-		//std::cout << "WW " << user << " " << number << std::endl;
 		return true;
 	});
 
