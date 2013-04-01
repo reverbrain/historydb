@@ -11,8 +11,9 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
+
 //log macro adds HDB: prefix to each log record
-#define LOG(l, a...) dnet_log_raw(m_node.get_native(), l, "HDB: ", ##a)
+#define LOG(l, f, a...) dnet_log_raw(m_node.get_native(), l, "HDB: " f, ##a)
 
 namespace history {
 namespace consts {
