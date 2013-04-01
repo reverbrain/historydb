@@ -45,6 +45,8 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 		increment_activity(user, make_key(time));		// Increments user's activity statistics which are stored by time id.
 	else
 		increment_activity(user, key);		// Increments user's activity statistics which are stored by custom key.
+
+	m_self.reset();
 }
 
 void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key)
@@ -58,6 +60,7 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 		auto callback = [=](bool stat_updated) {
 			std::cout << "LAMBDA: ADD: add_user_callback2 stat:" << (stat_updated ? "updated" : "not updated") << std::endl;
 			func(log_writed, stat_updated);
+			m_self.reset();
 		};
 
 		if(key.empty())
@@ -70,6 +73,7 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 void features::repartition_activity(const std::string& key, uint32_t chunks)
 {
 	repartition_activity(key, key, chunks);
+	m_self.reset();
 }
 
 void features::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks)
@@ -78,8 +82,10 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 	activity res, tmp;
 
 	res = get_activity(s, old_key);
-	if(res.size == 0)
+	if(res.size == 0) {
+		m_self.reset();
 		return;
+	}
 
 	auto per_chunk = res.map.size() / chunks;	// calculates number of elements in new chunk
 	per_chunk = per_chunk == 0 ? 1 : per_chunk;	// if number of chunk more then elements in result map then keep only 1 element in first chunks
@@ -114,16 +120,19 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 
 	if (!written)	// checks if some writes was failed if so throw exception
 		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
+	m_self.reset();
 }
 
 void features::repartition_activity(uint64_t time, uint32_t chunks)
 {
 	repartition_activity(make_key(time), chunks);
+	m_self.reset();
 }
 
 void features::repartition_activity(uint64_t time, const std::string& new_key, uint32_t chunks)
 {
 	repartition_activity(make_key(time), new_key, chunks);
+	m_self.reset();
 }
 
 std::list<std::vector<char>> features::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
@@ -136,6 +145,7 @@ std::list<std::vector<char>> features::get_user_logs(const std::string& user, ui
 		LOG(DNET_LOG_INFO, "Got log for user: %s time: %" PRIu64 " size: %d\n", user.c_str(), time, size);
 		return true;
 	});
+	m_self.reset();
 	return ret;	//returns combined user logs.
 }
 
@@ -149,7 +159,11 @@ std::map<std::string, uint32_t> features::get_active_users(const std::string& ke
 	LOG(DNET_LOG_INFO, "Getting active users with key: %s\n", key.c_str());
 	auto s = create_session();
 
-	return get_activity(s, key).map;	// returns result map
+	auto ret = get_activity(s, key).map;	// returns result map
+
+	m_self.reset();
+
+	return ret;
 }
 
 void features::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
@@ -173,11 +187,15 @@ void features::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 		}
 		catch(std::exception& e) {} // skips standard exception while iterating
 	}
+
+	m_self.reset();
 }
 
 void features::for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func)
 {
 	for_active_users(make_key(time), func);
+
+	m_self.reset();
 }
 
 void features::for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func)
@@ -189,6 +207,8 @@ void features::for_active_users(const std::string& key, std::function<bool(const
 		if (!func(it->first, it->second))	//calls callback for each user activity from activity map
 			break;
 	}
+
+	m_self.reset();
 }
 
 ioremap::elliptics::session features::create_session(uint64_t ioflags)

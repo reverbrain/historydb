@@ -26,7 +26,7 @@ bool update()
 	return false;
 }
 
-void test_method(std::shared_ptr<history::iprovider> provider, uint32_t no)
+void test_method(std::shared_ptr<history::iprovider> provider, uint32_t)
 {
 	while(update()) {
 		auto user = "user" + boost::lexical_cast<std::string>(rand() % consts::USERS_NO);
