@@ -1,0 +1,6 @@
+historydb (0.1.0.0) unstable; urgency=low
+
+  * History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
+  * with per user and per day activity statistics.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Mon, 1 Apr 2010 18:32:20 +0400

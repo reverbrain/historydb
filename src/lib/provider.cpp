@@ -12,7 +12,7 @@
 #include <inttypes.h>
 
 //log macro adds HDB: prefix to each log record
-#define LOG(l, ...) dnet_log_raw(m_node.get_native(), l, "HDB: "__VA_ARGS__)
+#define LOG(l, a...) dnet_log_raw(m_node.get_native(), l, "HDB: ", ##a)
 
 namespace history {
 namespace consts {
