@@ -1,2 +1,8 @@
 bin/
 obj/
+*CMakeFiles
+*.cmake
+*Makefile
+CMakeCache.txt
+*historydb_example
+*libhistorydb*
