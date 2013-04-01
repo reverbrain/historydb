@@ -16,8 +16,7 @@ char UCR[]	= "User clear recycle\n";
 char USER1[] = "BlaUser1";
 char USER2[] = "BlaUser2";
 
-void print_usage(char* s)
-{
+void print_usage(char* s) {
 	std::cout << "Usage: " << s << "\n"
 	<< " -r addr:port:family    - adds a route to the given node\n"
 	<< " -g groups              - groups id to connect which are separated by ','\n"
@@ -25,8 +24,7 @@ void print_usage(char* s)
 	;
 }
 
-void test1(std::shared_ptr<history::iprovider> provider)
-{
+void test1(std::shared_ptr<history::iprovider> provider) {
 	std::cout << "Run test1" << std::endl;
 	auto tm = 0;
 
@@ -71,16 +69,41 @@ void test1(std::shared_ptr<history::iprovider> provider)
 	});
 }
 
-void run_test(int test_no, std::shared_ptr<history::iprovider> provider)
-{
-	switch(test_no) {
-		case 1:	test1(provider); break;
-		case 2:	test2(provider); break;
+void test3(std::shared_ptr<history::iprovider> provider) {
+	auto tm = 1;
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM), [](bool log_writed, bool statistics_updated) {
+		std::cout	<< "TEST3: add_user_activity: log: " << (log_writed ? "writed" : "not writed")
+					<< " statistics: " << (statistics_updated ? "updated" : "not updated")
+					<< std::endl;
+	});
+
+	uint32_t ind = 0;
+
+	while(ind < 2) {
+
+		provider->for_user_logs(USER1, 0, tm, [&ind](const std::string& user, uint64_t time, void* data, uint32_t size) {
+			std::cout << "TEST3: LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+			++ind;
+			return true;
+		});
+
+		provider->for_active_users(tm, [&ind](const std::string& user, uint32_t number) {
+			std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << number << std::endl;
+			++ind;
+			return true;
+		});
 	}
 }
 
-int main(int argc, char* argv[])
-{
+void run_test(int test_no, std::shared_ptr<history::iprovider> provider) {
+	switch(test_no) {
+		case 1:	test1(provider); break;
+		case 2:	test2(provider); break;
+		case 3: test3(provider); break;
+	}
+}
+
+int main(int argc, char* argv[]) {
 	int ch, err = 0;
 	std::string remote_addr;
 	int port = -1;
