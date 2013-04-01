@@ -1,6 +1,6 @@
 add_library(historydb SHARED provider.cpp)
 target_link_libraries(historydb
-	${ELLIPTICS_LIBRARIES}
+	${ELLIPTICS_CLIENT_LIBRARIES}
 	${ELLIPTICS_CPP_LIBRARIES}
 	${MSGPACK_LIBRARIES}
 )
