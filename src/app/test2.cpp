@@ -1,19 +1,20 @@
-#include "test2.h"
-#include <iprovider.h>
 #include <iostream>
 #include <boost/thread.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include "historydb/iprovider.h"
+#include "test2.h"
+
 namespace consts {
-	const uint32_t THREADS_NO		= 100;
-	const uint32_t ACTIVITIES_NO	= 100000;	//500000000;
-	const uint32_t USERS_NO			= 30000000;
-	char REQUEST[]					= "OP*Y)(*YHJBOUIyr79r6fiukv3ou4yg89s&T^(AS*&DGILASughjo987t2439ygLIYsg&UIA%^EDTR920upIDHSBKITF897tygd";
+	const uint32_t THREADS_NO = 100;
+	const uint32_t ACTIVITIES_NO = 100000;	//500000000;
+	const uint32_t USERS_NO	= 30000000;
+	char REQUEST[] = "OP*Y)(*YHJBOUIyr79r6fiukv3ou4yg89s&T^(AS*&DGILASughjo987t2439ygLIYsg&UIA%^EDTR920upIDHSBKITF897tygd";
 } /* namespace consts */
 
-uint32_t requests	= 0;
-boost::mutex		mutex;
-uint64_t			current_time;
+uint32_t requests = 0;
+boost::mutex mutex;
+uint64_t current_time;
 
 bool update()
 {

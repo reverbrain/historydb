@@ -1,0 +1,30 @@
+Source: historydb
+Section: database
+Priority: optional
+Maintainer: Kirill Smorodinnikov <shaitan@yandex-team.ru>
+Build-Depends:	debhelper (>= 7.0.50~),
+		cmake (>= 2.6),
+		libboost-dev,
+		libboost-system-dev,
+		libboost-thread-dev,
+		libelliptics-proxy-dev (>= 0.1.5),
+		elliptics-dev (>= 2.22.6.3)
+		
+Standards-Version: 3.8.0
+Homepage: http://github.com/reverbrain/historydb/
+Vcs-Git: git://github.com/reverbrain/historydb.git
+Vcs-Browser: https://github.com/reverbrain/historydb
+
+Package: historydb
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Description: History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
+ with per user and per day activity statistics.
+
+Package: historydb-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: historydb (= ${binary:Version}), ${misc:Depends}
+Description: History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
+ with per user and per day activity statistics.

@@ -1,0 +1,10 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: historydb
+Upstream-Contact: Kirill Smorodinnikov <shaitan@yandex-team.ru>
+Source: https://github.com/reverbrain/historydb
+
+Files: *
+Copyright: (C) 2010-2012 Kirill Smorodinnikov <shaitan@yandex-team.ru>
+License: LGPL-2+
+ The full text of the LGPL is distributed in
+ /usr/share/common-licenses/LGPL-2 on Debian systems.

@@ -1,10 +1,12 @@
 #ifndef HISTORY_SRC_LIB_PROVIDER_H
 #define HISTORY_SRC_LIB_PROVIDER_H
 
-#include <iprovider.h>
-#include <elliptics/cppdef.h>
 #include <map>
 #include <boost/thread/shared_mutex.hpp>
+
+#include <elliptics/cppdef.h>
+
+#include "historydb/iprovider.h"
 
 namespace ioremap { namespace elliptics { class session; }}
 
