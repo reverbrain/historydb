@@ -11,9 +11,8 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-
 //log macro adds HDB: prefix to each log record
-#define LOG(l, f, a...) dnet_log_raw(m_node.get_native(), l, "HDB: " f, ##a)
+#define LOG(l, ...) dnet_log_raw(m_node.get_native(), l, "HDB: "__VA_ARGS__)
 
 namespace history {
 namespace consts {
@@ -373,7 +372,7 @@ void provider::try_increment_activity(const std::string& user, const std::string
 		write_data(s, skey, sbuf.data(), sbuf.size(), checksum, write_callback);
 	};
 
-	auto size_callback = [=, &chunk](bool exist, activity act, dnet_id checksum) {
+	auto size_callback = [=, &chunk](bool exist, activity act, dnet_id) {
 		std::cout << "LAMBDA: TRY_INC: size_callback: " << (exist ? "read" : "failed") << std::endl;
 		if(!exist) {
 			m_keys_cache.set(key, consts::CHUNKS_COUNT);

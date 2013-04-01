@@ -47,12 +47,12 @@ void test1(std::shared_ptr<history::iprovider> provider) {
 	provider->add_user_activity(USER2, tm++, UCM, sizeof(UCM));
 
 	provider->for_user_logs(USER1, 3, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size) {
-		std::cout << "LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+		std::cout << "LOG1 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
 		return true;
 	});
 
 	provider->for_user_logs(USER2, 0, 10, [](const std::string& user, uint64_t time, void* data, uint32_t size) {
-		std::cout << "LOG2 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+		std::cout << "LOG2 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
 		return true;
 	});
 
@@ -82,7 +82,7 @@ void test3(std::shared_ptr<history::iprovider> provider) {
 	while(ind < 2) {
 
 		provider->for_user_logs(USER1, 0, tm, [&ind](const std::string& user, uint64_t time, void* data, uint32_t size) {
-			std::cout << "TEST3: LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+			std::cout << "TEST3: LOG1 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
 			++ind;
 			return true;
 		});
