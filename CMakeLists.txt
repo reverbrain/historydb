@@ -1,6 +1,6 @@
 project(historydb)
 cmake_minimum_required(VERSION 2.8)
-add_definitions(-std=c++0x)
+add_definitions(-std=c++0x -W -Wall)
 
 FILE (READ "${CMAKE_CURRENT_SOURCE_DIR}/debian/changelog" DEBCHANGELOG)
 
@@ -26,7 +26,7 @@ LINK_DIRECTORIES(
 add_subdirectory(src/app)
 add_subdirectory(src/lib)
 
-if(WITH_COCAINE)
+if(WITH_FASTCGI)
 	add_subdirectory(src/fastcgi)
 endif()
 
