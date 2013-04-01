@@ -70,6 +70,26 @@ void provider::add_user_activity(const std::string& user, uint64_t time, void* d
 		increment_activity(user, key);		// Increments user's activity statistics which are stored by custom key.
 }
 
+void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key)
+{
+	LOG(DNET_LOG_INFO, "Async: Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", user.c_str(), time, size, key.c_str());
+
+	std::cout << "LAMBDA: ADD: Let's start" << std::endl;
+
+	add_user_data(user, time, data, size, [=] (bool log_writed) {
+		std::cout << "LAMBDA: ADD: add_user_callback log: " << (log_writed ? "writed" : "not writed" )<< std::endl;
+		auto callback = [=](bool stat_updated) {
+			std::cout << "LAMBDA: ADD: add_user_callback2 stat:" << (stat_updated ? "updated" : "not updated") << std::endl;
+			func(log_writed, stat_updated);
+		};
+
+		if(key.empty())
+			increment_activity(user, make_key(time), callback);
+		else
+			increment_activity(user, key, callback);
+	});
+}
+
 void provider::repartition_activity(const std::string& key, uint32_t chunks)
 {
 	repartition_activity(key, key, chunks);
@@ -206,6 +226,18 @@ ioremap::elliptics::session provider::create_session(uint64_t ioflags)
 	return session;
 }
 
+std::shared_ptr<ioremap::elliptics::session> provider::shared_session(uint64_t ioflags)
+{
+	auto session = std::make_shared<ioremap::elliptics::session>(m_node);
+
+	session->set_cflags(0);	// sets cflags to 0
+	session->set_ioflags(ioflags /*| DNET_IO_FLAGS_CACHE */);	// sets ioflags with DNET_IO_FLAGS_CACHE
+
+	session->set_groups(m_groups);	// sets groups
+
+	return session;
+}
+
 void provider::add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size)
 {
 	auto s = create_session(DNET_IO_FLAGS_APPEND);
@@ -221,6 +253,18 @@ void provider::add_user_data(const std::string& user, uint64_t time, void* data,
 	LOG(DNET_LOG_DEBUG, "Writed data to user log user: %s time: %" PRIu64 " data size: %d\n", user.c_str(), time, size);
 }
 
+void provider::add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool writed)> func)
+{
+	
+	auto s = create_session(DNET_IO_FLAGS_APPEND);
+
+	auto skey = make_key(user, time);
+
+	write_data(s, skey, data, size, [=](bool writed) {
+		func(writed);
+	});
+}
+
 void provider::increment_activity(const std::string& user, const std::string& key)
 {
 	uint32_t attempt = 0;
@@ -231,6 +275,30 @@ void provider::increment_activity(const std::string& user, const std::string& ke
 	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
+}
+
+void provider::increment_activity(const std::string& user, const std::string& key, std::function<void(bool updated)> func)
+{
+	std::cout << "LAMBDA: INC:" << std::endl;
+	uint32_t attempt = 0;
+
+	std::function<void(bool updated)> callback;
+
+	callback = [=, &attempt] (bool updated) {
+		std::cout << "LAMBDA: INC: attempt: " << attempt << std::endl;
+		if(updated || attempt >= consts::WRITES_BEFORE_FAIL)
+		{
+			std::cout << "LAMBDA: INC: " << (updated ? "updated" : "failed") << std::endl;
+			func(updated);
+			return;
+		}
+
+		++attempt;
+
+		try_increment_activity(user, key, callback);
+	};
+
+	try_increment_activity(user, key, callback);
 }
 
 bool provider::try_increment_activity(const std::string& user, const std::string& key)
@@ -278,6 +346,59 @@ bool provider::try_increment_activity(const std::string& user, const std::string
 	return write_res;
 }
 
+void provider::try_increment_activity(const std::string& user, const std::string& key, std::function<void(bool updated)> func)
+{
+	std::cout << "LAMBDA: TRY_INC:" << std::endl;
+	auto s = shared_session();
+
+	uint32_t chunk = 0;
+
+	auto write_callback = [=, &chunk] (bool writed) {
+		std::cout << "LAMBDA: TRY_INC: write_callback: " << (writed ? "writed" : "failed") << std::endl;
+		func(writed);
+	};
+
+	auto read_callback = [=, &chunk] (bool exist, activity act, dnet_id checksum) {
+		std::cout << "LAMBDA: TRY_INC: read_callback: " << (exist ? "read" : "failed") << std::endl;
+		auto res = act.map.insert(std::make_pair(user, 1));
+		if(!res.second)
+			++res.first->second;
+
+		msgpack::sbuffer sbuf;
+		msgpack::pack(sbuf, act);
+
+		auto skey = make_chunk_key(key, chunk);
+
+		write_data(s, skey, sbuf.data(), sbuf.size(), checksum, write_callback);
+	};
+
+	auto size_callback = [=, &chunk](bool exist, activity act, dnet_id checksum) {
+		std::cout << "LAMBDA: TRY_INC: size_callback: " << (exist ? "read" : "failed") << std::endl;
+		if(!exist) {
+			m_keys_cache.set(key, consts::CHUNKS_COUNT);
+			activity ac;
+			ac.size = consts::CHUNKS_COUNT;
+			chunk = 0;
+			read_callback(false, ac, dnet_id());
+			return;
+		}
+
+		chunk = rand(act.size);
+		m_keys_cache.set(key, act.size);
+		get_chunk(s, key, chunk, read_callback);
+	};
+
+	auto size = m_keys_cache.get(key);
+	std::cout << "LAMBDA: TRY_INC: size: " << size << std::endl;
+	if(size == (uint32_t) -1) {
+		get_chunk(s, key, 0, size_callback);
+	}
+	else {
+		chunk = rand(size);
+		get_chunk(s, key, chunk, read_callback);
+	}
+}
+
 std::string provider::make_key(const std::string& user, uint64_t time)
 {
 	return user + "." + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
@@ -298,8 +419,7 @@ bool provider::get_chunk(ioremap::elliptics::session& s, const std::string& key,
 	act.map.clear();
 	if(checksum)
 		s.transform(std::string(), *checksum);
-	try
-	{
+	try {
 		auto skey = make_chunk_key(key, chunk);	// generate chunk key
 		auto file = s.read_latest(skey, 0, 0)->file();	// trys to read chunk data
 		if(checksum)
@@ -315,6 +435,37 @@ bool provider::get_chunk(ioremap::elliptics::session& s, const std::string& key,
 	return false;
 }
 
+void provider::get_chunk(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, uint32_t chunk, std::function<void(bool exist, activity act, dnet_id checksum)> func)
+{
+	std::cout << "LAMBDA: GCHNK: " << std::endl;
+	auto callback = [=](const ioremap::elliptics::read_result& res) {
+		std::cout << "LAMBDA: GCHNK: callback" << std::endl;
+		bool exists = false;
+		dnet_id checksum;
+		std::cout << "LAMBDA: GCHNK: before transform" << std::endl;
+		s->transform(std::string(), checksum);
+		std::cout << "LAMBDA: GCHNK: after transform" << std::endl;
+		activity act;
+		try {
+			std::cout << "LAMBDA: GCHNK: callback: try" << std::endl;
+			auto file = res->file();
+			s->transform(file, checksum);
+			if(!file.empty()) {
+				msgpack::unpacked msg;
+				msgpack::unpack(&msg, file.data<const char>(), file.size());
+				msg.get().convert(&act);
+				exists = true;
+			}
+		}
+		catch(std::exception& e) {}
+		std::cout << "LAMBDA: GCHNK: call func" << std::endl;
+		func(exists, act, checksum);
+	};
+
+	auto skey = make_chunk_key(key, chunk);
+	s->read_latest(callback, skey, 0, 0);
+}
+
 bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
@@ -323,12 +474,32 @@ bool provider::write_data(ioremap::elliptics::session& s, const std::string& key
 	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
 }
 
+void provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(bool writed)> func)
+{
+	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	auto callback = [=](const ioremap::elliptics::write_result& res) {
+		func(res.size() >= m_min_writes);
+	};
+
+	s.write_data(callback, key, dp, 0);
+}
+
 bool provider::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 	auto write_res = s.write_cas(key, dp, checksum, 0);	// write data into elliptics
 
 	return write_res.size() >= m_min_writes;
+}
+
+void provider::write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(bool writed)> func)
+{
+	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	auto callback = [=](const ioremap::elliptics::write_result& res) {
+		func(res.size() >= m_min_writes);
+	};
+
+	s->write_cas(callback, key, dp, checksum, 0);
 }
 
 uint32_t provider::rand(uint32_t max)
