@@ -1,6 +1,7 @@
 #include <iostream>
 #include <boost/thread.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/bind.hpp>
 
 #include "historydb/iprovider.h"
 #include "test2.h"
@@ -34,6 +35,12 @@ void test_method(std::shared_ptr<history::iprovider> provider, uint32_t)
 	}
 }
 
+bool test2_for(uint32_t& total, const std::string&, uint32_t number)
+{
+	total += number;
+	return true;
+}
+
 void test2(std::shared_ptr<history::iprovider> provider)
 {
 	std::cout << "Run test2" << std::endl;
@@ -44,9 +51,7 @@ void test2(std::shared_ptr<history::iprovider> provider)
 
 	std::list<boost::thread> threads;
 	for(uint32_t i = 0; i < consts::THREADS_NO; ++i) {
-		threads.push_back(boost::thread([provider, i]() {
-			test_method(provider, i);
-		}));
+		threads.push_back(boost::thread(boost::bind(&test_method, provider, i)));
 	}
 
 	while(!threads.empty()) {
@@ -60,10 +65,7 @@ void test2(std::shared_ptr<history::iprovider> provider)
 
 	uint32_t total = 0;
 
-	provider->for_active_users(current_time, [&total](const std::string& user, uint32_t number) {
-		total += number;
-		return true;
-	});
+	provider->for_active_users(current_time, boost::bind(&test2_for, total, _1, _2));
 
 	std::cout << "Total activities: " << total << std::endl;
 }
