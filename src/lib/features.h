@@ -2,14 +2,16 @@
 #define HISTORY_SRC_LIB_FEATURE_H
 
 #include <map>
+#include <elliptics/cppdef.h>
 
 #include "historydb/iprovider.h"
 
-namespace ioremap { namespace elliptics {
+/*namespace ioremap { namespace elliptics {
 	class file_logger;
 	class node;
 	class session;
-}}
+	typedef read_result;
+}}*/
 
 struct dnet_id;
 
@@ -26,7 +28,7 @@ namespace history {
 		virtual void set_session_parameters(const std::vector<int>&, uint32_t) {}
 
 		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string());
-		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key = std::string());
+		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key = std::string());
 
 		virtual void repartition_activity(const std::string& key, uint32_t parts);
 		virtual void repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts);
@@ -65,7 +67,7 @@ namespace history {
 		*/
 		void add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size);
 
-		void add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool writed)> func);
+		void async_add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size);
 
 		/* Increments user activity statistics
 			user -nane of user
@@ -120,7 +122,7 @@ namespace history {
 		*/
 		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size);
 
-		void write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(bool writed)> func);
+		void write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(bool written)> func);
 
 		/* Writes data to elliptics in specified session by using write_cas method and checksum
 			s - elliptics session
@@ -131,7 +133,7 @@ namespace history {
 		*/
 		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum);
 
-		void write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(bool writed)> func);
+		void write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(bool written)> func);
 
 		/* Generate random value in range [0, max)
 			max - the upper limit of random range
@@ -150,12 +152,34 @@ namespace history {
 		*/
 		activity get_activity(ioremap::elliptics::session& s, const std::string& key);
 
+		void increment_activity_callback(bool log_written, bool stat_updated);
+		void try_increment_activity_callback(std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool updated);
+
+		void size_callback(std::shared_ptr<ioremap::elliptics::session> s, std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
+		void read_callback(std::shared_ptr<ioremap::elliptics::session> s, std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
+		void write_callback(std::function<void(bool updated)> func, bool written);
+
+		void add_user_data_callback(bool written);
+
+		bool get_user_logs_callback(std::list<std::vector<char>>& ret, const std::string& user, uint64_t time, void* data, uint32_t size);
+
+		void get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, std::shared_ptr<ioremap::elliptics::session> s, const ioremap::elliptics::read_result& res);
+
+		void write_data_callback(std::function<void(bool written)> func, const ioremap::elliptics::write_result& res);
+
 		ioremap::elliptics::file_logger&	m_log;
 		ioremap::elliptics::node&			m_node;
 		std::shared_ptr<features>			m_self;
 		const std::vector<int>&				m_groups;
 		const uint32_t&						m_min_writes;
 		keys_size_cache&					m_keys_cache;
+
+		uint32_t							m_attempt;
+		uint32_t							m_chunk;
+		std::string							m_user;
+		uint64_t							m_time;
+		std::string							m_key;
+		std::function<void(bool log_written, bool statistics_updated)>	m_add_user_activity_callback;
 	};
 
 } /* namespace history */
