@@ -75,7 +75,7 @@ namespace history {
 		*/
 		void increment_activity(const std::string& user, const std::string& key);
 
-		void increment_activity(const std::string& user, const std::string& key, std::function<void(bool updated)> func);
+		void async_increment_activity(const std::string& user, const std::string& key);
 
 		/* Tries increments user activity statistics. If fails return false. It is used by increment_activity.
 			user - name of user
@@ -83,7 +83,7 @@ namespace history {
 		*/
 		bool try_increment_activity(const std::string& user, const std::string& key);
 
-		void try_increment_activity(const std::string& user, const std::string& key, std::function<void(bool updated)> func);
+		void async_try_increment_activity(const std::string& user, const std::string& key);
 
 		/* Makes user log id from user name and timestamp
 			user - name of user
@@ -153,11 +153,10 @@ namespace history {
 		activity get_activity(ioremap::elliptics::session& s, const std::string& key);
 
 		void increment_activity_callback(bool log_written, bool stat_updated);
-		void try_increment_activity_callback(std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool updated);
 
-		void size_callback(std::shared_ptr<ioremap::elliptics::session> s, std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
-		void read_callback(std::shared_ptr<ioremap::elliptics::session> s, std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
-		void write_callback(std::function<void(bool updated)> func, bool written);
+		void size_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
+		void read_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
+		void write_callback(bool written);
 
 		void add_user_data_callback(bool written);
 
@@ -177,8 +176,9 @@ namespace history {
 		uint32_t							m_attempt;
 		uint32_t							m_chunk;
 		std::string							m_user;
-		uint64_t							m_time;
 		std::string							m_key;
+		bool								m_log_written;
+		bool								m_stat_updated;
 		std::function<void(bool log_written, bool statistics_updated)>	m_add_user_activity_callback;
 	};
 

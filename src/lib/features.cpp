@@ -58,8 +58,7 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 	m_add_user_activity_callback = func;
 
 	m_user = user;
-	m_time = time;
-	m_key = key;
+	m_key = key.empty() ? make_key(time) : key;
 
 	async_add_user_data(user, time, data, size);
 }
@@ -263,14 +262,12 @@ void features::increment_activity(const std::string& user, const std::string& ke
 	}
 }
 
-void features::increment_activity(const std::string& user, const std::string& key, std::function<void(bool updated)> func)
+void features::async_increment_activity(const std::string& user, const std::string& key)
 {
 	std::cout << "LAMBDA: INC:" << std::endl;
 	m_attempt = 0;
 
-	auto callback = boost::bind(&features::try_increment_activity_callback, this, func, user, key, _1);
-
-	try_increment_activity(user, key, callback);
+	async_try_increment_activity(user, key);
 }
 
 bool features::try_increment_activity(const std::string& user, const std::string& key)
@@ -318,7 +315,7 @@ bool features::try_increment_activity(const std::string& user, const std::string
 	return write_res;
 }
 
-void features::try_increment_activity(const std::string& user, const std::string& key, std::function<void(bool updated)> func)
+void features::async_try_increment_activity(const std::string& user, const std::string& key)
 {
 	std::cout << "LAMBDA: TRY_INC:" << std::endl;
 	auto s = shared_session();
@@ -328,11 +325,11 @@ void features::try_increment_activity(const std::string& user, const std::string
 	auto size = m_keys_cache.get(key);
 	std::cout << "LAMBDA: TRY_INC: size: " << size << std::endl;
 	if(size == (uint32_t) -1) {
-		get_chunk(s, key, 0, boost::bind(&features::size_callback, this, s, func, user, key, _1, _2, _3));
+		get_chunk(s, key, 0, boost::bind(&features::size_callback, this, s, user, key, _1, _2, _3));
 	}
 	else {
 		m_chunk = rand(size);
-		get_chunk(s, key, m_chunk, boost::bind(&features::read_callback, this, s, func, user, key, _1, _2, _3));
+		get_chunk(s, key, m_chunk, boost::bind(&features::read_callback, this, s, user, key, _1, _2, _3));
 	}
 }
 
@@ -459,32 +456,7 @@ activity features::get_activity(ioremap::elliptics::session& s, const std::strin
 	return ret;		// returns result map
 }
 
-void features::increment_activity_callback(bool log_written, bool stat_updated)
-{
-	std::cout << "LAMBDA: ADD: add_user_callback2 stat:" << (stat_updated ? "updated" : "not updated") << std::endl;
-	m_add_user_activity_callback(log_written, stat_updated);
-	m_self.reset();
-}
-
-void features::try_increment_activity_callback(std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool updated)
-{
-	std::cout << "LAMBDA: INC: attempt: " << m_attempt << std::endl;
-
-	auto callback = boost::bind(&features::try_increment_activity_callback, this, func, user, key, _1);
-
-	if(updated || m_attempt >= consts::WRITES_BEFORE_FAIL)
-	{
-		std::cout << "LAMBDA: INC: " << (updated ? "updated" : "failed") << std::endl;
-		func(updated);
-		return;
-	}
-
-	++m_attempt;
-
-	try_increment_activity(user, key, callback);
-}
-
-void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool exist, activity act, dnet_id)
+void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id)
 {
 	std::cout << "LAMBDA: TRY_INC: size_callback: " << (exist ? "read" : "failed") << std::endl;
 	if(!exist) {
@@ -492,16 +464,16 @@ void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, std
 		activity ac;
 		ac.size = consts::CHUNKS_COUNT;
 		m_chunk = 0;
-		read_callback(s, func, user, key, false, ac, dnet_id());
+		read_callback(s, user, key, false, ac, dnet_id());
 		return;
 	}
 
 	m_chunk = rand(act.size);
 	m_keys_cache.set(key, act.size);
-	get_chunk(s, key, m_chunk, boost::bind(&features::read_callback, this, s, func, user, key, _1, _2, _3));
+	get_chunk(s, key, m_chunk, boost::bind(&features::read_callback, this, s, user, key, _1, _2, _3));
 }
 
-void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, std::function<void(bool updated)> func, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum)
+void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum)
 {
 	std::cout << "LAMBDA: TRY_INC: read_callback: " << (exist ? "read" : "failed") << std::endl;
 	auto res = act.map.insert(std::make_pair(user, 1));
@@ -513,13 +485,25 @@ void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, std
 
 	auto skey = make_chunk_key(key, m_chunk);
 
-	write_data(s, skey, sbuf.data(), sbuf.size(), checksum, boost::bind(&features::write_callback, this, func, _1));
+	write_data(s, skey, sbuf.data(), sbuf.size(), checksum, boost::bind(&features::write_callback, this, _1));
 }
 
-void features::write_callback(std::function<void(bool updated)> func, bool written)
+void features::write_callback(bool written)
 {
 	std::cout << "LAMBDA: TRY_INC: write_callback: " << (written ? "written" : "failed") << std::endl;
-	func(written);
+
+	if(written || m_attempt >= consts::WRITES_BEFORE_FAIL)
+	{
+		m_stat_updated = written;
+		std::cout << "LAMBDA: INC: " << (written ? "updated" : "failed") << std::endl;
+		m_add_user_activity_callback(m_log_written, m_stat_updated);
+		m_self.reset();
+		return;
+	}
+
+	++m_attempt;
+
+	async_try_increment_activity(m_user, m_key);
 }
 
 bool features::get_user_logs_callback(std::list<std::vector<char>>& ret, const std::string& user, uint64_t time, void* data, uint32_t size)
@@ -532,12 +516,9 @@ bool features::get_user_logs_callback(std::list<std::vector<char>>& ret, const s
 void features::add_user_data_callback(bool written)
 {
 	std::cout << "LAMBDA: ADD: add_user_callback log: " << (written ? "written" : "not written" )<< std::endl;
-	auto callback = boost::bind(&features::increment_activity_callback, this, written, _1);
+	m_log_written = written;
 
-	if(m_key.empty())
-		increment_activity(m_user, make_key(m_time), callback);
-	else
-		increment_activity(m_user, m_key, callback);
+	async_increment_activity(m_user, m_key);
 }
 
 void features::get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, std::shared_ptr<ioremap::elliptics::session> s, const ioremap::elliptics::read_result& res)
