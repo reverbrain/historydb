@@ -4,6 +4,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
+#include <boost/bind.hpp>
 
 #include "historydb/iprovider.h"
 
@@ -22,6 +23,30 @@ void print_usage(char* s) {
 	<< " -g groups              - groups id to connect which are separated by ','\n"
 	<< " -t tests               - numbers of tests which should be runned separated by ','\n"
 	;
+}
+
+bool test1_for1(const std::string& user, uint64_t time, void* data, uint32_t size)
+{
+	std::cout << "LOG1 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
+	return true;
+}
+
+bool test1_for2(const std::string& user, uint64_t time, void* data, uint32_t size)
+{
+	std::cout << "LOG2 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
+	return true;
+}
+
+bool test1_for3(const std::string& user, uint32_t number)
+{
+	std::cout << "ACT1 LAMBDA: " << user << " " << number << std::endl;
+	return true;
+}
+
+bool test1_for4(const std::string& user, uint32_t number)
+{
+	std::cout << "ACT2 LAMBDA: " << user << " " << number << std::endl;
+	return true;
 }
 
 void test1(std::shared_ptr<history::iprovider> provider) {
@@ -46,52 +71,49 @@ void test1(std::shared_ptr<history::iprovider> provider) {
 	provider->add_user_activity(USER2, tm++, UMM, sizeof(UMM));
 	provider->add_user_activity(USER2, tm++, UCM, sizeof(UCM));
 
-	provider->for_user_logs(USER1, 3, tm, [](const std::string& user, uint64_t time, void* data, uint32_t size) {
-		std::cout << "LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
-		return true;
-	});
+	provider->for_user_logs(USER1, 3, tm, test1_for1);
 
-	provider->for_user_logs(USER2, 0, 10, [](const std::string& user, uint64_t time, void* data, uint32_t size) {
-		std::cout << "LOG2 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
-		return true;
-	});
+	provider->for_user_logs(USER2, 0, 10, test1_for2);
 
-	provider->for_active_users(tm, [](const std::string& user, uint32_t number) {
-		std::cout << "ACT1 LAMBDA: " << user << " " << number << std::endl;
-		return true;
-	});
+	provider->for_active_users(tm, test1_for3);
 
 	provider->repartition_activity(tm, 10);
 
-	provider->for_active_users(tm, [](const std::string& user, uint32_t number) {
-		std::cout << "ACT2 LAMBDA: " << user << " " << number << std::endl;
-		return true;
-	});
+	provider->for_active_users(tm, test1_for4);
+}
+
+void test3_add(bool log_writed, bool statistics_updated)
+{
+	std::cout	<< "TEST3: add_user_activity: log: " << (log_writed ? "writed" : "not writed")
+				<< " statistics: " << (statistics_updated ? "updated" : "not updated")
+				<< std::endl;
+}
+
+bool test3_for1(uint32_t* ind, const std::string& user, uint64_t time, void* data, uint32_t size)
+{
+	std::cout << "TEST3: LOG1 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
+	++(*ind);
+	return true;
+}
+
+bool test3_for2(uint32_t* ind, const std::string& user, uint32_t number)
+{
+	std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << number << std::endl;
+	++(*ind);
+	return true;
 }
 
 void test3(std::shared_ptr<history::iprovider> provider) {
 	auto tm = 1;
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM), [](bool log_writed, bool statistics_updated) {
-		std::cout	<< "TEST3: add_user_activity: log: " << (log_writed ? "writed" : "not writed")
-					<< " statistics: " << (statistics_updated ? "updated" : "not updated")
-					<< std::endl;
-	});
+	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM), test3_add);
 
 	uint32_t ind = 0;
 
 	while(ind < 2) {
 
-		provider->for_user_logs(USER1, 0, tm, [&ind](const std::string& user, uint64_t time, void* data, uint32_t size) {
-			std::cout << "TEST3: LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
-			++ind;
-			return true;
-		});
+		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, &ind, _1, _2, _3, _4));
 
-		provider->for_active_users(tm, [&ind](const std::string& user, uint32_t number) {
-			std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << number << std::endl;
-			++ind;
-			return true;
-		});
+		provider->for_active_users(tm, boost::bind(&test3_for2, &ind, _1, _2));
 	}
 }
 
