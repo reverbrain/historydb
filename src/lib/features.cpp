@@ -6,6 +6,7 @@
 #include <boost/thread/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
+#include <boost/random.hpp>
 
 #include "activity.h"
 #include "keys_size_cache.h"
@@ -52,8 +53,6 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key)
 {
 	LOG(DNET_LOG_INFO, "Async: Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", user.c_str(), time, size, key.c_str());
-
-	std::cout << "LAMBDA: ADD: Let's start" << std::endl;
 
 	m_add_user_activity_callback = func;
 
@@ -111,8 +110,10 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 	m_keys_cache.remove(old_key);
 	m_keys_cache.set(new_key, chunks);
 
-	if (!written)	// checks if some writes was failed if so throw exception
+	if (!written) {	// checks if some writes was failed if so throw exception
+		LOG(DNET_LOG_ERROR, "Before throw\n");
 		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
+	}
 	m_self.reset();
 }
 
@@ -255,16 +256,19 @@ void features::increment_activity(const std::string& user, const std::string& ke
 	uint32_t attempt = 0;
 	
 	while(	attempt++ < consts::WRITES_BEFORE_FAIL &&		// Tries const::WRITES_BEFORE_FAIL times
-			!try_increment_activity(user, key)) {}			// to increment user activity statistics
+			!try_increment_activity(user, key)) {			// to increment user activity statistics
+		LOG(DNET_LOG_DEBUG, "Exteral attemt to increment activity of user: %s with key %s attempt: %d\n", user.c_str(), key.c_str(), attempt);
+	}
 
 	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
+		LOG(DNET_LOG_ERROR, "Before throw\n");
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
 }
 
 void features::async_increment_activity(const std::string& user, const std::string& key)
 {
-	std::cout << "LAMBDA: INC:" << std::endl;
+	LOG(DNET_LOG_DEBUG, "Async increment activity for user: %s and key: %s\n", user.c_str(), key.c_str());
 	m_attempt = 0;
 
 	async_try_increment_activity(user, key);
@@ -317,13 +321,13 @@ bool features::try_increment_activity(const std::string& user, const std::string
 
 void features::async_try_increment_activity(const std::string& user, const std::string& key)
 {
-	std::cout << "LAMBDA: TRY_INC:" << std::endl;
+	LOG(DNET_LOG_DEBUG, "Async trying increment activity for user: %s and key: %s\n", user.c_str(), key.c_str());
 	auto s = shared_session();
 
 	m_chunk = 0;
 
 	auto size = m_keys_cache.get(key);
-	std::cout << "LAMBDA: TRY_INC: size: " << size << std::endl;
+	LOG(DNET_LOG_DEBUG, "Count of chunks for key %s = %d\n", key.c_str(), size);
 	if(size == (uint32_t) -1) {
 		get_chunk(s, key, 0, boost::bind(&features::size_callback, this, s, user, key, _1, _2, _3));
 	}
@@ -371,7 +375,6 @@ bool features::get_chunk(ioremap::elliptics::session& s, const std::string& key,
 
 void features::get_chunk(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, uint32_t chunk, std::function<void(bool exist, activity act, dnet_id checksum)> func)
 {
-	std::cout << "LAMBDA: GCHNK: " << std::endl;
 	auto callback = boost::bind(&features::get_chunk_callback, this, func, s, _1);
 
 	auto skey = make_chunk_key(key, chunk);
@@ -381,38 +384,45 @@ void features::get_chunk(std::shared_ptr<ioremap::elliptics::session> s, const s
 bool features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", key.c_str());
 	auto write_res = s.write_data(key, dp, 0);	// write data into elliptics
 
 	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
 }
 
-void features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(bool written)> func)
+void features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::write_result& res)> func)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
-	auto callback = boost::bind(&features::write_data_callback, this, func, _1);
+	LOG(DNET_LOG_DEBUG, "Try write async data to key: %s\n", key.c_str());
 
-	s.write_data(callback, key, dp, 0);
+	s.write_data(func, key, dp, 0);
 }
 
 bool features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	LOG(DNET_LOG_DEBUG, "Try write csum sync data to key: %s\n", key.c_str());
 	auto write_res = s.write_cas(key, dp, checksum, 0);	// write data into elliptics
 
 	return write_res.size() >= m_min_writes;
 }
 
-void features::write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(bool written)> func)
+void features::write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(const ioremap::elliptics::write_result& res)> func)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
-	auto callback = boost::bind(&features::write_data_callback, this, func, _1);
+	LOG(DNET_LOG_DEBUG, "Try write csum async data to key: %s\n", key.c_str());
 
-	s->write_cas(callback, key, dp, checksum, 0);
+	s->write_cas(func, key, dp, checksum, 0);
 }
 
 uint32_t features::rand(uint32_t max)
 {
-	return ::rand() % max;
+	static boost::mutex mutex;
+	boost::mutex::scoped_lock lock(mutex);
+	static boost::mt19937 rnd;
+	boost::uniform_int<> dist(0, max - 1);
+
+	return dist(rnd);
 }
 
 void features::merge(activity& res_chunk, const activity& merge_chunk) const
@@ -458,7 +468,8 @@ activity features::get_activity(ioremap::elliptics::session& s, const std::strin
 
 void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id)
 {
-	std::cout << "LAMBDA: TRY_INC: size_callback: " << (exist ? "read" : "failed") << std::endl;
+	LOG(DNET_LOG_DEBUG, "Size callback result file: %s\n", (exist ? "read" : "failed"));
+
 	if(!exist) {
 		m_keys_cache.set(key, consts::CHUNKS_COUNT);
 		activity ac;
@@ -475,7 +486,8 @@ void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, con
 
 void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum)
 {
-	std::cout << "LAMBDA: TRY_INC: read_callback: " << (exist ? "read" : "failed") << std::endl;
+	LOG(DNET_LOG_DEBUG, "Read callback result: %s\n", (exist ? "read" : "failed"));
+
 	auto res = act.map.insert(std::make_pair(user, 1));
 	if(!res.second)
 		++res.first->second;
@@ -488,14 +500,15 @@ void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, con
 	write_data(s, skey, sbuf.data(), sbuf.size(), checksum, boost::bind(&features::write_callback, this, _1));
 }
 
-void features::write_callback(bool written)
+void features::write_callback(const ioremap::elliptics::write_result& res)
 {
-	std::cout << "LAMBDA: TRY_INC: write_callback: " << (written ? "written" : "failed") << std::endl;
+	bool written = res.size() >= m_min_writes;
+
+	LOG(DNET_LOG_DEBUG, "Write callback result: %s\n", (written ? "written" : "failed"));
 
 	if(written || m_attempt >= consts::WRITES_BEFORE_FAIL)
 	{
 		m_stat_updated = written;
-		std::cout << "LAMBDA: INC: " << (written ? "updated" : "failed") << std::endl;
 		m_add_user_activity_callback(m_log_written, m_stat_updated);
 		m_self.reset();
 		return;
@@ -513,9 +526,10 @@ bool features::get_user_logs_callback(std::list<std::vector<char>>& ret, const s
 	return true;
 }
 
-void features::add_user_data_callback(bool written)
+void features::add_user_data_callback(const ioremap::elliptics::write_result& res)
 {
-	std::cout << "LAMBDA: ADD: add_user_callback log: " << (written ? "written" : "not written" )<< std::endl;
+	bool written = res.size() >= m_min_writes;
+	LOG(DNET_LOG_DEBUG, "Add user data callback result: %s\n", (written ? "written" : "failed"));
 	m_log_written = written;
 
 	async_increment_activity(m_user, m_key);
@@ -523,15 +537,14 @@ void features::add_user_data_callback(bool written)
 
 void features::get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, std::shared_ptr<ioremap::elliptics::session> s, const ioremap::elliptics::read_result& res)
 {
-	std::cout << "LAMBDA: GCHNK: callback" << std::endl;
+	LOG(DNET_LOG_DEBUG, "Get chunk callback result\n");
+
 	bool exists = false;
 	dnet_id checksum;
-	std::cout << "LAMBDA: GCHNK: before transform" << std::endl;
 	s->transform(std::string(), checksum);
-	std::cout << "LAMBDA: GCHNK: after transform" << std::endl;
 	activity act;
 	try {
-		std::cout << "LAMBDA: GCHNK: callback: try" << std::endl;
+		LOG(DNET_LOG_DEBUG, "Get chunk callback try handle file\n");
 		auto file = res->file();
 		s->transform(file, checksum);
 		if(!file.empty()) {
@@ -542,13 +555,7 @@ void features::get_chunk_callback(std::function<void(bool exist, activity act, d
 		}
 	}
 	catch(std::exception& e) {}
-	std::cout << "LAMBDA: GCHNK: call func" << std::endl;
 	func(exists, act, checksum);
-}
-
-void features::write_data_callback(std::function<void(bool written)> func, const ioremap::elliptics::write_result& res)
-{
-	func(res.size() >= m_min_writes);
 }
 
 }

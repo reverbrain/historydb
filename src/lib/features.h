@@ -122,7 +122,7 @@ namespace history {
 		*/
 		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size);
 
-		void write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(bool written)> func);
+		void write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::write_result&)> func);
 
 		/* Writes data to elliptics in specified session by using write_cas method and checksum
 			s - elliptics session
@@ -133,7 +133,7 @@ namespace history {
 		*/
 		bool write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum);
 
-		void write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(bool written)> func);
+		void write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(const ioremap::elliptics::write_result&)> func);
 
 		/* Generate random value in range [0, max)
 			max - the upper limit of random range
@@ -156,15 +156,13 @@ namespace history {
 
 		void size_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
 		void read_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
-		void write_callback(bool written);
+		void write_callback(const ioremap::elliptics::write_result& res);
 
-		void add_user_data_callback(bool written);
+		void add_user_data_callback(const ioremap::elliptics::write_result& res);
 
 		bool get_user_logs_callback(std::list<std::vector<char>>& ret, const std::string& user, uint64_t time, void* data, uint32_t size);
 
 		void get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, std::shared_ptr<ioremap::elliptics::session> s, const ioremap::elliptics::read_result& res);
-
-		void write_data_callback(std::function<void(bool written)> func, const ioremap::elliptics::write_result& res);
 
 		ioremap::elliptics::file_logger&	m_log;
 		ioremap::elliptics::node&			m_node;

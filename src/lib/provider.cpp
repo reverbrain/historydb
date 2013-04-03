@@ -13,7 +13,7 @@
 
 namespace history {
 namespace consts {
-	const char* 	LOG_FILE			= "log.log";		// path to log file
+	const char* 	LOG_FILE			= "/tmp/hdb_log";		// path to log file
 	const int		LOG_LEVEL			= DNET_LOG_DEBUG;	// log level
 } /* namespace consts */
 
