@@ -50,7 +50,7 @@ who were active (had at least one log update) during requested period of time.
 
 Tutorial
 =========
-Firstly, complete [elliptics tutorial](http://doc.reverbrain.com/elliptics:server-tutorial).*
+Firstly, complete [elliptics tutorial](http://doc.reverbrain.com/elliptics:server-tutorial).
 It is neccessary to start work with elliptics.
 
 Download source tree
