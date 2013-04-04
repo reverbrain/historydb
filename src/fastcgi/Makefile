@@ -35,25 +35,19 @@ CMAKE_COMMAND = /usr/bin/cmake
 # The command to remove a file.
 RM = /usr/bin/cmake -E remove -f
 
-# Escaping for special characters.
-EQUALS = =
-
-# The program to use to edit the cache.
-CMAKE_EDIT_COMMAND = /usr/bin/ccmake
-
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/zbr/awork/tmp/historydb
+CMAKE_SOURCE_DIR = /home/shaitan/Projects/historydb
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/zbr/awork/tmp/historydb
+CMAKE_BINARY_DIR = /home/shaitan/Projects/historydb
 
 #=============================================================================
 # Targets provided globally by CMake.
 
 # Special rule for the target edit_cache
 edit_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
-	/usr/bin/ccmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running interactive CMake command-line interface..."
+	/usr/bin/cmake -i .
 .PHONY : edit_cache
 
 # Special rule for the target edit_cache
@@ -113,14 +107,14 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	cd /home/zbr/awork/tmp/historydb && $(CMAKE_COMMAND) -E cmake_progress_start /home/zbr/awork/tmp/historydb/CMakeFiles /home/zbr/awork/tmp/historydb/src/fastcgi/CMakeFiles/progress.marks
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/zbr/awork/tmp/historydb/CMakeFiles 0
+	cd /home/shaitan/Projects/historydb && $(CMAKE_COMMAND) -E cmake_progress_start /home/shaitan/Projects/historydb/CMakeFiles /home/shaitan/Projects/historydb/src/fastcgi/CMakeFiles/progress.marks
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/shaitan/Projects/historydb/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/clean
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/clean
 .PHONY : clean
 
 # The main clean target
@@ -129,39 +123,39 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/preinstall
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/preinstall
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /home/zbr/awork/tmp/historydb && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /home/shaitan/Projects/historydb && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
-src/fastcgi/CMakeFiles/historydb_fastcgi.dir/rule:
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/CMakeFiles/historydb_fastcgi.dir/rule
-.PHONY : src/fastcgi/CMakeFiles/historydb_fastcgi.dir/rule
+src/fastcgi/CMakeFiles/historydb-fastcgi.dir/rule:
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f CMakeFiles/Makefile2 src/fastcgi/CMakeFiles/historydb-fastcgi.dir/rule
+.PHONY : src/fastcgi/CMakeFiles/historydb-fastcgi.dir/rule
 
 # Convenience name for target.
-historydb_fastcgi: src/fastcgi/CMakeFiles/historydb_fastcgi.dir/rule
-.PHONY : historydb_fastcgi
+historydb-fastcgi: src/fastcgi/CMakeFiles/historydb-fastcgi.dir/rule
+.PHONY : historydb-fastcgi
 
 # fast build rule for target.
-historydb_fastcgi/fast:
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb_fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb_fastcgi.dir/build
-.PHONY : historydb_fastcgi/fast
+historydb-fastcgi/fast:
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb-fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb-fastcgi.dir/build
+.PHONY : historydb-fastcgi/fast
 
 historydb-fastcgi.o: historydb-fastcgi.cpp.o
 .PHONY : historydb-fastcgi.o
 
 # target to build an object file
 historydb-fastcgi.cpp.o:
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb_fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb_fastcgi.dir/historydb-fastcgi.cpp.o
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb-fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb-fastcgi.dir/historydb-fastcgi.cpp.o
 .PHONY : historydb-fastcgi.cpp.o
 
 historydb-fastcgi.i: historydb-fastcgi.cpp.i
@@ -169,7 +163,7 @@ historydb-fastcgi.i: historydb-fastcgi.cpp.i
 
 # target to preprocess a source file
 historydb-fastcgi.cpp.i:
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb_fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb_fastcgi.dir/historydb-fastcgi.cpp.i
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb-fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb-fastcgi.dir/historydb-fastcgi.cpp.i
 .PHONY : historydb-fastcgi.cpp.i
 
 historydb-fastcgi.s: historydb-fastcgi.cpp.s
@@ -177,7 +171,7 @@ historydb-fastcgi.s: historydb-fastcgi.cpp.s
 
 # target to generate assembly for a file
 historydb-fastcgi.cpp.s:
-	cd /home/zbr/awork/tmp/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb_fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb_fastcgi.dir/historydb-fastcgi.cpp.s
+	cd /home/shaitan/Projects/historydb && $(MAKE) -f src/fastcgi/CMakeFiles/historydb-fastcgi.dir/build.make src/fastcgi/CMakeFiles/historydb-fastcgi.dir/historydb-fastcgi.cpp.s
 .PHONY : historydb-fastcgi.cpp.s
 
 # Help Target
@@ -187,7 +181,7 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
-	@echo "... historydb_fastcgi"
+	@echo "... historydb-fastcgi"
 	@echo "... install"
 	@echo "... install/local"
 	@echo "... install/strip"
@@ -207,6 +201,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /home/zbr/awork/tmp/historydb && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /home/shaitan/Projects/historydb && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

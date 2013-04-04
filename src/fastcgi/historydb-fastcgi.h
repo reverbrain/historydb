@@ -31,9 +31,11 @@ namespace fcgi {
 	private:
 		void handle_root(fastcgi::Request* req, fastcgi::HandlerContext* context);
 		void handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void handle_test(fastcgi::Request* req, fastcgi::HandlerContext* context);
 
 		void handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context);
-		void handle_get_active_user(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context);
 
 		fastcgi::Logger*					m_logger;
 		std::shared_ptr<history::iprovider>	m_provider;
