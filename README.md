@@ -52,9 +52,11 @@ Firstly, complete this tutorial http://doc.reverbrain.com/elliptics:server-tutor
 It is neccessary to start work with elliptics.
 
 Download source tree
+
 	git clone http://github.com/reverbrain/historydb.git
 
 Building library
+
 	cd historydb
 	cmake .
 	make
