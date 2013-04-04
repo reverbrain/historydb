@@ -73,7 +73,7 @@ namespace history { namespace fcgi {
 			handle_wrong_uri(req, context);
 		}
 
-		stream << "Hello, World!!!<br>" << std::endl;
+		stream << "Request info:<br>" << std::endl;
 		stream << "getUrl: " << req->getUrl() << "<br>" << std::endl;
 		stream << "getQueryString " << req->getQueryString() << "<br>" << std::endl;
 		stream << "getRequestMethod " << req->getRequestMethod() << "<br>" << std::endl;
@@ -137,8 +137,8 @@ namespace history { namespace fcgi {
 		fastcgi::RequestStream stream(req);
 
 		auto file = req->remoteFile("data");
-		std::string data;
-		file.toString(data);
+		std::string data("Beeer");
+		//file.toString(data);
 
 		/*if(!req->hasFile(req->getArg("data"))) {
 			req->setStatus(404);
@@ -162,6 +162,8 @@ namespace history { namespace fcgi {
 		if(req->hasArg("timestamp"))
 			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
 
+		std::cout << "Add user activity " << user << " " << tm << " " << data.size() << " " << key << std::endl;
+
 		m_provider->add_user_activity(user, tm, &data.front(), data.size(), key);
 
 		req->setStatus(200);
@@ -169,6 +171,28 @@ namespace history { namespace fcgi {
 
 	void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context)
 	{
+		fastcgi::RequestStream stream(req);
+		std::string key, timestamp;
+		if(req->hasArg("key"))
+			key = req->getArg("key");
+		if(req->hasArg("timestamp"))
+			timestamp = req->getArg("timestamp");
+		if(key.empty() && timestamp.empty()) {
+			req->setStatus(404);
+			stream << "no key or timestamp" << std::endl;
+			return;
+		}
+
+		std::map<std::string, uint32_t> res;
+		if(!key.empty())
+			res = m_provider->get_active_users(key);
+		else
+			res = m_provider->get_active_users(boost::lexical_cast<uint64_t>(timestamp));
+
+		for(auto it = res.begin(); it != res.end(); ++it) {
+			stream << it->first << " " << it->second << " <br>" << std::endl;
+		}
+
 		req->setStatus(200);
 	}
 
