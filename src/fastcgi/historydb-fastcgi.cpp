@@ -17,44 +17,52 @@
 #include "rapidjson/stringbuffer.h"
 
 namespace history { namespace fcgi {
-	namespace consts {
-		auto REMOTE_ADDR	= "5.255.215.168";
-		auto REMOTE_PORT	= 1025;
-		auto REMOTE_FAMILY	= 2;
-		auto REMOTE_GROUPS	= 2;
-	}
 
 	handler::handler(fastcgi::ComponentContext* context)
 	: fastcgi::Component(context)
-	, m_logger(NULL) {}
+	, m_logger(NULL)
+	{}
 
-	handler::~handler() {
+	handler::~handler()
+	{
 	}
 
-	void handler::onLoad() {
-		const std::string logger_component_name = context()->getConfig()->asString(context()->getComponentXPath() + "/logger");
+	void handler::onLoad()
+	{
+		const auto xpath = context()->getComponentXPath();
+		auto config = context()->getConfig();
+		const std::string logger_component_name = config->asString(xpath + "/logger");
 		m_logger = context()->findComponent<fastcgi::Logger>(logger_component_name);
 		if(!m_logger) {
 			throw std::runtime_error("cannot get component " + logger_component_name);
 		}
 
-		m_provider = history::create_provider(consts::REMOTE_ADDR, consts::REMOTE_PORT, consts::REMOTE_FAMILY);
+		m_provider = history::create_provider(config->asString(xpath + "/elliptics_addr").c_str(), config->asInt(xpath + "/elliptics_port"), config->asInt(xpath + "/elliptics_family"));
 
+		std::vector<std::string> subs;
 		std::vector<int> groups;
-		groups.push_back(consts::REMOTE_GROUPS);
+
+		config->subKeys(xpath + "/elliptics_group_", subs);
+
+		for(auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
+			groups.push_back(config->asInt(*it));
+		}
 
 		m_provider->set_session_parameters(groups, groups.size());
 	}
 
-	void handler::onUnload() {
+	void handler::onUnload()
+	{
 		m_provider.reset();
 	}
 
-	void handler::handleRequest(fastcgi::Request* req, fastcgi::HandlerContext* context) {
-		write_header(req);
+	void handler::handleRequest(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	{
 
 		if(req->getURI() == std::string("/")) {
+			write_header(req);
 			handle_root(req, context);
+			close_html(req);
 		}
 		else if(req->getURI() == std::string("/test")) {
 			handle_test(req, context);
@@ -71,39 +79,9 @@ namespace history { namespace fcgi {
 		else {
 			handle_wrong_uri(req, context);
 		}
-		{
-		fastcgi::RequestStream stream(req);
-		stream <<	"<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Request info</div>\n\
-						<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n";
-		stream << "getUrl: <b>"				<< req->getUrl()			<< "</b><br>\n";
-		stream << "getQueryString: <b>"		<< req->getQueryString()	<< "</b><br>\n";
-		stream << "getRequestMethod: <b>"	<< req->getRequestMethod()	<< "</b><br>\n";
-		stream << "getURI: <b>"				<< req->getURI()			<< "</b><br>\n";
-		stream << "getPathInfo: <b>"		<< req->getPathInfo()		<< "</b><br>\n";
-		stream << "getContentType: <b>"		<< req->getContentType()	<< "</b><br>\n";
-		stream << "countHeaders: <b>"		<< req->countHeaders()		<< "</b><br>\n";
-		stream << "countCookie: <b>"		<< req->countCookie()		<< "</b><br>\n";
-		stream << "countArgs: <b>"			<< req->countArgs()			<< "</b><br>\n";
-		std::vector<std::string> args;
-		req->argNames(args);
 
-		for(auto it = args.begin(); it != args.end(); ++it) {
-			stream << *it << " = <b>" << req->getArg(*it) << "</b><br>" << std::endl;
-		}
-
-		stream << "<br> Files:" << std::endl;
-		args.clear();
-		req->remoteFiles(args);
-		for(auto it = args.begin(); it != args.end(); ++it) {
-			stream << *it << "<br>" << std::endl;
-		}
-
-		stream << "</div>\n\
-					</div>\n";
-		}
-
-		close_html(req);
 	}
+
 	void handler::handle_root(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		fastcgi::RequestStream stream(req);
@@ -137,16 +115,15 @@ namespace history { namespace fcgi {
 							</form>\n\
 						</div>\n\
 					</div>\n";
-		//req->setStatus(200);
 	}
 
-	void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		std::cout << "getURI " << req->getURI() << std::endl;
-		//req->setStatus(404);
+		req->setStatus(404);
 	}
 
-	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		fastcgi::RequestStream stream(req);
 
@@ -156,7 +133,7 @@ namespace history { namespace fcgi {
 		}
 
 		if(!req->hasArg("user")) {
-			//req->setStatus(404);
+			req->setStatus(404);
 			stream << "no user" << std::endl;
 			return;
 		}
@@ -173,21 +150,21 @@ namespace history { namespace fcgi {
 			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
 
 		m_provider->add_user_activity(user, tm, &data.front(), data.size(), key);
-
-		//req->setStatus(200);
 	}
 
-	void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		fastcgi::RequestStream stream(req);
 		std::string key, timestamp;
+
 		if(req->hasArg("key"))
 			key = req->getArg("key");
+
 		if(req->hasArg("timestamp"))
 			timestamp = req->getArg("timestamp");
+
 		if(key.empty() && timestamp.empty()) {
-			//req->setStatus(404);
-			stream << "no key or timestamp" << std::endl;
+			req->setStatus(404);
 			return;
 		}
 
@@ -200,7 +177,7 @@ namespace history { namespace fcgi {
 		rapidjson::Document d;
 		d.SetObject();
 
-		for(auto it = res.begin(); it != res.end(); ++it) {
+		for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
 			d.AddMember(it->first.c_str(), it->second, d.GetAllocator());
 		}
 
@@ -209,28 +186,23 @@ namespace history { namespace fcgi {
 		d.Accept(writer);
 
 		stream << buffer.GetString();
-
-		//req->setStatus(200);
 	}
 
-	void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		fastcgi::RequestStream stream(req);
 		if(!req->hasArg("user")) {
-			//req->setStatus(404);
-			stream << "no user" << std::endl;
+			req->setStatus(404);
 			return;
 		}
 
 		if(!req->hasArg("begin_time")) {
-			//req->setStatus(404);
-			stream << "no begin time" << std::endl;
+			req->setStatus(404);
 			return;
 		}
 
 		if(!req->hasArg("end_time")) {
-			//req->setStatus(404);
-			stream << "no end time" << std::endl;
+			req->setStatus(404);
 			return;
 		}
 
@@ -245,7 +217,7 @@ namespace history { namespace fcgi {
 
 		rapidjson::Value value(rapidjson::kArrayType);
 
-		for(auto it = res.begin(); it != res.end(); ++it) {
+		for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
 
 			rapidjson::Value vec(&it->front(), it->size(), d.GetAllocator());
 			value.PushBack(vec, d.GetAllocator());
@@ -258,12 +230,11 @@ namespace history { namespace fcgi {
 		d.Accept(writer);
 
 		stream << buffer.GetString();
-		//req->setStatus(200);
 	}
 
-	void handler::handle_test(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	void handler::handle_test(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
-		//req->setStatus(200);
+		req->setStatus(200);
 	}
 
 	void handler::write_header(fastcgi::Request* req)
