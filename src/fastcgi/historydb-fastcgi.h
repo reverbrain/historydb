@@ -37,6 +37,9 @@ namespace fcgi {
 		void handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context);
 		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context);
 
+		void write_header(fastcgi::Request* req);
+		void close_html(fastcgi::Request* req);
+
 		fastcgi::Logger*					m_logger;
 		std::shared_ptr<history::iprovider>	m_provider;
 	};

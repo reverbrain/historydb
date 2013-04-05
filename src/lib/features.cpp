@@ -134,7 +134,9 @@ std::list<std::vector<char>> features::get_user_logs(const std::string& user, ui
 	LOG(DNET_LOG_INFO, "Getting logs for user: %s begin_time: %" PRIu64 " end_time: %" PRIu64 "\n", user.c_str(), begin_time, end_time);
 	std::list<std::vector<char>> ret;
 
-	for_user_logs(user, begin_time, end_time, boost::bind(&features::get_user_logs_callback, this, ret, _1, _2, _3, _4));
+	for_user_logs(user, begin_time, end_time, boost::bind(&features::get_user_logs_callback, this, boost::ref(ret), _1, _2, _3, _4));
+
+	LOG(DNET_LOG_DEBUG, "User logs cout: %d", (uint32_t)ret.size());
 
 	m_self.reset();
 	return ret;	//returns combined user logs.
@@ -234,7 +236,7 @@ void features::add_user_data(const std::string& user, uint64_t time, void* data,
 
 	auto write_res = write_data(s, skey, data, size);	// Trys to write data to user's log
 
-	if (!write_res) {	// Checks number of successfull results and if it is less minimum then throw exception 
+	if (!write_res) {	// Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", skey.c_str());
 		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
 	}
@@ -243,7 +245,7 @@ void features::add_user_data(const std::string& user, uint64_t time, void* data,
 
 void features::async_add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size)
 {
-	
+
 	auto s = create_session(DNET_IO_FLAGS_APPEND);
 
 	auto skey = make_key(user, time);
@@ -254,7 +256,7 @@ void features::async_add_user_data(const std::string& user, uint64_t time, void*
 void features::increment_activity(const std::string& user, const std::string& key)
 {
 	uint32_t attempt = 0;
-	
+
 	while(	attempt++ < consts::WRITES_BEFORE_FAIL &&		// Tries const::WRITES_BEFORE_FAIL times
 			!try_increment_activity(user, key)) {			// to increment user activity statistics
 		LOG(DNET_LOG_DEBUG, "Exteral attemt to increment activity of user: %s with key %s attempt: %d\n", user.c_str(), key.c_str(), attempt);
