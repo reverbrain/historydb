@@ -89,17 +89,17 @@ void test3_add(bool log_writed, bool statistics_updated)
 				<< std::endl;
 }
 
-bool test3_for1(uint32_t* ind, const std::string& user, uint64_t time, void* data, uint32_t size)
+bool test3_for1(uint32_t ind, const std::string& user, uint64_t time, void* data, uint32_t size)
 {
 	std::cout << "TEST3: LOG1 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
-	++(*ind);
+	++ind;
 	return true;
 }
 
-bool test3_for2(uint32_t* ind, const std::string& user, uint32_t number)
+bool test3_for2(uint32_t ind, const std::string& user, uint32_t number)
 {
 	std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << number << std::endl;
-	++(*ind);
+	++ind;
 	return true;
 }
 
@@ -111,9 +111,9 @@ void test3(std::shared_ptr<history::iprovider> provider) {
 
 	while(ind < 2) {
 
-		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, &ind, _1, _2, _3, _4));
+		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, boost::ref(ind), _1, _2, _3, _4));
 
-		provider->for_active_users(tm, boost::bind(&test3_for2, &ind, _1, _2));
+		provider->for_active_users(tm, boost::bind(&test3_for2, boost::ref(ind), _1, _2));
 	}
 }
 
@@ -181,7 +181,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	std::shared_ptr<history::iprovider> provider(history::create_provider(remote_addr.c_str(), port, family));
-	
+
 	if(provider.get() == NULL) {
 		std::cout << "Error! Provider hasn't been created!\n";
 		return -1;
