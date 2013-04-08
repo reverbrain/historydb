@@ -503,7 +503,7 @@ void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, con
 	write_data(s, skey, sbuf.data(), sbuf.size(), checksum, boost::bind(&features::write_callback, this, _1, _2));
 }
 
-void features::write_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error)
+void features::write_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)
 {
 	bool written = res.size() >= m_min_writes;
 
@@ -529,7 +529,7 @@ bool features::get_user_logs_callback(std::list<std::vector<char>>& ret, const s
 	return true;
 }
 
-void features::add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error)
+void features::add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)
 {
 	bool written = res.size() >= m_min_writes;
 	LOG(DNET_LOG_DEBUG, "Add user data callback result: %s\n", (written ? "written" : "failed"));

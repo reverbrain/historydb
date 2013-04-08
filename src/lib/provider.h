@@ -19,7 +19,7 @@ namespace history {
 	class provider: public iprovider
 	{
 	public:
-		provider(const char* server_addr, const int server_port, const int family);
+		provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level);
 		virtual ~provider();
 
 		virtual void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes);

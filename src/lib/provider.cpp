@@ -1,29 +1,39 @@
 #include "provider.h"
+
+#include <boost/algorithm/string.hpp>
+
 #include <vector>
 #include <time.h>
 #include <msgpack.hpp>
 #include <iomanip>
-#include "activity.h"
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+
+#include "activity.h"
 
 //log macro adds HDB: prefix to each log record
 #define LOG(l, ...) dnet_log_raw(m_node.get_native(), l, "HDB: "__VA_ARGS__)
 
 namespace history {
-namespace consts {
-	const char* 	LOG_FILE			= "/tmp/hdb_log";		// path to log file
-	const int		LOG_LEVEL			= DNET_LOG_DEBUG;	// log level
-} /* namespace consts */
 
-std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family)
+std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level)
 {
-	return std::make_shared<provider>(server_addr, server_port, family);
+	return std::make_shared<provider>(server_addr, server_port, family, log_file, log_level);
 }
 
-provider::provider(const char* server_addr, const int server_port, const int family)
-: m_log(consts::LOG_FILE, consts::LOG_LEVEL)
+int get_log_level(const char* log_level)
+{
+	if(boost::iequals(log_level,		"DATA"))	return DNET_LOG_DATA;
+	else if(boost::iequals(log_level,	"ERROR"))	return DNET_LOG_ERROR;
+	else if(boost::iequals(log_level,	"INFO"))	return DNET_LOG_INFO;
+	else if(boost::iequals(log_level,	"NOTICE"))	return DNET_LOG_NOTICE;
+	else if(boost::iequals(log_level,	"DEBUG"))	return DNET_LOG_DEBUG;
+	return DNET_LOG_INFO;
+}
+
+provider::provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level)
+: m_log(log_file, log_level)
 , m_node(m_log)
 {
 	srand(time(NULL));

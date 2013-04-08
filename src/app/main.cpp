@@ -10,12 +10,14 @@
 
 #include "test2.h"
 
-char UMM[] = "User made money\n";
-char UCM[] = "User check mail\n";
-char UCR[]	= "User clear recycle\n";
+char UMM[]		= "User made money\n";
+char UCM[]		= "User check mail\n";
+char UCR[]		= "User clear recycle\n";
 
-char USER1[] = "BlaUser1";
-char USER2[] = "BlaUser2";
+char USER1[]	= "BlaUser1";
+char USER2[]	= "BlaUser2";
+char LOG_FILE[]	= "/tmp/hdb_log"; // path to log file
+int LOG_LEVEL	= 0; // log level
 
 void print_usage(char* s) {
 	std::cout << "Usage: " << s << "\n"
@@ -180,7 +182,7 @@ int main(int argc, char* argv[]) {
 		return err;
 	}
 
-	std::shared_ptr<history::iprovider> provider(history::create_provider(remote_addr.c_str(), port, family));
+	std::shared_ptr<history::iprovider> provider(history::create_provider(remote_addr.c_str(), port, family, LOG_FILE, LOG_LEVEL));
 
 	if(provider.get() == NULL) {
 		std::cout << "Error! Provider hasn't been created!\n";

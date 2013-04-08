@@ -44,13 +44,15 @@ namespace history { namespace fcgi {
 
 		m_logger->debug("HistoryDB handler loaded\n");
 
-		const auto e_addr	= config->asString(xpath + "/elliptics_addr"); // gets elliptics address from config
-		const auto e_port	= config->asInt(xpath + "/elliptics_port"); // gets elliptics port from config
-		const auto e_family	= config->asInt(xpath + "/elliptics_family"); // gets elliptics network family from config
+		const auto e_addr		= config->asString(xpath + "/elliptics_addr"); // gets elliptics address from config
+		const auto e_port		= config->asInt(xpath + "/elliptics_port"); // gets elliptics port from config
+		const auto e_family		= config->asInt(xpath + "/elliptics_family"); // gets elliptics network family from config
+		const auto log_file		= config->asString(xpath + "/log_file"); // gets historydb log file path from config
+		const auto log_level	= config->asString(xpath + "/log_level"); // gets historydb log level from config
 
-		m_provider = history::create_provider(e_addr.c_str(), e_port, e_family); // creates historydb provider instance
+		m_provider = history::create_provider(e_addr.c_str(), e_port, e_family, log_file.c_str(), history::get_log_level(log_level.c_str())); // creates historydb provider instance
 
-		m_logger->debug("HistoryDB provider has been created: elliptics address: %s:%d:%d\n", e_addr.c_str(), e_port, e_family);
+		m_logger->debug("HistoryDB provider has been created: elliptics address: %s:%d:%d %s %s\n", e_addr.c_str(), e_port, e_family, log_file.c_str(), log_level.c_str());
 
 		std::vector<std::string> subs;
 		std::vector<int> groups;

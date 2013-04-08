@@ -95,7 +95,8 @@ namespace history {
 		server_port - elliptics port
 		family - inet family
 	*/
-	extern std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family);
+	extern std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level);
+	extern int get_log_level(const char* log_level);
 } /* namespace history */
 
 #endif //HISTORY_IPROVIDER_H
