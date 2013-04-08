@@ -74,7 +74,7 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 	activity res, tmp;
 
 	res = get_activity(s, old_key);
-	if(res.size == 0) {
+	if (res.size == 0) {
 		m_self.reset();
 		return;
 	}
@@ -88,7 +88,7 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 
 	tmp.size = chunks;
 
-	for(auto it = res.map.begin(), it_next = res.map.begin(), itEnd = res.map.end(); it != itEnd; it = it_next) {	// iterates throw result map
+	for (auto it = res.map.begin(), it_next = res.map.begin(), itEnd = res.map.end(); it != itEnd; it = it_next) {	// iterates throw result map
 		it_next = std::next(it, per_chunk);	// sets it_next by it plus number of elements in one chunk
 		tmp.map = std::map<std::string, uint32_t>(it, it_next);	// creates sub-map from it to it_next
 
@@ -165,7 +165,7 @@ void features::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 	LOG(DNET_LOG_INFO, "Iterating by user logs for user: %s, begin time: %" PRIu64 " end time: %" PRIu64 " \n", user.c_str(), begin_time, end_time);
 	auto s = create_session();
 
-	for(auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {	// iterates by user logs
+	for (auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {	// iterates by user logs
 		try {
 			auto skey = make_key(user, time);
 			LOG(DNET_LOG_INFO, "Try to read user logs for user: %s time: %" PRIu64 " key: %s\n", user.c_str(), time, skey.c_str());
@@ -196,7 +196,7 @@ void features::for_active_users(const std::string& key, std::function<bool(const
 	LOG(DNET_LOG_INFO, "Iterating by active users for key:%s\n", key.c_str());
 	std::map<std::string, uint32_t> res = get_active_users(key);	// gets activity map for the key
 
-	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {	// iterates by users from activity map
+	for (auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {	// iterates by users from activity map
 		if (!func(it->first, it->second))	//calls callback for each user activity from activity map
 			break;
 	}
@@ -286,12 +286,12 @@ bool features::try_increment_activity(const std::string& user, const std::string
 	dnet_id checksum;
 
 	auto size = m_keys_cache.get(key);	// gets number of chunks from cache
-	if(	size == (uint32_t)-1 &&	// if it isn't in cache
+	if (size == (uint32_t)-1 &&	// if it isn't in cache
 		get_chunk(s, key, 0, act, &checksum)) {	// gets chunk with zero chunk number
 		size = act.size;
 	}
 
-	if(size != (uint32_t)-1) {
+	if (size != (uint32_t)-1) {
 		chunk = rand(size);
 		get_chunk(s, key, chunk, act, &checksum);	// gets chunk from this chunk
 	}
@@ -313,7 +313,7 @@ bool features::try_increment_activity(const std::string& user, const std::string
 
 	auto write_res = write_data(s, skey, sbuf.data(), sbuf.size(), checksum);	// write data into elliptics with checksum
 
-	if(!write_res)
+	if (!write_res)
 		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
 	else
 		LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), skey.c_str());
@@ -330,7 +330,7 @@ void features::async_try_increment_activity(const std::string& user, const std::
 
 	auto size = m_keys_cache.get(key);
 	LOG(DNET_LOG_DEBUG, "Count of chunks for key %s = %d\n", key.c_str(), size);
-	if(size == (uint32_t) -1) {
+	if (size == (uint32_t) -1) {
 		get_chunk(s, key, 0, boost::bind(&features::size_callback, this, s, user, key, _1, _2, _3));
 	}
 	else {
@@ -357,13 +357,13 @@ std::string features::make_chunk_key(const std::string& key, uint32_t chunk)
 bool features::get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum)
 {
 	act.map.clear();
-	if(checksum)
+	if (checksum)
 		s.transform(std::string(), *checksum);
 	try {
 		auto skey = make_chunk_key(key, chunk);	// generate chunk key
 		ioremap::elliptics::sync_read_result res = s.read_latest(skey, 0, 0);
 		auto file = res[0].file();	// trys to read chunk data
-		if(checksum)
+		if (checksum)
 			s.transform(file, *checksum);
 		if (!file.empty()) {	// if it isn't empty
 			msgpack::unpacked msg;
@@ -433,7 +433,7 @@ void features::merge(activity& res_chunk, const activity& merge_chunk) const
 	res_chunk.size = merge_chunk.size;
 	auto res_it = res_chunk.map.begin(); // sets res_it to begin of res_map
 	size_t size;
-	for(auto it = merge_chunk.map.begin(), itEnd = merge_chunk.map.end(); it != itEnd; ++it) {	// iterates by merge_chunk map pairs
+	for (auto it = merge_chunk.map.begin(), itEnd = merge_chunk.map.end(); it != itEnd; ++it) {	// iterates by merge_chunk map pairs
 		size = res_chunk.map.size(); 															// saves old res_map size
 		res_it = res_chunk.map.insert(res_it, *it);												// trys insert pair from merge_chunk map into res_map at res_it and sets to res_it iterator to the inserted element. If pair would be inserted then size of res_map will be increased.
 		if (size == res_chunk.map.size())														// checks saved size with current size of res_map if they are equal - item wasn't inserted and we should add data from it with res_it.
@@ -448,8 +448,8 @@ activity features::get_activity(ioremap::elliptics::session& s, const std::strin
 
 	auto size = m_keys_cache.get(key);	// gets size from cache
 	uint32_t i = 0;
-	if(size == (uint32_t)-1) {
-		if(!get_chunk(s, key, i++, tmp)) {	// gets data from zero chunk
+	if (size == (uint32_t)-1) {
+		if (!get_chunk(s, key, i++, tmp)) {	// gets data from zero chunk
 			LOG(DNET_LOG_INFO, "Activity statistics is empty for key:%s\n", key.c_str());
 			return ret;	// if it is no zero chunk so nothing to return and returns empty map
 		}
@@ -460,8 +460,8 @@ activity features::get_activity(ioremap::elliptics::session& s, const std::strin
 		m_keys_cache.set(key, size);
 	}
 
-	for(; i < size; ++i) {	// iterates by chunks
-		if(get_chunk(s, key, i, tmp)) {		// gets chunk
+	for (; i < size; ++i) {	// iterates by chunks
+		if (get_chunk(s, key, i, tmp)) {		// gets chunk
 			merge(ret, tmp);				// merge map from chunk into result map
 		}
 	}
@@ -473,7 +473,7 @@ void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, con
 {
 	LOG(DNET_LOG_DEBUG, "Size callback result file: %s\n", (exist ? "read" : "failed"));
 
-	if(!exist) {
+	if (!exist) {
 		m_keys_cache.set(key, consts::CHUNKS_COUNT);
 		activity ac;
 		ac.size = consts::CHUNKS_COUNT;
@@ -492,7 +492,7 @@ void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, con
 	LOG(DNET_LOG_DEBUG, "Read callback result: %s\n", (exist ? "read" : "failed"));
 
 	auto res = act.map.insert(std::make_pair(user, 1));
-	if(!res.second)
+	if (!res.second)
 		++res.first->second;
 
 	msgpack::sbuffer sbuf;
@@ -509,7 +509,7 @@ void features::write_callback(const ioremap::elliptics::sync_write_result& res, 
 
 	LOG(DNET_LOG_DEBUG, "Write callback result: %s\n", (written ? "written" : "failed"));
 
-	if(written || m_attempt >= consts::WRITES_BEFORE_FAIL)
+	if (written || m_attempt >= consts::WRITES_BEFORE_FAIL)
 	{
 		m_stat_updated = written;
 		m_add_user_activity_callback(m_log_written, m_stat_updated);
@@ -550,7 +550,7 @@ void features::get_chunk_callback(std::function<void(bool exist, activity act, d
 		LOG(DNET_LOG_DEBUG, "Get chunk callback try handle file\n");
 		auto file = res[0].file();
 		s->transform(file, checksum);
-		if(!file.empty()) {
+		if (!file.empty()) {
 			msgpack::unpacked msg;
 			msgpack::unpack(&msg, file.data<const char>(), file.size());
 			msg.get().convert(&act);

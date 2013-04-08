@@ -38,7 +38,7 @@ namespace history { namespace fcgi {
 		const std::string logger_component_name = config->asString(xpath + "/logger"); // get logger name
 		m_logger = context()->findComponent<fastcgi::Logger>(logger_component_name); // get logger component
 
-		if(!m_logger) {
+		if (!m_logger) {
 			throw std::runtime_error("cannot get component " + logger_component_name);
 		}
 
@@ -61,7 +61,7 @@ namespace history { namespace fcgi {
 		config->subKeys(xpath + "/elliptics_group_", subs); // gets set of groups keys in config
 
 		int group = 0;
-		for(auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
+		for (auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
 			group = config->asInt(*it); // gets group number from config
 			groups.push_back(group); // adds the group number to vector
 			m_logger->debug("Added %d group\n", group);
@@ -82,7 +82,7 @@ namespace history { namespace fcgi {
 		auto script_name = req->getScriptName();
 		m_logger->debug("Handle request: URI:%s\n", script_name.c_str());
 		auto it = m_handlers.find(script_name); // finds handler for the script
-		if(it != m_handlers.end()) { // if handler has been found
+		if (it != m_handlers.end()) { // if handler has been found
 			it->second(req, context); // call handler
 			return;
 		}
@@ -155,13 +155,13 @@ namespace history { namespace fcgi {
 		m_logger->debug("Handle add activity request\n");
 		fastcgi::RequestStream stream(req);
 
-		if(!req->hasArg("data")) { // checks required parameter data
+		if (!req->hasArg("data")) { // checks required parameter data
 			m_logger->debug("Required paramenter 'data' is missing\n");
 			req->setStatus(404);
 			return;
 		}
 
-		if(!req->hasArg("user")) { // checks required parameter user
+		if (!req->hasArg("user")) { // checks required parameter user
 			m_logger->debug("Required parameter 'user' is missing\n");
 			req->setStatus(404);
 			return;
@@ -171,11 +171,11 @@ namespace history { namespace fcgi {
 		auto data = req->getArg("data"); // gets data parameter
 
 		std::string key = std::string();
-		if(req->hasArg("key")) // checks optional parameter key
+		if (req->hasArg("key")) // checks optional parameter key
 			key = req->getArg("key"); // gets key parameter
 
 		uint64_t tm = time(NULL);
-		if(req->hasArg("timestamp")) // checks optional parameter timestamp
+		if (req->hasArg("timestamp")) // checks optional parameter timestamp
 			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
 
 		m_logger->debug("Add user activity: (%s, %d, ..., %d, %s\n", user.c_str(), tm, data.size(), key.c_str());
@@ -189,20 +189,20 @@ namespace history { namespace fcgi {
 		std::string key;
 		uint64_t timestamp = -1;
 
-		if(req->hasArg("key")) // checks optional parameter key
+		if (req->hasArg("key")) // checks optional parameter key
 			key = req->getArg("key"); // gets key parameter
 
-		if(req->hasArg("timestamp")) // checks optional parameter timestamp
+		if (req->hasArg("timestamp")) // checks optional parameter timestamp
 			timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
 
-		if(key.empty() && timestamp == (uint64_t)-1) { // if key and timestamp aren't among the parameters
+		if (key.empty() && timestamp == (uint64_t)-1) { // if key and timestamp aren't among the parameters
 			m_logger->debug("Key and timestamp are missing\n");
 			req->setStatus(404);
 			return;
 		}
 
 		std::map<std::string, uint32_t> res;
-		if(!key.empty()) { // if key has been submitted
+		if (!key.empty()) { // if key has been submitted
 			m_logger->debug("Gets active users by key: %s\n", key.c_str());
 			res = m_provider->get_active_users(key); // gets active users by key
 		}
@@ -214,7 +214,7 @@ namespace history { namespace fcgi {
 		rapidjson::Document d; // creates document for json serialization
 		d.SetObject();
 
-		for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) { // adds all active user with counters to json
+		for (auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) { // adds all active user with counters to json
 			d.AddMember(it->first.c_str(), it->second, d.GetAllocator());
 		}
 
@@ -233,19 +233,19 @@ namespace history { namespace fcgi {
 	{
 		m_logger->debug("Handlle get user logs request\n");
 		fastcgi::RequestStream stream(req);
-		if(!req->hasArg("user")) { // checks required parameter user
+		if (!req->hasArg("user")) { // checks required parameter user
 			m_logger->debug("Required parameter 'user' is missing\n");
 			req->setStatus(404);
 			return;
 		}
 
-		if(!req->hasArg("begin_time")) { // checks required parameter begin_time
+		if (!req->hasArg("begin_time")) { // checks required parameter begin_time
 			m_logger->debug("Required parameter 'begin_time' is missing\n");
 			req->setStatus(404);
 			return;
 		}
 
-		if(!req->hasArg("end_time")) { // checks required parameter end_time
+		if (!req->hasArg("end_time")) { // checks required parameter end_time
 			m_logger->debug("Required parameter 'end_time' is missing\n");
 			req->setStatus(404);
 			return;
@@ -263,7 +263,7 @@ namespace history { namespace fcgi {
 
 		rapidjson::Value user_logs(rapidjson::kArrayType); // array value which will contain all user logs for specified time
 
-		for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
+		for (auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
 			rapidjson::Value vec(&it->front(), it->size(), d.GetAllocator()); // creates vector value for user one's day log
 			user_logs.PushBack(vec, d.GetAllocator()); // adds daily logs to result array
 		}

@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
 					std::vector<std::string> strs;
 					boost::split(strs, optarg, boost::is_any_of(":"));
 
-					if(strs.size() != 3)
+					if (strs.size() != 3)
 						throw std::invalid_argument("-r");
 
 					remote_addr = strs[0];
@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
 					boost::split(strs, optarg, boost::is_any_of(","));
 
 					groups.reserve(strs.size());
-					for(auto it = strs.begin(), itEnd = strs.end(); it != itEnd; ++it) {
+					for (auto it = strs.begin(), itEnd = strs.end(); it != itEnd; ++it) {
 						groups.push_back(boost::lexical_cast<int>(*it));
 					}
 				}
@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
 					boost::split(strs, optarg, boost::is_any_of(","));
 
 					tests.reserve(strs.size());
-					for(auto it = strs.begin(), itEnd = strs.end(); it != itEnd; ++it) {
+					for (auto it = strs.begin(), itEnd = strs.end(); it != itEnd; ++it) {
 						tests.push_back(boost::lexical_cast<int>(*it));
 					}
 				}
@@ -177,21 +177,21 @@ int main(int argc, char* argv[]) {
 		err = -1;
 	}
 
-	if(err) {
+	if (err) {
 		print_usage(argv[0]);
 		return err;
 	}
 
 	std::shared_ptr<history::iprovider> provider(history::create_provider(remote_addr.c_str(), port, family, LOG_FILE, LOG_LEVEL));
 
-	if(provider.get() == NULL) {
+	if (provider.get() == NULL) {
 		std::cout << "Error! Provider hasn't been created!\n";
 		return -1;
 	}
 
 	provider->set_session_parameters(groups, 1);
 
-	for(auto it = tests.begin(), itEnd = tests.end(); it != itEnd; ++it) {
+	for (auto it = tests.begin(), itEnd = tests.end(); it != itEnd; ++it) {
 		run_test(*it, provider);
 	}
 

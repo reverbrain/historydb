@@ -21,7 +21,7 @@ bool update()
 {
 	boost::lock_guard<boost::mutex> lock(mutex);
 
-	if(requests++ < consts::ACTIVITIES_NO)
+	if (requests++ < consts::ACTIVITIES_NO)
 		return true;
 
 	return false;
@@ -50,7 +50,7 @@ void test2(std::shared_ptr<history::iprovider> provider)
 	srand(current_time);
 
 	std::list<boost::thread> threads;
-	for(uint32_t i = 0; i < consts::THREADS_NO; ++i) {
+	for (uint32_t i = 0; i < consts::THREADS_NO; ++i) {
 		threads.push_back(boost::thread(boost::bind(&test_method, provider, i)));
 	}
 

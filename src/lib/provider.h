@@ -46,8 +46,6 @@ namespace history {
 
 		std::shared_ptr<features> make_features();
 
-		std::shared_ptr<features> shared_features();
-
 		provider(const provider&);
 		provider &operator =(const provider &);
 

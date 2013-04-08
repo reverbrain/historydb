@@ -24,11 +24,11 @@ std::shared_ptr<iprovider> create_provider(const char* server_addr, const int se
 
 int get_log_level(const char* log_level)
 {
-	if(boost::iequals(log_level,		"DATA"))	return DNET_LOG_DATA;
-	else if(boost::iequals(log_level,	"ERROR"))	return DNET_LOG_ERROR;
-	else if(boost::iequals(log_level,	"INFO"))	return DNET_LOG_INFO;
-	else if(boost::iequals(log_level,	"NOTICE"))	return DNET_LOG_NOTICE;
-	else if(boost::iequals(log_level,	"DEBUG"))	return DNET_LOG_DEBUG;
+			if (boost::iequals(log_level,	"DATA"))	return DNET_LOG_DATA;
+	else	if (boost::iequals(log_level,	"ERROR"))	return DNET_LOG_ERROR;
+	else	if (boost::iequals(log_level,	"INFO"))	return DNET_LOG_INFO;
+	else	if (boost::iequals(log_level,	"NOTICE"))	return DNET_LOG_NOTICE;
+	else	if (boost::iequals(log_level,	"DEBUG"))	return DNET_LOG_DEBUG;
 	return DNET_LOG_INFO;
 }
 
@@ -54,7 +54,7 @@ void provider::set_session_parameters(const std::vector<int>& groups, uint32_t m
 	m_min_writes = min_writes > m_groups.size() ? m_groups.size() : min_writes;
 
 	LOG(DNET_LOG_INFO, "Session parameters:\n");
-	for(auto it = m_groups.begin(), it_end = m_groups.end(); it != it_end; ++it)
+	for (auto it = m_groups.begin(), it_end = m_groups.end(); it != it_end; ++it)
 		LOG(DNET_LOG_INFO, "group:  %d\n", *it);
 	LOG(DNET_LOG_INFO, "minimum number of successfull writes: %d\n", min_writes);
 }
@@ -66,7 +66,7 @@ void provider::add_user_activity(const std::string& user, uint64_t time, void* d
 
 void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key)
 {
-	shared_features()->add_user_activity(user, time, data, size, func, key);
+	make_features()->add_user_activity(user, time, data, size, func, key);
 }
 
 void provider::repartition_activity(const std::string& key, uint32_t chunks)
@@ -122,12 +122,7 @@ void provider::for_active_users(const std::string& key, std::function<bool(const
 
 std::shared_ptr<features> provider::make_features()
 {
-	return std::make_shared<features>(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
-}
-
-std::shared_ptr<features> provider::shared_features()
-{
-	auto f = make_features();
+	auto f = std::make_shared<features>(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
 	f->set_self(f);
 
 	return f;

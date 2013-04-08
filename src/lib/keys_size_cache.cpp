@@ -16,7 +16,7 @@ void keys_size_cache::set(const std::string& key, uint32_t size)
 	boost::unique_lock<boost::shared_mutex> lock(m_mutex);
 
 	auto res = m_keys_sizes.insert(std::make_pair(key, size));	// try to insert new size for key
-	if(!res.second)												// if it failed
+	if (!res.second)												// if it failed
 		res.first->second = size;								// rewrites old size
 }
 
