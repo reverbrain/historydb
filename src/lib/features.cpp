@@ -111,8 +111,8 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 	m_keys_cache.set(new_key, chunks);
 
 	if (!written) {	// checks if some writes was failed if so throw exception
-		LOG(DNET_LOG_ERROR, "Before throw\n");
-		throw ioremap::elliptics::error(-1, "Some activity wasn't written to the minimum number of groups");
+		LOG(DNET_LOG_ERROR, "Cannot write one part. Repartition failed\n");
+		throw ioremap::elliptics::error(EREMOTEIO, "Some activity wasn't written to the minimum number of groups");
 	}
 	m_self.reset();
 }
@@ -238,7 +238,7 @@ void features::add_user_data(const std::string& user, uint64_t time, void* data,
 
 	if (!write_res) {	// Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", skey.c_str());
-		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
+		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 	LOG(DNET_LOG_DEBUG, "written data to user log user: %s time: %" PRIu64 " data size: %d\n", user.c_str(), time, size);
 }
@@ -264,7 +264,7 @@ void features::increment_activity(const std::string& user, const std::string& ke
 
 	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Before throw\n");
-		throw ioremap::elliptics::error(-1, "Data wasn't written to the minimum number of groups");
+		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 }
 
