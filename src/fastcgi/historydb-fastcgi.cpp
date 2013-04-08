@@ -154,13 +154,14 @@ namespace history { namespace fcgi {
 		fastcgi::RequestStream stream(req);
 
 		if(!req->hasArg("data")) { // checks required parameter data
+			m_logger->debug("Required paramenter 'data' is missing\n");
 			req->setStatus(404);
 			return;
 		}
 
 		if(!req->hasArg("user")) { // checks required parameter user
+			m_logger->debug("Required parameter 'user' is missing\n");
 			req->setStatus(404);
-			stream << "no user" << std::endl;
 			return;
 		}
 
@@ -175,6 +176,7 @@ namespace history { namespace fcgi {
 		if(req->hasArg("timestamp")) // checks optional parameter timestamp
 			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
 
+		m_logger->debug("Add user activity: (%s, %d, ..., %d, %s\n", user.c_str(), tm, data.size(), key.c_str());
 		m_provider->add_user_activity(user, tm, &data.front(), data.size(), key); // calls provider function to add user activity
 	}
 
@@ -182,24 +184,30 @@ namespace history { namespace fcgi {
 	{
 		m_logger->debug("Handle get active user request\n");
 		fastcgi::RequestStream stream(req);
-		std::string key, timestamp;
+		std::string key;
+		uint64_t timestamp = -1;
 
 		if(req->hasArg("key")) // checks optional parameter key
 			key = req->getArg("key"); // gets key parameter
 
 		if(req->hasArg("timestamp")) // checks optional parameter timestamp
-			timestamp = req->getArg("timestamp"); // gets timestamp parameter
+			timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
 
-		if(key.empty() && timestamp.empty()) { // if key and timestamp aren't among the parameters
+		if(key.empty() && timestamp == (uint64_t)-1) { // if key and timestamp aren't among the parameters
+			m_logger->debug("Key and timestamp are missing\n");
 			req->setStatus(404);
 			return;
 		}
 
 		std::map<std::string, uint32_t> res;
-		if(!key.empty()) // if key has been submitted
+		if(!key.empty()) { // if key has been submitted
+			m_logger->debug("Gets active users by key: %s\n", key.c_str());
 			res = m_provider->get_active_users(key); // gets active users by key
-		else // if timestamp has been submitted
-			res = m_provider->get_active_users(boost::lexical_cast<uint64_t>(timestamp)); // gets active users by timestamp
+		}
+		else { // if timestamp has been submitted
+			m_logger->debug("Gets active users by timestamp: %d\n", timestamp);
+			res = m_provider->get_active_users(timestamp); // gets active users by timestamp
+		}
 
 		rapidjson::Document d; // creates document for json serialization
 		d.SetObject();
@@ -212,7 +220,11 @@ namespace history { namespace fcgi {
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); // creates json writer
 		d.Accept(writer); // accepts writer by json document
 
-		stream << buffer.GetString(); // write result json to fastcgi stream
+		auto json = buffer.GetString();
+
+		m_logger->debug("Result json: %s\n", json);
+
+		stream << json; // write result json to fastcgi stream
 	}
 
 	void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext*)
@@ -220,16 +232,19 @@ namespace history { namespace fcgi {
 		m_logger->debug("Handlle get user logs request\n");
 		fastcgi::RequestStream stream(req);
 		if(!req->hasArg("user")) { // checks required parameter user
+			m_logger->debug("Required parameter 'user' is missing\n");
 			req->setStatus(404);
 			return;
 		}
 
 		if(!req->hasArg("begin_time")) { // checks required parameter begin_time
+			m_logger->debug("Required parameter 'begin_time' is missing\n");
 			req->setStatus(404);
 			return;
 		}
 
 		if(!req->hasArg("end_time")) { // checks required parameter end_time
+			m_logger->debug("Required parameter 'end_time' is missing\n");
 			req->setStatus(404);
 			return;
 		}
@@ -238,6 +253,7 @@ namespace history { namespace fcgi {
 		auto begin_time = boost::lexical_cast<uint64_t>(req->getArg("begin_time")); // gets begin_time parameter
 		auto end_time = boost::lexical_cast<uint64_t>(req->getArg("end_time")); // gets end_time parameter
 
+		m_logger->debug("Gets user logs for: (%s, %d, %d)\n", user.c_str(), begin_time, end_time);
 		auto res = m_provider->get_user_logs(user, begin_time, end_time); // gets user logs from historydb library
 
 		rapidjson::Document d; // creates json document
@@ -256,7 +272,11 @@ namespace history { namespace fcgi {
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); // creates json writer
 		d.Accept(writer); // accepts writer by json document
 
-		stream << buffer.GetString(); // writes result json to fastcgi stream
+		auto json = buffer.GetString();
+
+		m_logger->debug("Result json: %s\n", json);
+
+		stream << json; // writes result json to fastcgi stream
 	}
 
 	void handler::handle_test(fastcgi::Request* req, fastcgi::HandlerContext*)
