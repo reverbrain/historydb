@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/bind.hpp>
 
 #include <fastcgi2/logger.h>
 #include <fastcgi2/config.h>
@@ -16,244 +17,252 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+#define ADD_HANDLER(script, func) m_handlers.insert(std::make_pair(script, boost::bind(&handler::func, this, _1, _2)));
+
 namespace history { namespace fcgi {
 
 	handler::handler(fastcgi::ComponentContext* context)
 	: fastcgi::Component(context)
 	, m_logger(NULL)
-	{}
+	{
+		init_handlers(); // Inits handlers map
+	}
 
 	handler::~handler()
-	{
-	}
+	{}
 
 	void handler::onLoad()
 	{
 		const auto xpath = context()->getComponentXPath();
 		auto config = context()->getConfig();
-		const std::string logger_component_name = config->asString(xpath + "/logger");
-		m_logger = context()->findComponent<fastcgi::Logger>(logger_component_name);
+		const std::string logger_component_name = config->asString(xpath + "/logger"); // get logger name
+		m_logger = context()->findComponent<fastcgi::Logger>(logger_component_name); // get logger component
+
 		if(!m_logger) {
 			throw std::runtime_error("cannot get component " + logger_component_name);
 		}
 
-		m_provider = history::create_provider(config->asString(xpath + "/elliptics_addr").c_str(), config->asInt(xpath + "/elliptics_port"), config->asInt(xpath + "/elliptics_family"));
+		m_logger->debug("HistoryDB handler loaded\n");
+
+		const auto e_addr	= config->asString(xpath + "/elliptics_addr"); // gets elliptics address from config
+		const auto e_port	= config->asInt(xpath + "/elliptics_port"); // gets elliptics port from config
+		const auto e_family	= config->asInt(xpath + "/elliptics_family"); // gets elliptics network family from config
+
+		m_provider = history::create_provider(e_addr.c_str(), e_port, e_family); // creates historydb provider instance
+
+		m_logger->debug("HistoryDB provider has been created: elliptics address: %s:%d:%d\n", e_addr.c_str(), e_port, e_family);
 
 		std::vector<std::string> subs;
 		std::vector<int> groups;
 
-		config->subKeys(xpath + "/elliptics_group_", subs);
+		m_logger->debug("Setting elliptics groups:\n");
+		config->subKeys(xpath + "/elliptics_group_", subs); // gets set of groups keys in config
 
+		int group = 0;
 		for(auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
-			groups.push_back(config->asInt(*it));
+			group = config->asInt(*it); // gets group number from config
+			groups.push_back(group); // adds the group number to vector
+			m_logger->debug("Added %d group\n", group);
 		}
 
-		m_provider->set_session_parameters(groups, groups.size());
+		m_provider->set_session_parameters(groups, groups.size()); // sets provider session parameters
 	}
 
 	void handler::onUnload()
 	{
-		m_provider.reset();
+		m_logger->debug("Unloading HistoryDB handler\n");
+		m_provider.reset(); // destroys provider
+		m_logger->debug("HistoryDB provider has been destroyed\n");
 	}
 
 	void handler::handleRequest(fastcgi::Request* req, fastcgi::HandlerContext* context)
 	{
-
-		if(req->getURI() == std::string("/")) {
-			write_header(req);
-			handle_root(req, context);
-			close_html(req);
-		}
-		else if(req->getURI() == std::string("/test")) {
-			handle_test(req, context);
-		}
-		else if(req->getURI() == std::string("/add_activity")) {
-			handle_add_activity(req, context);
-		}
-		else if(req->getURI().find("/get_active_users?") == 0) {
-			handle_get_active_users(req, context);
-		}
-		else if(req->getURI().find("/get_user_logs?") == 0) {
-			handle_get_user_logs(req, context);
-		}
-		else {
-			handle_wrong_uri(req, context);
+		auto script_name = req->getScriptName();
+		m_logger->debug("Handle request: URI:%s\n", script_name.c_str());
+		auto it = m_handlers.find(script_name); // finds handler for the script
+		if(it != m_handlers.end()) { // if handler has been found
+			it->second(req, context); // call handler
+			return;
 		}
 
+		handle_wrong_uri(req, context); // calls wrong uri handler
+	}
+
+	void handler::init_handlers()
+	{
+		ADD_HANDLER("/",					handle_root);
+		ADD_HANDLER("/test",				handle_test);
+		ADD_HANDLER("/add_activity",		handle_add_activity);
+		ADD_HANDLER("/get_active_users",	handle_get_active_users);
+		ADD_HANDLER("/get_user_logs",		handle_get_user_logs);
 	}
 
 	void handler::handle_root(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
+		m_logger->debug("Handle root request\n");
 		fastcgi::RequestStream stream(req);
-		stream <<	"<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Add activity</div>\n\
-						<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
-							<form name=\"add\" action=\"add_activity\" method=\"post\">\n\
-								User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
-								Timestamp: <input type=\"text\" name=\"timestamp\" value=\"\"><br>\n\
-								Data: <input type=\"text\" name=\"data\" value=\"Some data\"><br>\n\
-								Key: <input type=\"text\" name=\"key\" valude=\"\"><br>\n\
-								<input type=\"submit\" value=\"Send\">\n\
-							</form>\n\
-						</div>\n\
-					</div>\n\
-					<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Get active users</div>\n\
-						<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
-							<form name=\"get_user\" action=\"get_active_users\" method=\"get\">\n\
-								Timestamp: <input type=\"text\" name=\"timestamp\" value=\"\"><br>\n\
-								Key: <input type=\"text\" name=\"key\" valude=\"\"><br>\n\
-								<input type=\"submit\" value=\"Send\">\n\
-							</form>\n\
-						</div>\n\
-					</div>\n\
-					<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Get user logs</div>\n\
-						<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
-							<form name=\"get_logs\" action=\"get_user_logs\" method=\"get\">\n\
-								User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
-								Begin timestamp: <input type=\"text\" name=\"begin_time\" value=\"\"><br>\n\
-								End timestamp: <input type=\"text\" name=\"end_time\" value=\"\"><br>\n\
-								<input type=\"submit\" value=\"Send\">\n\
-							</form>\n\
-						</div>\n\
-					</div>\n";
+
+		stream <<	"\
+					<html> \n\
+						<head> \n\
+						<script src=\"//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js\"></script> \n\
+						</head> \n\
+						<body>\n\
+							<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Add activity</div>\n\
+								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
+									<form name=\"add\" action=\"add_activity\" method=\"post\">\n\
+										User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
+										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"\"><br>\n\
+										Data: <input type=\"text\" name=\"data\" value=\"Some data\"><br>\n\
+										Key: <input type=\"text\" name=\"key\" valude=\"\"><br>\n\
+										<input type=\"submit\" value=\"Send\">\n\
+									</form>\n\
+								</div>\n\
+							</div>\n\
+							<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Get active users</div>\n\
+								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
+									<form name=\"get_user\" action=\"get_active_users\" method=\"get\">\n\
+										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"\"><br>\n\
+										Key: <input type=\"text\" name=\"key\" valude=\"\"><br>\n\
+										<input type=\"submit\" value=\"Send\">\n\
+									</form>\n\
+								</div>\n\
+							</div>\n\
+							<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Get user logs</div>\n\
+								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
+									<form name=\"get_logs\" action=\"get_user_logs\" method=\"get\">\n\
+										User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
+										Begin timestamp: <input type=\"text\" name=\"begin_time\" value=\"\"><br>\n\
+										End timestamp: <input type=\"text\" name=\"end_time\" value=\"\"><br>\n\
+										<input type=\"submit\" value=\"Send\">\n\
+									</form>\n\
+								</div>\n\
+							</div>\n\
+						</body> \n\
+					</html>";
 	}
 
 	void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
-		std::cout << "getURI " << req->getURI() << std::endl;
-		req->setStatus(404);
+		m_logger->debug("Handle request for unknown/unexpected uri:%s\n", req->getURI().c_str());
+		req->setStatus(404); // Sets 404 status for respone - wrong uri code
 	}
 
 	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
+		m_logger->debug("Handle add activity request\n");
 		fastcgi::RequestStream stream(req);
 
-		if(!req->hasArg("data")) {
-			stream << "no data" << std::endl;
+		if(!req->hasArg("data")) { // checks required parameter data
+			req->setStatus(404);
 			return;
 		}
 
-		if(!req->hasArg("user")) {
+		if(!req->hasArg("user")) { // checks required parameter user
 			req->setStatus(404);
 			stream << "no user" << std::endl;
 			return;
 		}
 
-		auto user = req->getArg("user");
-		auto data = req->getArg("data");
+		auto user = req->getArg("user"); // gets user parameter
+		auto data = req->getArg("data"); // gets data parameter
 
 		std::string key = std::string();
-		if(req->hasArg("key"))
-			key = req->getArg("key");
+		if(req->hasArg("key")) // checks optional parameter key
+			key = req->getArg("key"); // gets key parameter
 
 		uint64_t tm = time(NULL);
-		if(req->hasArg("timestamp"))
-			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
+		if(req->hasArg("timestamp")) // checks optional parameter timestamp
+			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
 
-		m_provider->add_user_activity(user, tm, &data.front(), data.size(), key);
+		m_provider->add_user_activity(user, tm, &data.front(), data.size(), key); // calls provider function to add user activity
 	}
 
 	void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
+		m_logger->debug("Handle get active user request\n");
 		fastcgi::RequestStream stream(req);
 		std::string key, timestamp;
 
-		if(req->hasArg("key"))
-			key = req->getArg("key");
+		if(req->hasArg("key")) // checks optional parameter key
+			key = req->getArg("key"); // gets key parameter
 
-		if(req->hasArg("timestamp"))
-			timestamp = req->getArg("timestamp");
+		if(req->hasArg("timestamp")) // checks optional parameter timestamp
+			timestamp = req->getArg("timestamp"); // gets timestamp parameter
 
-		if(key.empty() && timestamp.empty()) {
+		if(key.empty() && timestamp.empty()) { // if key and timestamp aren't among the parameters
 			req->setStatus(404);
 			return;
 		}
 
 		std::map<std::string, uint32_t> res;
-		if(!key.empty())
-			res = m_provider->get_active_users(key);
-		else
-			res = m_provider->get_active_users(boost::lexical_cast<uint64_t>(timestamp));
+		if(!key.empty()) // if key has been submitted
+			res = m_provider->get_active_users(key); // gets active users by key
+		else // if timestamp has been submitted
+			res = m_provider->get_active_users(boost::lexical_cast<uint64_t>(timestamp)); // gets active users by timestamp
 
-		rapidjson::Document d;
+		rapidjson::Document d; // creates document for json serialization
 		d.SetObject();
 
-		for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
+		for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) { // adds all active user with counters to json
 			d.AddMember(it->first.c_str(), it->second, d.GetAllocator());
 		}
 
-		rapidjson::StringBuffer buffer;
-		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-		d.Accept(writer);
+		rapidjson::StringBuffer buffer; // creates string buffer for serialized json
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); // creates json writer
+		d.Accept(writer); // accepts writer by json document
 
-		stream << buffer.GetString();
+		stream << buffer.GetString(); // write result json to fastcgi stream
 	}
 
 	void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
+		m_logger->debug("Handlle get user logs request\n");
 		fastcgi::RequestStream stream(req);
-		if(!req->hasArg("user")) {
+		if(!req->hasArg("user")) { // checks required parameter user
 			req->setStatus(404);
 			return;
 		}
 
-		if(!req->hasArg("begin_time")) {
+		if(!req->hasArg("begin_time")) { // checks required parameter begin_time
 			req->setStatus(404);
 			return;
 		}
 
-		if(!req->hasArg("end_time")) {
+		if(!req->hasArg("end_time")) { // checks required parameter end_time
 			req->setStatus(404);
 			return;
 		}
 
-		auto user = req->getArg("user");
-		auto begin_time = boost::lexical_cast<uint64_t>(req->getArg("begin_time"));
-		auto end_time = boost::lexical_cast<uint64_t>(req->getArg("end_time"));
+		auto user = req->getArg("user"); // gets user parameter
+		auto begin_time = boost::lexical_cast<uint64_t>(req->getArg("begin_time")); // gets begin_time parameter
+		auto end_time = boost::lexical_cast<uint64_t>(req->getArg("end_time")); // gets end_time parameter
 
-		auto res = m_provider->get_user_logs(user, begin_time, end_time);
+		auto res = m_provider->get_user_logs(user, begin_time, end_time); // gets user logs from historydb library
 
-		rapidjson::Document d;
+		rapidjson::Document d; // creates json document
 		d.SetObject();
 
-		rapidjson::Value value(rapidjson::kArrayType);
+		rapidjson::Value user_logs(rapidjson::kArrayType); // array value which will contain all user logs for specified time
 
 		for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
-
-			rapidjson::Value vec(&it->front(), it->size(), d.GetAllocator());
-			value.PushBack(vec, d.GetAllocator());
+			rapidjson::Value vec(&it->front(), it->size(), d.GetAllocator()); // creates vector value for user one's day log
+			user_logs.PushBack(vec, d.GetAllocator()); // adds daily logs to result array
 		}
 
-		d.AddMember("logs", value, d.GetAllocator());
+		d.AddMember("logs", user_logs, d.GetAllocator()); // adds logs array to json document
 
-		rapidjson::StringBuffer buffer;
-		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-		d.Accept(writer);
+		rapidjson::StringBuffer buffer; // creates string buffer for serialized json
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); // creates json writer
+		d.Accept(writer); // accepts writer by json document
 
-		stream << buffer.GetString();
+		stream << buffer.GetString(); // writes result json to fastcgi stream
 	}
 
 	void handler::handle_test(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
-		req->setStatus(200);
-	}
-
-	void handler::write_header(fastcgi::Request* req)
-	{
-		fastcgi::RequestStream stream(req);
-
-		stream <<	"<html> \n\
-						<head> \n\
-						<script src=\"//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js\"></script> \n\
-						</head> \n\
-						<body>\n";
-	}
-
-	void handler::close_html(fastcgi::Request* req)
-	{
-		fastcgi::RequestStream stream(req);
-
-		stream << "		</body> \n\
-					</html>\n";
+		m_logger->debug("Handle test request\n");
+		req->setStatus(200); // sets 200 status for test request.
 	}
 
 	FCGIDAEMON_REGISTER_FACTORIES_BEGIN()

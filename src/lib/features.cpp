@@ -393,7 +393,7 @@ bool features::write_data(ioremap::elliptics::session& s, const std::string& key
 	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
 }
 
-void features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error)> func)
+void features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)> func)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 	LOG(DNET_LOG_DEBUG, "Try write async data to key: %s\n", key.c_str());
@@ -410,7 +410,7 @@ bool features::write_data(ioremap::elliptics::session& s, const std::string& key
 	return write_res.size() >= m_min_writes;
 }
 
-void features::write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error)> func)
+void features::write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)> func)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 	LOG(DNET_LOG_DEBUG, "Try write csum async data to key: %s\n", key.c_str());

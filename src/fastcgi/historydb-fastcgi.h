@@ -5,6 +5,7 @@
 #include <fastcgi2/component.h>
 
 #include <memory>
+#include <map>
 
 namespace fastcgi {
 	class ComponentContext;
@@ -29,19 +30,21 @@ namespace fcgi {
 		virtual void handleRequest(fastcgi::Request* req, fastcgi::HandlerContext* context);
 
 	private:
-		void handle_root(fastcgi::Request* req, fastcgi::HandlerContext* context);
-		void handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext* context);
-		void handle_test(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void init_handlers(); // inits handlers map match handle function to script namespace
 
-		void handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context);
-		void handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context);
-		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void handle_root(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle request to root path
+		void handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle request to unknown path
+		void handle_test(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle request to test path
 
-		void write_header(fastcgi::Request* req);
-		void close_html(fastcgi::Request* req);
+		void handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle add activity request
+		void handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get active user request
+		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get user logs request
 
-		fastcgi::Logger*					m_logger;
-		std::shared_ptr<history::iprovider>	m_provider;
+		fastcgi::Logger*																			m_logger;
+		std::shared_ptr<history::iprovider>															m_provider;
+
+		std::map<	std::string,
+					std::function<void(fastcgi::Request* req, fastcgi::HandlerContext* context)>>	m_handlers;
 	};
 
 } } /* namespace history { namespace fastcgi */
