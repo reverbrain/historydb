@@ -179,7 +179,7 @@ namespace history { namespace fcgi {
 			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
 
 		m_logger->debug("Add user activity: (%s, %d, ..., %d, %s\n", user.c_str(), tm, data.size(), key.c_str());
-		m_provider->add_user_activity(user, tm, &data.front(), data.size(), key); // calls provider function to add user activity
+		m_provider->add_user_activity(user, tm, data.c_str(), data.size(), key); // calls provider function to add user activity
 	}
 
 	void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext*)

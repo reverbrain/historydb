@@ -19,12 +19,8 @@
 
 namespace history {
 namespace consts {
-	const int		LOG_LEVEL			= DNET_LOG_DEBUG;	// log level
-
 	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60;		// number of seconds in one day. used for calculation days
-
 	const uint32_t	CHUNKS_COUNT		= 1000;				// default count of activtiy statistics chucks
-
 	const uint32_t	WRITES_BEFORE_FAIL	= 3;				// Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
@@ -70,15 +66,18 @@ void features::repartition_activity(const std::string& key, uint32_t chunks)
 
 void features::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks)
 {
+	LOG(DNET_LOG_DEBUG, "Repartition activity: (%s, %s, %d)\n", old_key.c_str(), new_key.c_str(), chunks);
 	auto s = create_session();
-	activity res, tmp;
+	activity tmp;
 
-	res = get_activity(s, old_key);
+	auto res = get_activity(s, old_key);
 	if (res.size == 0) {
+		LOG(DNET_LOG_DEBUG, "Nothing to repartition\n");
 		m_self.reset();
 		return;
 	}
 
+	LOG(DNET_LOG_DEBUG, "Previous count of chunk: %d\n", res.map.size());
 	auto per_chunk = res.map.size() / chunks;	// calculates number of elements in new chunk
 	per_chunk = per_chunk == 0 ? 1 : per_chunk;	// if number of chunk more then elements in result map then keep only 1 element in first chunks
 	std::vector<char> data;
@@ -263,7 +262,7 @@ void features::increment_activity(const std::string& user, const std::string& ke
 	}
 
 	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Before throw\n");
+		LOG(DNET_LOG_ERROR, "Data wasn't written to the minimum number of groups\n");
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 }
