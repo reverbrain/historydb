@@ -28,10 +28,7 @@ LINK_DIRECTORIES(
 
 add_subdirectory(src/app)
 add_subdirectory(src/lib)
-
-if(WITH_FASTCGI)
-	add_subdirectory(src/fastcgi)
-endif()
+add_subdirectory(src/fastcgi)
 
 install(FILES
 	include/historydb/iprovider.h
