@@ -91,16 +91,12 @@ namespace history {
 		*/
 		bool get_chunk(const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum = NULL);
 
-		void get_chunk(const std::string& key, uint32_t chunk, std::function<void(bool exist, activity act, dnet_id checksum)> func);
-
 		/* Writes data to elliptics in specified sessio
 			key - id of file where data should be written
 			data - pointer to the data
 			size - size of data.
 		*/
 		bool write_data(const std::string& key, void* data, uint32_t size);
-
-		void write_data(const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::sync_write_result&, const ioremap::elliptics::error_info&)> func);
 
 		/* Generate random value in range [0, max)
 			max - the upper limit of random range
@@ -123,8 +119,6 @@ namespace history {
 		void add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
 
 		bool get_user_logs_callback(std::list<std::vector<char>>& ret, uint64_t time, void* data, uint32_t size);
-
-		void get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, const ioremap::elliptics::sync_read_result& res);
 
 		ioremap::elliptics::data_pointer write_cas_callback(const ioremap::elliptics::data_pointer& data);
 

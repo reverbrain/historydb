@@ -227,7 +227,6 @@ ioremap::elliptics::async_write_result features::add_user_data(void* data, uint3
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 
 	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", m_user_key.c_str());
-	auto write_res = m_session.write_data(m_user_key, dp, 0); // write data into elliptics
 
 	return m_session.write_data(m_user_key, dp, 0); // write data into elliptics
 }
@@ -282,14 +281,6 @@ bool features::get_chunk(const std::string& key, uint32_t chunk, activity& act, 
 	return false;
 }
 
-void features::get_chunk(const std::string& key, uint32_t chunk, std::function<void(bool exist, activity act, dnet_id checksum)> func)
-{
-	auto callback = boost::bind(&features::get_chunk_callback, this, func, _1);
-
-	auto skey = make_chunk_key(key, chunk);
-	m_session.read_latest(skey, 0, 0).connect(callback);
-}
-
 bool features::write_data(const std::string& key, void* data, uint32_t size)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
@@ -297,14 +288,6 @@ bool features::write_data(const std::string& key, void* data, uint32_t size)
 	auto write_res = m_session.write_data(key, dp, 0).get();	// write data into elliptics
 
 	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
-}
-
-void features::write_data(const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)> func)
-{
-	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
-	LOG(DNET_LOG_DEBUG, "Try write async data to key: %s\n", key.c_str());
-
-	m_session.write_data(key, dp, 0).connect(func);
 }
 
 uint32_t features::rand(uint32_t max)
@@ -382,29 +365,6 @@ void features::add_user_data_callback(const ioremap::elliptics::sync_write_resul
 	LOG(DNET_LOG_DEBUG, "Add user data callback result: %s\n", (m_log_written ? "written" : "failed"));
 
 	increment_activity().connect(boost::bind(&features::increment_activity_callback, this, _1, _2));
-}
-
-void features::get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, const ioremap::elliptics::sync_read_result& res)
-{
-	LOG(DNET_LOG_DEBUG, "Get chunk callback result\n");
-
-	bool exists = false;
-	dnet_id checksum;
-	m_session.transform(std::string(), checksum);
-	activity act;
-	try {
-		LOG(DNET_LOG_DEBUG, "Get chunk callback try handle file\n");
-		auto file = res[0].file();
-		m_session.transform(file, checksum);
-		if (!file.empty()) {
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());
-			msg.get().convert(&act);
-			exists = true;
-		}
-	}
-	catch(std::exception& e) {}
-	func(exists, act, checksum);
 }
 
 ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::elliptics::data_pointer& data)
