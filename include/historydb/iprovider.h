@@ -77,7 +77,7 @@ namespace history {
 			end_time -end of the time period
 			func - callback functor
 		*/
-		virtual void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func) = 0;
+		virtual void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(uint64_t time, void* data, uint32_t size)> func) = 0;
 
 		/* Iterates by activity statistics and calls func for each user
 			time - day of activity statistics

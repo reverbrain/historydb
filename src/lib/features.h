@@ -40,7 +40,7 @@ namespace history {
 		virtual std::map<std::string, uint32_t> get_active_users(uint64_t time);
 		virtual std::map<std::string, uint32_t> get_active_users(const std::string& key);
 
-		virtual void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func);
+		virtual void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(uint64_t time, void* data, uint32_t size)> func);
 
 		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func);
 		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func);
@@ -57,31 +57,23 @@ namespace history {
 			data - pointer to the log data
 			size - size of log data
 		*/
-		void add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size);
+		void add_user_data(uint64_t time, void* data, uint32_t size);
 
-		void async_add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size);
+		void async_add_user_data(uint64_t time, void* data, uint32_t size);
 
 		/* Increments user activity statistics
 			user -nane of user
 			time - timestamp
 		*/
-		void increment_activity(const std::string& user, const std::string& key);
+		void increment_activity();
 
-		void async_increment_activity(const std::string& user, const std::string& key);
-
-		/* Tries increments user activity statistics. If fails return false. It is used by increment_activity.
-			user - name of user
-			key - key of activity statistics
-		*/
-		bool try_increment_activity(const std::string& user, const std::string& key);
-
-		void async_try_increment_activity(const std::string& user, const std::string& key);
+		void async_increment_activity();
 
 		/* Makes user log id from user name and timestamp
 			user - name of user
 			time - timestamp
 		*/
-		std::string make_key(const std::string& user, uint64_t time);
+		std::string make_user_key(uint64_t time);
 
 		/* Makes general activity statistics key
 		*/
@@ -142,15 +134,15 @@ namespace history {
 
 		void increment_activity_callback(bool log_written, bool stat_updated);
 
-		void size_callback(const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
-		void read_callback(const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum);
 		void write_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
 
 		void add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
 
-		bool get_user_logs_callback(std::list<std::vector<char>>& ret, const std::string& user, uint64_t time, void* data, uint32_t size);
+		bool get_user_logs_callback(std::list<std::vector<char>>& ret, uint64_t time, void* data, uint32_t size);
 
 		void get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, const ioremap::elliptics::sync_read_result& res);
+
+		ioremap::elliptics::data_pointer write_cas_callback(const ioremap::elliptics::data_pointer& data);
 
 		ioremap::elliptics::file_logger&	m_log;
 		ioremap::elliptics::node&			m_node;
@@ -159,10 +151,9 @@ namespace history {
 		const uint32_t&						m_min_writes;
 		keys_size_cache&					m_keys_cache;
 
-		uint32_t							m_attempt;
-		uint32_t							m_chunk;
 		std::string							m_user;
-		std::string							m_key;
+		std::string							m_activity_key;
+		std::string							m_user_key;
 		bool								m_log_written;
 		bool								m_stat_updated;
 		ioremap::elliptics::session			m_session;

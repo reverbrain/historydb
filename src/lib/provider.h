@@ -37,7 +37,7 @@ namespace history {
 		virtual std::map<std::string, uint32_t> get_active_users(uint64_t time);
 		virtual std::map<std::string, uint32_t> get_active_users(const std::string& key);
 
-		virtual void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func);
+		virtual void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(uint64_t time, void* data, uint32_t size)> func);
 
 		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func);
 		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func);

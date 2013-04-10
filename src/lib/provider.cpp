@@ -113,7 +113,7 @@ std::map<std::string, uint32_t> provider::get_active_users(const std::string& ke
 }
 
 void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
-		std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func)
+		std::function<bool(uint64_t time, void* data, uint32_t size)> func)
 {
 	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
 	f.for_user_logs(user, begin_time, end_time, func);

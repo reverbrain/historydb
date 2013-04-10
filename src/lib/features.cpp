@@ -39,28 +39,31 @@ features::features(ioremap::elliptics::file_logger& log, ioremap::elliptics::nod
 
 void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
 {
-	LOG(DNET_LOG_INFO, "Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", user.c_str(), time, size, key.c_str());
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", m_user.c_str(), time, size, key.c_str());
 
-	add_user_data(user, time, data, size);	// Adds data to the user log
+	m_user_key = make_user_key(time);
 
-	if (key.empty())
-		increment_activity(user, make_key(time));		// Increments user's activity statistics which are stored by time id.
-	else
-		increment_activity(user, key);		// Increments user's activity statistics which are stored by custom key.
+	add_user_data(time, data, size);	// Adds data to the user log
+
+	m_activity_key = key.empty() ? make_key(time) : key;
+
+	increment_activity(); // Increments user's activity statistics which are stored by wkey id
 
 	m_self.reset();
 }
 
 void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key)
 {
-	LOG(DNET_LOG_INFO, "Async: Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", user.c_str(), time, size, key.c_str());
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Async: Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", m_user.c_str(), time, size, key.c_str());
+	m_user_key = make_user_key(time);
 
 	m_add_user_activity_callback = func;
 
-	m_user = user;
-	m_key = key.empty() ? make_key(time) : key;
+	m_activity_key = key.empty() ? make_key(time) : key;
 
-	async_add_user_data(user, time, data, size);
+	async_add_user_data(time, data, size);
 }
 
 void features::repartition_activity(const std::string& key, uint32_t chunks)
@@ -135,10 +138,12 @@ void features::repartition_activity(uint64_t time, const std::string& new_key, u
 
 std::list<std::vector<char>> features::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
 {
-	LOG(DNET_LOG_INFO, "Getting logs for user: %s begin_time: %" PRIu64 " end_time: %" PRIu64 "\n", user.c_str(), begin_time, end_time);
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Getting logs for user: %s begin_time: %" PRIu64 " end_time: %" PRIu64 "\n", m_user.c_str(), begin_time, end_time);
+
 	std::list<std::vector<char>> ret;
 
-	for_user_logs(user, begin_time, end_time, boost::bind(&features::get_user_logs_callback, this, boost::ref(ret), _1, _2, _3, _4));
+	for_user_logs(m_user, begin_time, end_time, boost::bind(&features::get_user_logs_callback, this, boost::ref(ret), _1, _2, _3));
 
 	LOG(DNET_LOG_DEBUG, "User logs cout: %d", (uint32_t)ret.size());
 
@@ -163,21 +168,22 @@ std::map<std::string, uint32_t> features::get_active_users(const std::string& ke
 }
 
 void features::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
-		std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func)
+		std::function<bool(uint64_t time, void* data, uint32_t size)> func)
 {
-	LOG(DNET_LOG_INFO, "Iterating by user logs for user: %s, begin time: %" PRIu64 " end time: %" PRIu64 " \n", user.c_str(), begin_time, end_time);
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Iterating by user logs for user: %s, begin time: %" PRIu64 " end time: %" PRIu64 " \n", m_user.c_str(), begin_time, end_time);
 
-	for (auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {	// iterates by user logs
+	for (auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) { // iterates by user logs
 		try {
-			auto skey = make_key(user, time);
-			LOG(DNET_LOG_INFO, "Try to read user logs for user: %s time: %" PRIu64 " key: %s\n", user.c_str(), time, skey.c_str());
-			ioremap::elliptics::sync_read_result read_res = m_session.read_latest(skey, 0, 0);
-			auto file = read_res[0].file();	// reads user log file
+			m_user_key = make_user_key(time);
+			LOG(DNET_LOG_INFO, "Try to read user logs for user: %s time: %" PRIu64 " key: %s\n", m_user.c_str(), time, m_user_key.c_str());
+			ioremap::elliptics::sync_read_result read_res = m_session.read_latest(m_user_key, 0, 0);
+			auto file = read_res[0].file(); // reads user log file
 
-			if (file.empty())	// if the file is empty
-				continue;		// skip it and go to the next
+			if (file.empty()) // if the file is empty
+				continue; // skip it and go to the next
 
-			if (!func(user, time, file.data(), file.size()))	// calls user's callback with user's log file data
+			if (!func(time, file.data(), file.size())) // calls user's callback with user's log file data
 				return;
 		}
 		catch(std::exception& e) {} // skips standard exception while iterating
@@ -206,118 +212,60 @@ void features::for_active_users(const std::string& key, std::function<bool(const
 	m_self.reset();
 }
 
-void features::add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size)
+void features::add_user_data(uint64_t time, void* data, uint32_t size)
 {
 	m_session.set_ioflags(m_session.get_ioflags() | DNET_IO_FLAGS_APPEND);
 
-	auto skey = make_key(user, time);
-
-	auto write_res = write_data(skey, data, size);	// Trys to write data to user's log
+	auto write_res = write_data(m_user_key, data, size); // Trys to write data to user's log
 
 	if (!write_res) {	// Checks number of successfull results and if it is less minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", skey.c_str());
-		std::cout << "THROW\n";
+		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", m_user_key.c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
-	LOG(DNET_LOG_DEBUG, "written data to user log user: %s time: %" PRIu64 " data size: %d\n", user.c_str(), time, size);
+	LOG(DNET_LOG_DEBUG, "written data to user log user: %s time: %" PRIu64 " data size: %d\n", m_user.c_str(), time, size);
 }
 
-void features::async_add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size)
+void features::async_add_user_data(uint64_t time, void* data, uint32_t size)
 {
 	m_session.set_ioflags(m_session.get_ioflags() | DNET_IO_FLAGS_APPEND);
 
-	auto skey = make_key(user, time);
-
-	write_data(skey, data, size, boost::bind(&features::add_user_data_callback, this, _1, _2));
+	write_data(m_user_key, data, size, boost::bind(&features::add_user_data_callback, this, _1, _2));
 }
 
-void features::increment_activity(const std::string& user, const std::string& key)
+void features::increment_activity()
 {
-	uint32_t attempt = 0;
-
-	while(	attempt++ < consts::WRITES_BEFORE_FAIL &&		// Tries const::WRITES_BEFORE_FAIL times
-			!try_increment_activity(user, key)) {			// to increment user activity statistics
-		LOG(DNET_LOG_DEBUG, "Exteral attemt to increment activity of user: %s with key %s attempt: %d\n", user.c_str(), key.c_str(), attempt);
+	uint32_t chunk = 0;
+	auto size = m_keys_cache.get(m_activity_key);
+	if(size == (uint32_t)-1) {
+		chunk = rand(size);
 	}
 
-	if (attempt > consts::WRITES_BEFORE_FAIL) { // checks number of successfull results and if it is less then minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Data wasn't written to the minimum number of groups\n");
-		std::cout << "THROW\n";
+	auto chunk_key = make_chunk_key(m_activity_key, chunk);
+	auto result = m_session.write_cas(chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL).get();
+
+	if(result.size() < m_min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
+		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", chunk_key.c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 }
 
-void features::async_increment_activity(const std::string& user, const std::string& key)
+void features::async_increment_activity()
 {
-	LOG(DNET_LOG_DEBUG, "Async increment activity for user: %s and key: %s\n", user.c_str(), key.c_str());
-	m_attempt = 0;
+	LOG(DNET_LOG_DEBUG, "Async increment activity for user: %s and key: %s\n", m_user.c_str(), m_activity_key.c_str());
 
-	async_try_increment_activity(user, key);
-}
-
-bool features::try_increment_activity(const std::string& user, const std::string& key)
-{
-	activity act;
 	uint32_t chunk = 0;
-
-	dnet_id checksum;
-
-	auto size = m_keys_cache.get(key);	// gets number of chunks from cache
-	if (size == (uint32_t)-1 &&	// if it isn't in cache
-		get_chunk(key, 0, act, &checksum)) {	// gets chunk with zero chunk number
-		size = act.size;
-	}
-
-	if (size != (uint32_t)-1) {
+	auto size = m_keys_cache.get(m_activity_key);
+	if(size == (uint32_t)-1) {
 		chunk = rand(size);
-		get_chunk(key, chunk, act, &checksum);	// gets chunk from this chunk
-	}
-	else {
-		act.size = consts::CHUNKS_COUNT;	// sets default value for act.size
-		chunk = 0;	// and writes chunk to zero chunk
 	}
 
-	m_keys_cache.set(key, size);
-
-	auto res = act.map.insert(std::make_pair(user, 1));	//Trys to insert new record in map for the user
-	if (!res.second)									// if the record wasn't inserted
-		++res.first->second;							// increments old statistics
-
-	msgpack::sbuffer sbuf;
-	msgpack::pack(sbuf, act);							// packs activity statistics chunk
-
-	auto skey = make_chunk_key(key, chunk);
-
-	auto write_res = write_data(skey, sbuf.data(), sbuf.size(), checksum);	// write data into elliptics with checksum
-
-	if (!write_res)
-		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
-	else
-		LOG(DNET_LOG_DEBUG, "Incremented activity for user: %s key:%s\n", user.c_str(), skey.c_str());
-
-	return write_res;
+	auto chunk_key = make_chunk_key(m_activity_key, chunk);
+	m_session.write_cas(chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL).connect(boost::bind(&features::write_callback, this, _1, _2));
 }
 
-void features::async_try_increment_activity(const std::string& user, const std::string& key)
+std::string features::make_user_key(uint64_t time)
 {
-	LOG(DNET_LOG_DEBUG, "Async trying increment activity for user: %s and key: %s\n", user.c_str(), key.c_str());
-
-	m_chunk = 0;
-
-	auto size = m_keys_cache.get(key);
-	LOG(DNET_LOG_DEBUG, "Count of chunks for key %s = %d\n", key.c_str(), size);
-	if (size == (uint32_t) -1) {
-		get_chunk(key, 0, boost::bind(&features::size_callback, this, user, key, _1, _2, _3));
-	}
-	else {
-		m_chunk = rand(size);
-		get_chunk(key, m_chunk, boost::bind(&features::read_callback, this, user, key, _1, _2, _3));
-	}
-}
-
-std::string features::make_key(const std::string& user, uint64_t time)
-{
-	return user + "." + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
+	return m_user + "." + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
 }
 
 std::string features::make_key(uint64_t time)
@@ -445,63 +393,21 @@ activity features::get_activity(const std::string& key)
 	return ret;		// returns result map
 }
 
-void features::size_callback(const std::string& user, const std::string& key, bool exist, activity act, dnet_id)
-{
-	LOG(DNET_LOG_DEBUG, "Size callback result file: %s\n", (exist ? "read" : "failed"));
-
-	if (!exist) {
-		m_keys_cache.set(key, consts::CHUNKS_COUNT);
-		activity ac;
-		ac.size = consts::CHUNKS_COUNT;
-		m_chunk = 0;
-		read_callback(user, key, false, ac, dnet_id());
-		return;
-	}
-
-	m_chunk = rand(act.size);
-	m_keys_cache.set(key, act.size);
-	get_chunk(key, m_chunk, boost::bind(&features::read_callback, this, user, key, _1, _2, _3));
-}
-
-void features::read_callback(const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum)
-{
-	LOG(DNET_LOG_DEBUG, "Read callback result: %s\n", (exist ? "read" : "failed"));
-
-	auto res = act.map.insert(std::make_pair(user, 1));
-	if (!res.second)
-		++res.first->second;
-
-	msgpack::sbuffer sbuf;
-	msgpack::pack(sbuf, act);
-
-	auto skey = make_chunk_key(key, m_chunk);
-
-	write_data(skey, sbuf.data(), sbuf.size(), checksum, boost::bind(&features::write_callback, this, _1, _2));
-}
-
 void features::write_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)
 {
 	bool written = res.size() >= m_min_writes;
 
 	LOG(DNET_LOG_DEBUG, "Write callback result: %s\n", (written ? "written" : "failed"));
 
-	if (written || m_attempt >= consts::WRITES_BEFORE_FAIL)
-	{
-		m_stat_updated = written;
-		m_add_user_activity_callback(m_log_written, m_stat_updated);
-		m_self.reset();
-		return;
-	}
-
-	++m_attempt;
-
-	async_try_increment_activity(m_user, m_key);
+	m_stat_updated = written;
+	m_add_user_activity_callback(m_log_written, m_stat_updated);
+	m_self.reset();
 }
 
-bool features::get_user_logs_callback(std::list<std::vector<char>>& ret, const std::string& user, uint64_t time, void* data, uint32_t size)
+bool features::get_user_logs_callback(std::list<std::vector<char>>& ret, uint64_t time, void* data, uint32_t size)
 {
 	ret.push_back(std::vector<char>((char*)data, (char*)data + size));														// combine all logs in result list
-	LOG(DNET_LOG_INFO, "Got log for user: %s time: %" PRIu64 " size: %d\n", user.c_str(), time, size);
+	LOG(DNET_LOG_INFO, "Got log for user: %s time: %" PRIu64 " size: %d\n", m_user.c_str(), time, size);
 	return true;
 }
 
@@ -511,7 +417,7 @@ void features::add_user_data_callback(const ioremap::elliptics::sync_write_resul
 	LOG(DNET_LOG_DEBUG, "Add user data callback result: %s\n", (written ? "written" : "failed"));
 	m_log_written = written;
 
-	async_increment_activity(m_user, m_key);
+	async_increment_activity();
 }
 
 void features::get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, const ioremap::elliptics::sync_read_result& res)
@@ -535,6 +441,30 @@ void features::get_chunk_callback(std::function<void(bool exist, activity act, d
 	}
 	catch(std::exception& e) {}
 	func(exists, act, checksum);
+}
+
+ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::elliptics::data_pointer& data)
+{
+	activity act;
+	if (!data.empty()) {
+		msgpack::unpacked msg;
+		msgpack::unpack(&msg, data.data<const char>(), data.size());
+		msg.get().convert(&act);
+	}
+	else {
+		act.size = consts::CHUNKS_COUNT;
+	}
+
+	m_keys_cache.set("", act.size);
+
+	auto res = act.map.insert(std::make_pair(m_user, 1)); //Trys to insert new record in map for the user
+	if (!res.second) // if the record wasn't inserted
+		++res.first->second; // increments old statistics
+
+	msgpack::sbuffer buff;
+	msgpack::pack(buff, act); // packs the activity statistics chunk
+
+	return ioremap::elliptics::data_pointer::from_raw(buff.data(), buff.size());
 }
 
 }

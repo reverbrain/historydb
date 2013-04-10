@@ -27,15 +27,15 @@ void print_usage(char* s) {
 	;
 }
 
-bool test1_for1(const std::string& user, uint64_t time, void* data, uint32_t size)
+bool test1_for1(uint64_t time, void* data, uint32_t size)
 {
-	std::cout << "LOG1 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
+	std::cout << "LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
 	return true;
 }
 
-bool test1_for2(const std::string& user, uint64_t time, void* data, uint32_t size)
+bool test1_for2(uint64_t time, void* data, uint32_t size)
 {
-	std::cout << "LOG2 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
+	std::cout << "LOG2 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
 	return true;
 }
 
@@ -91,9 +91,9 @@ void test3_add(bool log_writed, bool statistics_updated)
 				<< std::endl;
 }
 
-bool test3_for1(uint32_t ind, const std::string& user, uint64_t time, void* data, uint32_t size)
+bool test3_for1(uint32_t ind, uint64_t time, void* data, uint32_t size)
 {
-	std::cout << "TEST3: LOG1 LAMBDA: user: " << user << " " << std::string((char*)data, size) << " " << time << std::endl;
+	std::cout << "TEST3: LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
 	++ind;
 	return true;
 }
@@ -113,7 +113,7 @@ void test3(std::shared_ptr<history::iprovider> provider) {
 
 	while(ind < 2) {
 
-		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, boost::ref(ind), _1, _2, _3, _4));
+		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, boost::ref(ind), _1, _2, _3));
 
 		provider->for_active_users(tm, boost::bind(&test3_for2, boost::ref(ind), _1, _2));
 	}
