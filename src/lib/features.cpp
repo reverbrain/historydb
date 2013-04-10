@@ -21,7 +21,7 @@ namespace history {
 namespace consts {
 	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60;		// number of seconds in one day. used for calculation days
 	const uint32_t	CHUNKS_COUNT		= 1000;				// default count of activtiy statistics chucks
-	const uint32_t	WRITES_BEFORE_FAIL	= 3;				// Number of attempts of write_cas before returning fail result
+	const uint32_t	WRITES_BEFORE_FAIL	= 100;				// Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
 features::features(ioremap::elliptics::file_logger& log, ioremap::elliptics::node& node, const std::vector<int>& groups, const uint32_t& min_writes, keys_size_cache& keys_cache)
@@ -30,7 +30,12 @@ features::features(ioremap::elliptics::file_logger& log, ioremap::elliptics::nod
 , m_groups(groups)
 , m_min_writes(min_writes)
 , m_keys_cache(keys_cache)
-{}
+, m_session(m_node)
+{
+	m_session.set_cflags(0);	// sets cflags to 0
+	m_session.set_ioflags(0 /*| DNET_IO_FLAGS_CACHE */);
+	m_session.set_groups(m_groups);	// sets groups
+}
 
 void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
 {
@@ -67,17 +72,16 @@ void features::repartition_activity(const std::string& key, uint32_t chunks)
 void features::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks)
 {
 	LOG(DNET_LOG_DEBUG, "Repartition activity: (%s, %s, %d)\n", old_key.c_str(), new_key.c_str(), chunks);
-	auto s = create_session();
 	activity tmp;
 
-	auto res = get_activity(s, old_key);
+	auto res = get_activity(old_key);
 	if (res.size == 0) {
 		LOG(DNET_LOG_DEBUG, "Nothing to repartition\n");
 		m_self.reset();
 		return;
 	}
 
-	LOG(DNET_LOG_DEBUG, "Previous count of chunk: %d\n", res.map.size());
+	LOG(DNET_LOG_DEBUG, "Previous count of chunk: %lu\n", res.map.size());
 	auto per_chunk = res.map.size() / chunks;	// calculates number of elements in new chunk
 	per_chunk = per_chunk == 0 ? 1 : per_chunk;	// if number of chunk more then elements in result map then keep only 1 element in first chunks
 	std::vector<char> data;
@@ -96,7 +100,7 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 
 		auto skey = make_chunk_key(new_key, chunk_no);
 
-		auto write_res = write_data(s, skey, sbuf.data(), sbuf.size());	// writes data to the elliptics
+		auto write_res = write_data(skey, sbuf.data(), sbuf.size());	// writes data to the elliptics
 
 		if (!write_res) {	// checks number of successfull results and if it is less then minimum then mark that some write was failed
 			LOG(DNET_LOG_ERROR, "Can't write data while repartition activity key: %s\n", skey.c_str());
@@ -111,6 +115,7 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 
 	if (!written) {	// checks if some writes was failed if so throw exception
 		LOG(DNET_LOG_ERROR, "Cannot write one part. Repartition failed\n");
+		std::cout << "THROW\n";
 		throw ioremap::elliptics::error(EREMOTEIO, "Some activity wasn't written to the minimum number of groups");
 	}
 	m_self.reset();
@@ -149,9 +154,8 @@ std::map<std::string, uint32_t> features::get_active_users(uint64_t time)
 std::map<std::string, uint32_t> features::get_active_users(const std::string& key)
 {
 	LOG(DNET_LOG_INFO, "Getting active users with key: %s\n", key.c_str());
-	auto s = create_session();
 
-	auto ret = get_activity(s, key).map;	// returns result map
+	auto ret = get_activity(key).map;	// returns result map
 
 	m_self.reset();
 
@@ -162,13 +166,12 @@ void features::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 		std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func)
 {
 	LOG(DNET_LOG_INFO, "Iterating by user logs for user: %s, begin time: %" PRIu64 " end time: %" PRIu64 " \n", user.c_str(), begin_time, end_time);
-	auto s = create_session();
 
 	for (auto time = begin_time; time <= end_time; time += consts::SEC_PER_DAY) {	// iterates by user logs
 		try {
 			auto skey = make_key(user, time);
 			LOG(DNET_LOG_INFO, "Try to read user logs for user: %s time: %" PRIu64 " key: %s\n", user.c_str(), time, skey.c_str());
-			ioremap::elliptics::sync_read_result read_res = s.read_latest(skey, 0, 0);
+			ioremap::elliptics::sync_read_result read_res = m_session.read_latest(skey, 0, 0);
 			auto file = read_res[0].file();	// reads user log file
 
 			if (file.empty())	// if the file is empty
@@ -203,40 +206,17 @@ void features::for_active_users(const std::string& key, std::function<bool(const
 	m_self.reset();
 }
 
-ioremap::elliptics::session features::create_session(uint64_t ioflags)
-{
-	ioremap::elliptics::session session(m_node);	// creates session and connects it with node
-
-	session.set_cflags(0);	// sets cflags to 0
-	session.set_ioflags(ioflags /*| DNET_IO_FLAGS_CACHE */);	// sets ioflags with DNET_IO_FLAGS_CACHE
-
-	session.set_groups(m_groups);	// sets groups
-
-	return session;
-}
-
-std::shared_ptr<ioremap::elliptics::session> features::shared_session(uint64_t ioflags)
-{
-	auto session = std::make_shared<ioremap::elliptics::session>(m_node);
-
-	session->set_cflags(0);	// sets cflags to 0
-	session->set_ioflags(ioflags /*| DNET_IO_FLAGS_CACHE */);	// sets ioflags with DNET_IO_FLAGS_CACHE
-
-	session->set_groups(m_groups);	// sets groups
-
-	return session;
-}
-
 void features::add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size)
 {
-	auto s = create_session(DNET_IO_FLAGS_APPEND);
+	m_session.set_ioflags(m_session.get_ioflags() | DNET_IO_FLAGS_APPEND);
 
 	auto skey = make_key(user, time);
 
-	auto write_res = write_data(s, skey, data, size);	// Trys to write data to user's log
+	auto write_res = write_data(skey, data, size);	// Trys to write data to user's log
 
 	if (!write_res) {	// Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", skey.c_str());
+		std::cout << "THROW\n";
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 	LOG(DNET_LOG_DEBUG, "written data to user log user: %s time: %" PRIu64 " data size: %d\n", user.c_str(), time, size);
@@ -244,12 +224,11 @@ void features::add_user_data(const std::string& user, uint64_t time, void* data,
 
 void features::async_add_user_data(const std::string& user, uint64_t time, void* data, uint32_t size)
 {
-
-	auto s = create_session(DNET_IO_FLAGS_APPEND);
+	m_session.set_ioflags(m_session.get_ioflags() | DNET_IO_FLAGS_APPEND);
 
 	auto skey = make_key(user, time);
 
-	write_data(s, skey, data, size, boost::bind(&features::add_user_data_callback, this, _1, _2));
+	write_data(skey, data, size, boost::bind(&features::add_user_data_callback, this, _1, _2));
 }
 
 void features::increment_activity(const std::string& user, const std::string& key)
@@ -261,8 +240,9 @@ void features::increment_activity(const std::string& user, const std::string& ke
 		LOG(DNET_LOG_DEBUG, "Exteral attemt to increment activity of user: %s with key %s attempt: %d\n", user.c_str(), key.c_str(), attempt);
 	}
 
-	if (attempt > 3) { // checks number of successfull results and if it is less then minimum then throw exception
+	if (attempt > consts::WRITES_BEFORE_FAIL) { // checks number of successfull results and if it is less then minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Data wasn't written to the minimum number of groups\n");
+		std::cout << "THROW\n";
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 }
@@ -280,19 +260,17 @@ bool features::try_increment_activity(const std::string& user, const std::string
 	activity act;
 	uint32_t chunk = 0;
 
-	auto s = create_session();
-
 	dnet_id checksum;
 
 	auto size = m_keys_cache.get(key);	// gets number of chunks from cache
 	if (size == (uint32_t)-1 &&	// if it isn't in cache
-		get_chunk(s, key, 0, act, &checksum)) {	// gets chunk with zero chunk number
+		get_chunk(key, 0, act, &checksum)) {	// gets chunk with zero chunk number
 		size = act.size;
 	}
 
 	if (size != (uint32_t)-1) {
 		chunk = rand(size);
-		get_chunk(s, key, chunk, act, &checksum);	// gets chunk from this chunk
+		get_chunk(key, chunk, act, &checksum);	// gets chunk from this chunk
 	}
 	else {
 		act.size = consts::CHUNKS_COUNT;	// sets default value for act.size
@@ -310,7 +288,7 @@ bool features::try_increment_activity(const std::string& user, const std::string
 
 	auto skey = make_chunk_key(key, chunk);
 
-	auto write_res = write_data(s, skey, sbuf.data(), sbuf.size(), checksum);	// write data into elliptics with checksum
+	auto write_res = write_data(skey, sbuf.data(), sbuf.size(), checksum);	// write data into elliptics with checksum
 
 	if (!write_res)
 		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity key: %s\n", skey.c_str());
@@ -323,18 +301,17 @@ bool features::try_increment_activity(const std::string& user, const std::string
 void features::async_try_increment_activity(const std::string& user, const std::string& key)
 {
 	LOG(DNET_LOG_DEBUG, "Async trying increment activity for user: %s and key: %s\n", user.c_str(), key.c_str());
-	auto s = shared_session();
 
 	m_chunk = 0;
 
 	auto size = m_keys_cache.get(key);
 	LOG(DNET_LOG_DEBUG, "Count of chunks for key %s = %d\n", key.c_str(), size);
 	if (size == (uint32_t) -1) {
-		get_chunk(s, key, 0, boost::bind(&features::size_callback, this, s, user, key, _1, _2, _3));
+		get_chunk(key, 0, boost::bind(&features::size_callback, this, user, key, _1, _2, _3));
 	}
 	else {
 		m_chunk = rand(size);
-		get_chunk(s, key, m_chunk, boost::bind(&features::read_callback, this, s, user, key, _1, _2, _3));
+		get_chunk(key, m_chunk, boost::bind(&features::read_callback, this, user, key, _1, _2, _3));
 	}
 }
 
@@ -353,17 +330,17 @@ std::string features::make_chunk_key(const std::string& key, uint32_t chunk)
 	return key + "." + boost::lexical_cast<std::string>(chunk);
 }
 
-bool features::get_chunk(ioremap::elliptics::session& s, const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum)
+bool features::get_chunk(const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum)
 {
 	act.map.clear();
 	if (checksum)
-		s.transform(std::string(), *checksum);
+		m_session.transform(std::string(), *checksum);
 	try {
 		auto skey = make_chunk_key(key, chunk);	// generate chunk key
-		ioremap::elliptics::sync_read_result res = s.read_latest(skey, 0, 0);
+		ioremap::elliptics::sync_read_result res = m_session.read_latest(skey, 0, 0);
 		auto file = res[0].file();	// trys to read chunk data
 		if (checksum)
-			s.transform(file, *checksum);
+			m_session.transform(file, *checksum);
 		if (!file.empty()) {	// if it isn't empty
 			msgpack::unpacked msg;
 			msgpack::unpack(&msg, file.data<const char>(), file.size());	// unpack chunk
@@ -375,46 +352,46 @@ bool features::get_chunk(ioremap::elliptics::session& s, const std::string& key,
 	return false;
 }
 
-void features::get_chunk(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, uint32_t chunk, std::function<void(bool exist, activity act, dnet_id checksum)> func)
+void features::get_chunk(const std::string& key, uint32_t chunk, std::function<void(bool exist, activity act, dnet_id checksum)> func)
 {
-	auto callback = boost::bind(&features::get_chunk_callback, this, func, s, _1);
+	auto callback = boost::bind(&features::get_chunk_callback, this, func, _1);
 
 	auto skey = make_chunk_key(key, chunk);
-	s->read_latest(skey, 0, 0).connect(callback);
+	m_session.read_latest(skey, 0, 0).connect(callback);
 }
 
-bool features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size)
+bool features::write_data(const std::string& key, void* data, uint32_t size)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", key.c_str());
-	auto write_res = s.write_data(key, dp, 0).get();	// write data into elliptics
+	auto write_res = m_session.write_data(key, dp, 0).get();	// write data into elliptics
 
 	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
 }
 
-void features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)> func)
+void features::write_data(const std::string& key, void* data, uint32_t size, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)> func)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 	LOG(DNET_LOG_DEBUG, "Try write async data to key: %s\n", key.c_str());
 
-	s.write_data(key, dp, 0).connect(func);
+	m_session.write_data(key, dp, 0).connect(func);
 }
 
-bool features::write_data(ioremap::elliptics::session& s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum)
+bool features::write_data(const std::string& key, void* data, uint32_t size, const dnet_id& checksum)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 	LOG(DNET_LOG_DEBUG, "Try write csum sync data to key: %s\n", key.c_str());
-	auto write_res = s.write_cas(key, dp, checksum, 0).get();	// write data into elliptics
+	auto write_res = m_session.write_cas(key, dp, checksum, 0).get();	// write data into elliptics
 
 	return write_res.size() >= m_min_writes;
 }
 
-void features::write_data(std::shared_ptr<ioremap::elliptics::session> s, const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)> func)
+void features::write_data(const std::string& key, void* data, uint32_t size, const dnet_id& checksum, std::function<void(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)> func)
 {
 	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
 	LOG(DNET_LOG_DEBUG, "Try write csum async data to key: %s\n", key.c_str());
 
-	s->write_cas(key, dp, checksum, 0).connect(func);
+	m_session.write_cas(key, dp, checksum, 0).connect(func);
 }
 
 uint32_t features::rand(uint32_t max)
@@ -440,7 +417,7 @@ void features::merge(activity& res_chunk, const activity& merge_chunk) const
 	}
 }
 
-activity features::get_activity(ioremap::elliptics::session& s, const std::string& key)
+activity features::get_activity(const std::string& key)
 {
 	activity ret, tmp;
 	ret.size = 0;
@@ -448,7 +425,7 @@ activity features::get_activity(ioremap::elliptics::session& s, const std::strin
 	auto size = m_keys_cache.get(key);	// gets size from cache
 	uint32_t i = 0;
 	if (size == (uint32_t)-1) {
-		if (!get_chunk(s, key, i++, tmp)) {	// gets data from zero chunk
+		if (!get_chunk(key, i++, tmp)) {	// gets data from zero chunk
 			LOG(DNET_LOG_INFO, "Activity statistics is empty for key:%s\n", key.c_str());
 			return ret;	// if it is no zero chunk so nothing to return and returns empty map
 		}
@@ -460,7 +437,7 @@ activity features::get_activity(ioremap::elliptics::session& s, const std::strin
 	}
 
 	for (; i < size; ++i) {	// iterates by chunks
-		if (get_chunk(s, key, i, tmp)) {		// gets chunk
+		if (get_chunk(key, i, tmp)) {		// gets chunk
 			merge(ret, tmp);				// merge map from chunk into result map
 		}
 	}
@@ -468,7 +445,7 @@ activity features::get_activity(ioremap::elliptics::session& s, const std::strin
 	return ret;		// returns result map
 }
 
-void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id)
+void features::size_callback(const std::string& user, const std::string& key, bool exist, activity act, dnet_id)
 {
 	LOG(DNET_LOG_DEBUG, "Size callback result file: %s\n", (exist ? "read" : "failed"));
 
@@ -477,16 +454,16 @@ void features::size_callback(std::shared_ptr<ioremap::elliptics::session> s, con
 		activity ac;
 		ac.size = consts::CHUNKS_COUNT;
 		m_chunk = 0;
-		read_callback(s, user, key, false, ac, dnet_id());
+		read_callback(user, key, false, ac, dnet_id());
 		return;
 	}
 
 	m_chunk = rand(act.size);
 	m_keys_cache.set(key, act.size);
-	get_chunk(s, key, m_chunk, boost::bind(&features::read_callback, this, s, user, key, _1, _2, _3));
+	get_chunk(key, m_chunk, boost::bind(&features::read_callback, this, user, key, _1, _2, _3));
 }
 
-void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum)
+void features::read_callback(const std::string& user, const std::string& key, bool exist, activity act, dnet_id checksum)
 {
 	LOG(DNET_LOG_DEBUG, "Read callback result: %s\n", (exist ? "read" : "failed"));
 
@@ -499,7 +476,7 @@ void features::read_callback(std::shared_ptr<ioremap::elliptics::session> s, con
 
 	auto skey = make_chunk_key(key, m_chunk);
 
-	write_data(s, skey, sbuf.data(), sbuf.size(), checksum, boost::bind(&features::write_callback, this, _1, _2));
+	write_data(skey, sbuf.data(), sbuf.size(), checksum, boost::bind(&features::write_callback, this, _1, _2));
 }
 
 void features::write_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)
@@ -537,18 +514,18 @@ void features::add_user_data_callback(const ioremap::elliptics::sync_write_resul
 	async_increment_activity(m_user, m_key);
 }
 
-void features::get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, std::shared_ptr<ioremap::elliptics::session> s, const ioremap::elliptics::sync_read_result& res)
+void features::get_chunk_callback(std::function<void(bool exist, activity act, dnet_id checksum)> func, const ioremap::elliptics::sync_read_result& res)
 {
 	LOG(DNET_LOG_DEBUG, "Get chunk callback result\n");
 
 	bool exists = false;
 	dnet_id checksum;
-	s->transform(std::string(), checksum);
+	m_session.transform(std::string(), checksum);
 	activity act;
 	try {
 		LOG(DNET_LOG_DEBUG, "Get chunk callback try handle file\n");
 		auto file = res[0].file();
-		s->transform(file, checksum);
+		m_session.transform(file, checksum);
 		if (!file.empty()) {
 			msgpack::unpacked msg;
 			msgpack::unpack(&msg, file.data<const char>(), file.size());

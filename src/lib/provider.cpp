@@ -61,7 +61,8 @@ void provider::set_session_parameters(const std::vector<int>& groups, uint32_t m
 
 void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
 {
-	make_features()->add_user_activity(user, time, data, size, key);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.add_user_activity(user, time, data, size, key);
 }
 
 void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key)
@@ -71,53 +72,63 @@ void provider::add_user_activity(const std::string& user, uint64_t time, void* d
 
 void provider::repartition_activity(const std::string& key, uint32_t chunks)
 {
-	make_features()->repartition_activity(key, chunks);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.repartition_activity(key, chunks);
 }
 
 void provider::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks)
 {
-	make_features()->repartition_activity(old_key, new_key, chunks);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.repartition_activity(old_key, new_key, chunks);
 }
 
 void provider::repartition_activity(uint64_t time, uint32_t chunks)
 {
-	make_features()->repartition_activity(time, chunks);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.repartition_activity(time, chunks);
 }
 
 void provider::repartition_activity(uint64_t time, const std::string& new_key, uint32_t chunks)
 {
-	make_features()->repartition_activity(time, new_key, chunks);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.repartition_activity(time, new_key, chunks);
 }
 
 std::list<std::vector<char>> provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
 {
-	return make_features()->get_user_logs(user, begin_time, end_time);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	return f.get_user_logs(user, begin_time, end_time);
 }
 
 std::map<std::string, uint32_t> provider::get_active_users(uint64_t time)
 {
-	return make_features()->get_active_users(time);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	return f.get_active_users(time);
 }
 
 std::map<std::string, uint32_t> provider::get_active_users(const std::string& key)
 {
-	return make_features()->get_active_users(key);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	return f.get_active_users(key);
 }
 
 void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
 		std::function<bool(const std::string& user, uint64_t time, void* data, uint32_t size)> func)
 {
-	make_features()->for_user_logs(user, begin_time, end_time, func);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.for_user_logs(user, begin_time, end_time, func);
 }
 
 void provider::for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func)
 {
-	make_features()->for_active_users(time, func);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.for_active_users(time, func);
 }
 
 void provider::for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func)
 {
-	make_features()->for_active_users(key, func);
+	features f(m_log, m_node, m_groups, m_min_writes, m_keys_cache);
+	f.for_active_users(key, func);
 }
 
 std::shared_ptr<features> provider::make_features()
