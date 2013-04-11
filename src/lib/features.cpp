@@ -33,7 +33,7 @@ features::features(ioremap::elliptics::file_logger& log, ioremap::elliptics::nod
 , m_session(m_node)
 {
 	m_session.set_cflags(0);	// sets cflags to 0
-	m_session.set_ioflags(0 /*| DNET_IO_FLAGS_CACHE */);
+	m_session.set_ioflags(DNET_IO_FLAGS_CACHE);
 	m_session.set_groups(m_groups);	// sets groups
 }
 
@@ -223,7 +223,7 @@ ioremap::elliptics::async_write_result features::add_user_data(void* data, uint3
 {
 	m_session.set_ioflags(m_session.get_ioflags() | DNET_IO_FLAGS_APPEND);
 
-	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	auto dp = ioremap::elliptics::data_pointer::copy(data, size);
 
 	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", m_user_key.c_str());
 
@@ -282,7 +282,7 @@ bool features::get_chunk(const std::string& key, uint32_t chunk, activity& act, 
 
 bool features::write_data(const std::string& key, void* data, uint32_t size)
 {
-	auto dp = ioremap::elliptics::data_pointer::from_raw(data, size);
+	auto dp = ioremap::elliptics::data_pointer::copy(data, size);
 	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", key.c_str());
 	auto write_res = m_session.write_data(key, dp, 0).get();	// write data into elliptics
 
@@ -291,12 +291,18 @@ bool features::write_data(const std::string& key, void* data, uint32_t size)
 
 uint32_t features::rand(uint32_t max)
 {
-	static boost::mutex mutex;
-	boost::mutex::scoped_lock lock(mutex);
 	static boost::mt19937 rnd;
-	boost::uniform_int<> dist(0, max - 1);
+	static bool inited = false;
 
-	return dist(rnd);
+	if(!inited) {
+		rnd.seed(time(NULL));
+		inited = true;
+	}
+
+	boost::uniform_int<> dist(0, max - 1);
+	boost::variate_generator<boost::mt19937&, boost::uniform_int<>> limited(rnd, dist);
+
+	return limited();
 }
 
 void features::merge(activity& res_chunk, const activity& merge_chunk) const
@@ -369,16 +375,18 @@ void features::add_user_data_callback(const ioremap::elliptics::sync_write_resul
 ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::elliptics::data_pointer& data)
 {
 	activity act;
+	act.size = consts::CHUNKS_COUNT;
+
 	if (!data.empty()) {
-		msgpack::unpacked msg;
-		msgpack::unpack(&msg, data.data<const char>(), data.size());
-		msg.get().convert(&act);
-	}
-	else {
-		act.size = consts::CHUNKS_COUNT;
+		try {
+			msgpack::unpacked msg;
+			msgpack::unpack(&msg, data.data<const char>(), data.size());
+			msg.get().convert(&act);
+		}
+		catch(...) {}
 	}
 
-	if (m_keys_cache.get(m_activity_key) == (uint32_t)-1)
+	if (!m_keys_cache.has(m_activity_key))
 		m_keys_cache.set(m_activity_key, act.size);
 
 	auto res = act.map.insert(std::make_pair(m_user, 1)); //Trys to insert new record in map for the user

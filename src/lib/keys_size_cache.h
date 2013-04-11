@@ -15,15 +15,22 @@ public:
 		key - activity statistics key
 	*/
 	uint32_t get(const std::string& key);
+
 	/* Sets count of chunk for key: saves it for future gets
 		key - activity statistics key
 		size - count of chunk for key
 	*/
 	void set(const std::string& key, uint32_t size);
+
 	/* Removed value from cache.
 		key - activity statistics key
 	*/
 	void remove(const std::string& key);
+
+	/* Checks key in cache.
+		key - key to check
+	*/
+	bool has(const std::string& key);
 private:
 	boost::shared_mutex				m_mutex;		// mutex for sync working with cache
 	std::map<std::string, uint32_t>	m_keys_sizes;	// counts of activity statistics chunks cache

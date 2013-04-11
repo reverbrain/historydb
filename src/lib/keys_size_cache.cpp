@@ -26,4 +26,10 @@ void keys_size_cache::remove(const std::string& key)
 	m_keys_sizes.erase(key);	// removes key
 }
 
+bool keys_size_cache::has(const std::string& key)
+{
+	boost::shared_lock<boost::shared_mutex> lock(m_mutex);
+	return m_keys_sizes.find(key) != m_keys_sizes.end();
+}
+
 } /* namespace history */
