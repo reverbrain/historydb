@@ -126,7 +126,6 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 
 	if (!written) {	// checks if some writes was failed if so throw exception
 		LOG(DNET_LOG_ERROR, "Cannot write one part. Repartition failed\n");
-		std::cout << "THROW\n";
 		throw ioremap::elliptics::error(EREMOTEIO, "Some activity wasn't written to the minimum number of groups");
 	}
 	m_self.reset();
@@ -233,14 +232,14 @@ ioremap::elliptics::async_write_result features::add_user_data(void* data, uint3
 
 ioremap::elliptics::async_write_result features::increment_activity()
 {
+	m_session.set_ioflags(m_session.get_ioflags() & ~DNET_IO_FLAGS_APPEND);
 	uint32_t chunk = 0;
 	auto size = m_keys_cache.get(m_activity_key);
-	if(size == (uint32_t)-1) {
+	if(size != (uint32_t)-1) {
 		chunk = rand(size);
 	}
 
 	auto chunk_key = make_chunk_key(m_activity_key, chunk);
-
 	return m_session.write_cas(chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL);
 }
 
@@ -379,7 +378,8 @@ ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::ell
 		act.size = consts::CHUNKS_COUNT;
 	}
 
-	m_keys_cache.set("", act.size);
+	if (m_keys_cache.get(m_activity_key) == (uint32_t)-1)
+		m_keys_cache.set(m_activity_key, act.size);
 
 	auto res = act.map.insert(std::make_pair(m_user, 1)); //Trys to insert new record in map for the user
 	if (!res.second) // if the record wasn't inserted
@@ -388,7 +388,7 @@ ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::ell
 	msgpack::sbuffer buff;
 	msgpack::pack(buff, act); // packs the activity statistics chunk
 
-	return ioremap::elliptics::data_pointer::from_raw(buff.data(), buff.size());
+	return ioremap::elliptics::data_pointer::copy(buff.data(), buff.size());
 }
 
 }
