@@ -5,6 +5,7 @@
 #include <elliptics/cppdef.h>
 
 #include "historydb/iprovider.h"
+#include "provider.h"
 
 /*namespace ioremap { namespace elliptics {
 	class file_logger;
@@ -23,7 +24,7 @@ namespace history {
 	class features: public iprovider
 	{
 	public:
-		features(ioremap::elliptics::file_logger& log, ioremap::elliptics::node& node, const std::vector<int>& groups, const uint32_t& min_writes, keys_size_cache& keys_cache);
+		features(provider::context& context);
 
 		virtual void set_session_parameters(const std::vector<int>&, uint32_t) {}
 
@@ -122,13 +123,9 @@ namespace history {
 
 		ioremap::elliptics::data_pointer write_cas_callback(const ioremap::elliptics::data_pointer& data);
 
-		ioremap::elliptics::file_logger&	m_log;
-		ioremap::elliptics::node&			m_node;
-		std::shared_ptr<features>			m_self;
-		const std::vector<int>&				m_groups;
-		const uint32_t&						m_min_writes;
-		keys_size_cache&					m_keys_cache;
+		provider::context&					m_context;
 
+		std::shared_ptr<features>			m_self;
 		std::string							m_user;
 		std::string							m_activity_key;
 		std::string							m_user_key;

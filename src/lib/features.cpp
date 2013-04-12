@@ -6,7 +6,6 @@
 #include <boost/thread/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
-#include <boost/random.hpp>
 
 #include "activity.h"
 #include "keys_size_cache.h"
@@ -14,8 +13,10 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
+#include "provider.h"
+
 //log macro adds HDB: prefix to each log record
-#define LOG(l, ...) dnet_log_raw(m_node.get_native(), l, "HDB: "__VA_ARGS__)
+#define LOG(l, ...) dnet_log_raw(m_context.node.get_native(), l, "HDB: "__VA_ARGS__)
 
 namespace history {
 namespace consts {
@@ -24,17 +25,13 @@ namespace consts {
 	const uint32_t	WRITES_BEFORE_FAIL	= 100;				// Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
-features::features(ioremap::elliptics::file_logger& log, ioremap::elliptics::node& node, const std::vector<int>& groups, const uint32_t& min_writes, keys_size_cache& keys_cache)
-: m_log(log)
-, m_node(node)
-, m_groups(groups)
-, m_min_writes(min_writes)
-, m_keys_cache(keys_cache)
-, m_session(m_node)
+features::features(provider::context& context)
+: m_context(context)
+, m_session(m_context.node)
 {
 	m_session.set_cflags(0);	// sets cflags to 0
 	m_session.set_ioflags(DNET_IO_FLAGS_CACHE);
-	m_session.set_groups(m_groups);	// sets groups
+	m_session.set_groups(m_context.groups);	// sets groups
 }
 
 void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
@@ -47,13 +44,13 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 	m_activity_key = key.empty() ? make_key(time) : key;
 
 	auto add_res = add_user_data(data, size).get();	// Adds data to the user log
-	if (add_res.size() < m_min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
+	if (add_res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", m_user_key.c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 
 	auto increment_res = increment_activity().get();
-	if (increment_res.size() < m_min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
+	if (increment_res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity");
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
@@ -121,8 +118,8 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 		++chunk_no; // increments chunk number
 	}
 
-	m_keys_cache.remove(old_key);
-	m_keys_cache.set(new_key, chunks);
+	m_context.keys_cache.remove(old_key);
+	m_context.keys_cache.set(new_key, chunks);
 
 	if (!written) {	// checks if some writes was failed if so throw exception
 		LOG(DNET_LOG_ERROR, "Cannot write one part. Repartition failed\n");
@@ -234,7 +231,7 @@ ioremap::elliptics::async_write_result features::increment_activity()
 {
 	m_session.set_ioflags(m_session.get_ioflags() & ~DNET_IO_FLAGS_APPEND);
 	uint32_t chunk = 0;
-	auto size = m_keys_cache.get(m_activity_key);
+	auto size = m_context.keys_cache.get(m_activity_key);
 	if(size != (uint32_t)-1) {
 		chunk = rand(size);
 	}
@@ -286,22 +283,13 @@ bool features::write_data(const std::string& key, void* data, uint32_t size)
 	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", key.c_str());
 	auto write_res = m_session.write_data(key, dp, 0).get();	// write data into elliptics
 
-	return write_res.size() >= m_min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
+	return write_res.size() >= m_context.min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
 }
 
 uint32_t features::rand(uint32_t max)
 {
-	static boost::mt19937 rnd;
-	static bool inited = false;
-
-	if(!inited) {
-		rnd.seed(time(NULL));
-		inited = true;
-	}
-
 	boost::uniform_int<> dist(0, max - 1);
-	boost::variate_generator<boost::mt19937&, boost::uniform_int<>> limited(rnd, dist);
-
+	boost::variate_generator<boost::mt19937&, boost::uniform_int<>> limited(m_context.generator, dist);
 	return limited();
 }
 
@@ -323,7 +311,7 @@ activity features::get_activity(const std::string& key)
 	activity ret, tmp;
 	ret.size = 0;
 
-	auto size = m_keys_cache.get(key);	// gets size from cache
+	auto size = m_context.keys_cache.get(key);	// gets size from cache
 	uint32_t i = 0;
 	if (size == (uint32_t)-1) {
 		if (!get_chunk(key, i++, tmp)) {	// gets data from zero chunk
@@ -334,7 +322,7 @@ activity features::get_activity(const std::string& key)
 		merge(ret, tmp);	// merge chunks
 
 		size = ret.size;	// set number of chunks to size
-		m_keys_cache.set(key, size);
+		m_context.keys_cache.set(key, size);
 	}
 
 	for (; i < size; ++i) {	// iterates by chunks
@@ -348,7 +336,7 @@ activity features::get_activity(const std::string& key)
 
 void features::increment_activity_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)
 {
-	bool written = res.size() >= m_min_writes;
+	bool written = res.size() >= m_context.min_writes;
 
 	LOG(DNET_LOG_DEBUG, "Write callback result: %s\n", (written ? "written" : "failed"));
 
@@ -366,7 +354,7 @@ bool features::get_user_logs_callback(std::list<std::vector<char>>& ret, uint64_
 
 void features::add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)
 {
-	m_log_written = res.size() >= m_min_writes;
+	m_log_written = res.size() >= m_context.min_writes;
 	LOG(DNET_LOG_DEBUG, "Add user data callback result: %s\n", (m_log_written ? "written" : "failed"));
 
 	increment_activity().connect(boost::bind(&features::increment_activity_callback, this, _1, _2));
@@ -386,8 +374,8 @@ ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::ell
 		catch(...) {}
 	}
 
-	if (!m_keys_cache.has(m_activity_key))
-		m_keys_cache.set(m_activity_key, act.size);
+	if (!m_context.keys_cache.has(m_activity_key))
+		m_context.keys_cache.set(m_activity_key, act.size);
 
 	auto res = act.map.insert(std::make_pair(m_user, 1)); //Trys to insert new record in map for the user
 	if (!res.second) // if the record wasn't inserted

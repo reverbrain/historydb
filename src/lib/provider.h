@@ -3,18 +3,19 @@
 
 #include <map>
 #include <boost/thread/shared_mutex.hpp>
+#include <boost/random.hpp>
 
 #include <elliptics/cppdef.h>
 
 #include "historydb/iprovider.h"
 #include "keys_size_cache.h"
-#include "features.h"
 
 namespace ioremap { namespace elliptics { class session; }}
 
 namespace history {
 
 	struct activity;
+	class features;
 
 	class provider: public iprovider
 	{
@@ -42,6 +43,18 @@ namespace history {
 		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func);
 		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func);
 
+		struct context
+		{
+			context(const char* log_file, const int log_level);
+
+			std::vector<int>					groups; // groups of elliptics
+			uint32_t							min_writes; // minimum number of succeeded writes for each write attempt
+			ioremap::elliptics::file_logger		log; // logger
+			ioremap::elliptics::node			node; // elliptics node
+			keys_size_cache						keys_cache; // cache of activity keys size
+			boost::mt19937						generator; // random generator
+		};
+
 	private:
 
 		std::shared_ptr<features> make_features();
@@ -49,14 +62,7 @@ namespace history {
 		provider(const provider&);
 		provider &operator =(const provider &);
 
-
-		std::vector<int>							m_groups;		// groups of elliptics
-		uint32_t									m_min_writes;	// minimum number of succeeded writes for each write attempt
-
-		ioremap::elliptics::file_logger				m_log;			// logger
-		ioremap::elliptics::node					m_node;			// elliptics node
-
-		keys_size_cache								m_keys_cache;
+		context	m_context;
 	};
 } /* namespace history */
 
