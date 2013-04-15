@@ -1,8 +1,10 @@
 bin/
 obj/
+_gsdata_/
 *CMakeFiles
 *.cmake
 *Makefile
 CMakeCache.txt
 *historydb_example
 *libhistorydb*
+
