@@ -29,6 +29,7 @@ features::features(provider::context& context)
 : m_context(context)
 , m_session(m_context.node)
 {
+	LOG(DNET_LOG_DEBUG, "Constructing features object for some action\n");
 	m_session.set_cflags(0);	// sets cflags to 0
 	m_session.set_ioflags(DNET_IO_FLAGS_CACHE);
 	m_session.set_groups(m_context.groups);	// sets groups
@@ -218,11 +219,12 @@ void features::for_active_users(const std::string& key, std::function<bool(const
 
 ioremap::elliptics::async_write_result features::add_user_data(void* data, uint32_t size)
 {
+	LOG(DNET_LOG_DEBUG, "Adding DNET_IO_FLAGS_APPEND to session ioflags\n");
 	m_session.set_ioflags(m_session.get_ioflags() | DNET_IO_FLAGS_APPEND);
 
 	auto dp = ioremap::elliptics::data_pointer::copy(data, size);
 
-	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", m_user_key.c_str());
+	LOG(DNET_LOG_DEBUG, "Try to append user log to key: %s\n", m_user_key.c_str());
 
 	return m_session.write_data(m_user_key, dp, 0); // write data into elliptics
 }
@@ -237,6 +239,7 @@ ioremap::elliptics::async_write_result features::increment_activity()
 	}
 
 	auto chunk_key = make_chunk_key(m_activity_key, chunk);
+	LOG(DNET_LOG_DEBUG, "Try to increment user activity in key %s\n", chunk_key.c_str());
 	return m_session.write_cas(chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL);
 }
 
@@ -280,7 +283,7 @@ bool features::get_chunk(const std::string& key, uint32_t chunk, activity& act, 
 bool features::write_data(const std::string& key, void* data, uint32_t size)
 {
 	auto dp = ioremap::elliptics::data_pointer::copy(data, size);
-	LOG(DNET_LOG_DEBUG, "Try write sync data to key: %s\n", key.c_str());
+	LOG(DNET_LOG_DEBUG, "Writing sync data to key: %s\n", key.c_str());
 	auto write_res = m_session.write_data(key, dp, 0).get();	// write data into elliptics
 
 	return write_res.size() >= m_context.min_writes;	// checks number of successfull results and if it is less then minimum then throw exception
