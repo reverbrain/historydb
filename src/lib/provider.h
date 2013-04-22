@@ -49,6 +49,7 @@ namespace history {
 
 			std::vector<int>					groups; // groups of elliptics
 			uint32_t							min_writes; // minimum number of succeeded writes for each write attempt
+			dnet_config							config; //elliptics config
 			ioremap::elliptics::file_logger		log; // logger
 			ioremap::elliptics::node			node; // elliptics node
 			keys_size_cache						keys_cache; // cache of activity keys size

@@ -1,6 +1,8 @@
 #include "features.h"
 
 #include <msgpack.hpp>
+#include <functional>
+#include <chrono>
 
 #include <boost/thread/locks.hpp>
 #include <boost/thread/thread.hpp>
@@ -22,6 +24,7 @@ namespace history {
 namespace consts {
 	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60;		// number of seconds in one day. used for calculation days
 	const uint32_t	CHUNKS_COUNT		= 1000;				// default count of activtiy statistics chucks
+	const uint32_t	USERS_CHUNKS_COUNT	= 1000;
 	const uint32_t	WRITES_BEFORE_FAIL	= 100;				// Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
@@ -30,9 +33,10 @@ features::features(provider::context& context)
 , m_session(m_context.node)
 {
 	LOG(DNET_LOG_DEBUG, "Constructing features object for some action\n");
-	m_session.set_cflags(0);	// sets cflags to 0
-	m_session.set_ioflags(DNET_IO_FLAGS_CACHE);
+	m_session.set_cflags(DNET_FLAGS_NOLOCK);	// sets cflags to 0
+	m_session.set_ioflags(0);
 	m_session.set_groups(m_context.groups);	// sets groups
+	m_session.set_exceptions_policy(ioremap::elliptics::session::exceptions_policy::no_exceptions);
 }
 
 void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
@@ -44,18 +48,20 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 
 	m_activity_key = key.empty() ? make_key(time) : key;
 
-	auto add_res = add_user_data(data, size).get();	// Adds data to the user log
-	if (add_res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
+	auto add_res = add_user_data(data, size);	// Adds data to the user log
+	auto increment_res = increment_activity();
+
+	auto res = add_res.get();
+	if (res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", m_user_key.c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 
-	auto increment_res = increment_activity().get();
-	if (increment_res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity");
+	res = increment_res.get();
+	if (res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
+		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity for key: %s\n", m_activity_key.c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
-
 	m_self.reset();
 }
 
@@ -220,7 +226,7 @@ void features::for_active_users(const std::string& key, std::function<bool(const
 ioremap::elliptics::async_write_result features::add_user_data(void* data, uint32_t size)
 {
 	LOG(DNET_LOG_DEBUG, "Adding DNET_IO_FLAGS_APPEND to session ioflags\n");
-	m_session.set_ioflags(m_session.get_ioflags() | DNET_IO_FLAGS_APPEND);
+	m_session.set_ioflags(DNET_IO_FLAGS_APPEND);
 
 	auto dp = ioremap::elliptics::data_pointer::copy(data, size);
 
@@ -231,21 +237,25 @@ ioremap::elliptics::async_write_result features::add_user_data(void* data, uint3
 
 ioremap::elliptics::async_write_result features::increment_activity()
 {
-	m_session.set_ioflags(m_session.get_ioflags() & ~DNET_IO_FLAGS_APPEND);
+	m_session.set_ioflags(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY);
+
 	uint32_t chunk = 0;
 	auto size = m_context.keys_cache.get(m_activity_key);
 	if(size != (uint32_t)-1) {
 		chunk = rand(size);
 	}
 
-	auto chunk_key = make_chunk_key(m_activity_key, chunk);
+	auto shard = std::hash<std::string>()(m_user) % consts::USERS_CHUNKS_COUNT;
+
+	auto chunk_key = make_chunk_key(m_activity_key + '.' + boost::lexical_cast<std::string>(shard), chunk);
+	m_chunk_key = chunk_key;
 	LOG(DNET_LOG_DEBUG, "Try to increment user activity in key %s\n", chunk_key.c_str());
 	return m_session.write_cas(chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL);
 }
 
 std::string features::make_user_key(uint64_t time)
 {
-	return m_user + "." + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
+	return m_user + '.' + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
 }
 
 std::string features::make_key(uint64_t time)
@@ -255,7 +265,7 @@ std::string features::make_key(uint64_t time)
 
 std::string features::make_chunk_key(const std::string& key, uint32_t chunk)
 {
-	return key + "." + boost::lexical_cast<std::string>(chunk);
+	return key + '.' + boost::lexical_cast<std::string>(chunk);
 }
 
 bool features::get_chunk(const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum)

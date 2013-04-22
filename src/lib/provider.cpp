@@ -33,9 +33,20 @@ int get_log_level(const char* log_level)
 	return DNET_LOG_ERROR;
 }
 
+dnet_config create_config()
+{
+	dnet_config config;
+	memset(&config, 0, sizeof(config));
+
+	config.io_thread_num = 10;
+
+	return config;
+}
+
 provider::context::context(const char* log_file, const int log_level)
-: log(log_file, log_level)
-, node(log)
+: config(create_config())
+, log(log_file, log_level)
+, node(log, config)
 {
 	generator.seed(time(NULL));
 }
