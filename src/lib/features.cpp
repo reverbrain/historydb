@@ -25,7 +25,7 @@ namespace consts {
 	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60;		// number of seconds in one day. used for calculation days
 	const uint32_t	CHUNKS_COUNT		= 1000;				// default count of activtiy statistics chucks
 	const uint32_t	USERS_CHUNKS_COUNT	= 1000;
-	const uint32_t	WRITES_BEFORE_FAIL	= 100;				// Number of attempts of write_cas before returning fail result
+	const uint32_t	WRITES_BEFORE_FAIL	= 3;				// Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
 features::features(provider::context& context)
@@ -33,7 +33,7 @@ features::features(provider::context& context)
 , m_session(m_context.node)
 {
 	LOG(DNET_LOG_DEBUG, "Constructing features object for some action\n");
-	m_session.set_cflags(DNET_FLAGS_NOLOCK);	// sets cflags to 0
+	m_session.set_cflags(0/*DNET_FLAGS_NOLOCK*/);	// sets cflags to 0
 	m_session.set_ioflags(0);
 	m_session.set_groups(m_context.groups);	// sets groups
 	m_session.set_exceptions_policy(ioremap::elliptics::session::exceptions_policy::no_exceptions);
@@ -53,13 +53,13 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 
 	auto res = add_res.get();
 	if (res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s\n", m_user_key.c_str());
+		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s error: %s\n", m_user_key.c_str(), add_res.error().message().c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 
 	res = increment_res.get();
 	if (res.size() < m_context.min_writes) {	// Checks number of successfull results and if it is less minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity for key: %s\n", m_activity_key.c_str());
+		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity for key: %s error: %s\n", m_chunk_key.c_str(), increment_res.error().message().c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 	m_self.reset();
@@ -237,7 +237,7 @@ ioremap::elliptics::async_write_result features::add_user_data(void* data, uint3
 
 ioremap::elliptics::async_write_result features::increment_activity()
 {
-	m_session.set_ioflags(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY);
+	m_session.set_ioflags(DNET_IO_FLAGS_CACHE/* | DNET_IO_FLAGS_CACHE_ONLY*/);
 
 	uint32_t chunk = 0;
 	auto size = m_context.keys_cache.get(m_activity_key);

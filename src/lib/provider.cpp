@@ -38,7 +38,9 @@ dnet_config create_config()
 	dnet_config config;
 	memset(&config, 0, sizeof(config));
 
-	config.io_thread_num = 10;
+	config.io_thread_num = 100;
+	config.nonblocking_io_thread_num = 100;
+	config.net_thread_num = 16;
 
 	return config;
 }
