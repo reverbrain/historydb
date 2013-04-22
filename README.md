@@ -60,11 +60,8 @@ Download source tree
 Building library
 
 	cd historydb
-	cmake .
-	make
-	sudo make install
-
-Last command installs historydb library references to `/usr/local`.
+	debuild
+	sudo dpkg -i ../historydb_0.1.0.0_amd64.deb
 
 Now you can start to use HistoryDB library:
 Include `historydb/iprovider.h`.
