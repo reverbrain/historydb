@@ -16,9 +16,7 @@ BuildRequires:	boost-devel
 %endif
 BuildRequires:	cmake28
 BuildRequires:	msgpack-devel
-BuildRequires:	elliptics-devel
 BuildRequires:	elliptics-c++-devel
-BuildRequires:	eblob-devel < 0.18
 BuildRequires:	fastcgi-daemon2-libs-devel
 
 
@@ -53,7 +51,6 @@ rm -rf %{buildroot}
 make install DESTDIR=%{buildroot}
 
 %post -p /sbin/ldconfig
-
 %postun -p /sbin/ldconfig
 
 %files
