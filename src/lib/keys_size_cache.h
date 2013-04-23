@@ -32,8 +32,8 @@ public:
 	*/
 	bool has(const std::string& key);
 private:
-	boost::shared_mutex				m_mutex;		// mutex for sync working with cache
-	std::map<std::string, uint32_t>	m_keys_sizes;	// counts of activity statistics chunks cache
+	boost::shared_mutex							m_mutex; // mutex for sync working with cache
+	std::map<std::string, uint32_t>	m_keys_sizes; // counts of activity statistics chunks cache
 };
 
 } /* namespace history */

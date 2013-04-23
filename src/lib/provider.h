@@ -1,7 +1,6 @@
 #ifndef HISTORY_SRC_LIB_PROVIDER_H
 #define HISTORY_SRC_LIB_PROVIDER_H
 
-#include <map>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/random.hpp>
 

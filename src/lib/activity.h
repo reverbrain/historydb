@@ -7,8 +7,8 @@
 namespace history {
 
 	struct activity {
-		uint32_t						size;	// count of chunks
-		std::map<std::string, uint32_t>	map;	// activity map
+		uint32_t						size; // count of chunks
+		std::map<std::string, uint32_t>	map; // activity map
 
 		MSGPACK_DEFINE(size, map);
 	};

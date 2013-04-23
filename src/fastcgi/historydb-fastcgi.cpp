@@ -114,8 +114,8 @@ namespace history { namespace fcgi {
 								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
 									<form name=\"add\" action=\"add_activity\" method=\"post\">\n\
 										User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
-										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"\"><br>\n\
-										Data: <input type=\"text\" name=\"data\" value=\"Some data\"><br>\n\
+										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"0\"><br>\n\
+										Data: <input type=\"text\" name=\"data\" value=\"DATA_\"><br>\n\
 										Key: <input type=\"text\" name=\"key\" valude=\"\"><br>\n\
 										<input type=\"submit\" value=\"Send\">\n\
 									</form>\n\
@@ -124,8 +124,8 @@ namespace history { namespace fcgi {
 							<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Get active users</div>\n\
 								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
 									<form name=\"get_user\" action=\"get_active_users\" method=\"get\">\n\
-										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"\"><br>\n\
-										Key: <input type=\"text\" name=\"key\" valude=\"\"><br>\n\
+										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"0\"><br>\n\
+										Key: <input type=\"text\" name=\"key\" valude=\"0\"><br>\n\
 										<input type=\"submit\" value=\"Send\">\n\
 									</form>\n\
 								</div>\n\
@@ -134,8 +134,8 @@ namespace history { namespace fcgi {
 								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
 									<form name=\"get_logs\" action=\"get_user_logs\" method=\"get\">\n\
 										User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
-										Begin timestamp: <input type=\"text\" name=\"begin_time\" value=\"\"><br>\n\
-										End timestamp: <input type=\"text\" name=\"end_time\" value=\"\"><br>\n\
+										Begin timestamp: <input type=\"text\" name=\"begin_time\" value=\"0\"><br>\n\
+										End timestamp: <input type=\"text\" name=\"end_time\" value=\"0\"><br>\n\
 										<input type=\"submit\" value=\"Send\">\n\
 									</form>\n\
 								</div>\n\
@@ -155,14 +155,8 @@ namespace history { namespace fcgi {
 		m_logger->debug("Handle add activity request\n");
 		fastcgi::RequestStream stream(req);
 
-		if (!req->hasArg("data")) { // checks required parameter data
-			m_logger->debug("Required paramenter 'data' is missing\n");
-			req->setStatus(404);
-			return;
-		}
-
-		if (!req->hasArg("user")) { // checks required parameter user
-			m_logger->debug("Required parameter 'user' is missing\n");
+		if (!req->hasArg("data") || !req->hasArg("user")) { // checks required parameters
+			m_logger->debug("Required paramenter 'data' or 'user' is missing\n");
 			req->setStatus(404);
 			return;
 		}
@@ -186,29 +180,25 @@ namespace history { namespace fcgi {
 	{
 		m_logger->debug("Handle get active user request\n");
 		fastcgi::RequestStream stream(req);
-		std::string key;
-		uint64_t timestamp = -1;
-
-		if (req->hasArg("key")) // checks optional parameter key
-			key = req->getArg("key"); // gets key parameter
-
-		if (req->hasArg("timestamp")) // checks optional parameter timestamp
-			timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
-
-		if (key.empty() && timestamp == (uint64_t)-1) { // if key and timestamp aren't among the parameters
-			m_logger->debug("Key and timestamp are missing\n");
-			req->setStatus(404);
-			return;
-		}
 
 		std::map<std::string, uint32_t> res;
-		if (!key.empty()) { // if key has been submitted
+
+		auto key = req->getArg("key");
+
+		if (!key.empty()) { // checks optional parameter key
+			auto key = req->getArg("key"); // gets key parameter
 			m_logger->debug("Gets active users by key: %s\n", key.c_str());
 			res = m_provider->get_active_users(key); // gets active users by key
 		}
-		else { // if timestamp has been submitted
+		else if(req->hasArg("timestamp")) { // checks optional parameter timestamp
+			auto timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
 			m_logger->debug("Gets active users by timestamp: %d\n", timestamp);
 			res = m_provider->get_active_users(timestamp); // gets active users by timestamp
+		}
+		else { // if key and timestamp aren't among the parameters
+			m_logger->debug("Key and timestamp are missing\n");
+			req->setStatus(404);
+			return;
 		}
 
 		rapidjson::Document d; // creates document for json serialization
@@ -233,20 +223,8 @@ namespace history { namespace fcgi {
 	{
 		m_logger->debug("Handlle get user logs request\n");
 		fastcgi::RequestStream stream(req);
-		if (!req->hasArg("user")) { // checks required parameter user
-			m_logger->debug("Required parameter 'user' is missing\n");
-			req->setStatus(404);
-			return;
-		}
-
-		if (!req->hasArg("begin_time")) { // checks required parameter begin_time
-			m_logger->debug("Required parameter 'begin_time' is missing\n");
-			req->setStatus(404);
-			return;
-		}
-
-		if (!req->hasArg("end_time")) { // checks required parameter end_time
-			m_logger->debug("Required parameter 'end_time' is missing\n");
+		if (!req->hasArg("user") || !req->hasArg("begin_time") || !req->hasArg("end_time")) { // checks required parameters
+			m_logger->debug("Required parameter 'user' or 'begin_time' or 'end_time' is missing\n");
 			req->setStatus(404);
 			return;
 		}

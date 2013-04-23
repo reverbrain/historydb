@@ -1,7 +1,6 @@
 #ifndef HISTORY_SRC_LIB_FEATURE_H
 #define HISTORY_SRC_LIB_FEATURE_H
 
-#include <map>
 #include <elliptics/cppdef.h>
 
 #include "historydb/iprovider.h"
@@ -81,16 +80,6 @@ namespace history {
 			chunk - number of chunk
 		*/
 		std::string make_chunk_key(const std::string& key, uint32_t chunk);
-
-		/* Gets chunk data
-			key - general activity statistics key
-			chunk - number of chunk
-			act - where chunk data should be data written
-			checksum - where checksum should be written
-			returns true if chunk has successfully read and has been written to act (and to checksum)
-					otherwise returns false
-		*/
-		bool get_chunk(const std::string& key, uint32_t chunk, activity& act, dnet_id* checksum = NULL);
 
 		/* Writes data to elliptics in specified sessio
 			key - id of file where data should be written
