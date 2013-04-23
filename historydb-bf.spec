@@ -18,7 +18,7 @@ BuildRequires:	cmake28
 BuildRequires:	msgpack-devel
 BuildRequires:	elliptics-c++-devel
 BuildRequires:	fastcgi-daemon2-libs-devel
-
+BuildRequires:	gcc44 gcc44-c++
 
 %description
 History DB is a trully scalable (hundreds of millions updates per day)
@@ -39,6 +39,8 @@ developing applications that use %{name}.
 
 %build
 %if 0%{?rhel} < 6
+export CC=gcc44
+export CXX=g++44
 CXXFLAGS="-pthread -I/usr/include/boost141" LDFLAGS="-L/usr/lib64/boost141" %{__cmake28} .
 %else
 %{__cmake28} .
