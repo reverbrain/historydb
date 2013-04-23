@@ -19,6 +19,7 @@ BuildRequires:	msgpack-devel
 BuildRequires:	elliptics-c++-devel
 BuildRequires:	fastcgi-daemon2-libs-devel
 BuildRequires:	gcc44 gcc44-c++
+BuildRequires:	eblob-devel
 
 %description
 History DB is a trully scalable (hundreds of millions updates per day)
