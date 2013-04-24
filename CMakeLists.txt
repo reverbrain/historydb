@@ -1,5 +1,6 @@
 project(historydb)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+cmake_policy (VERSION 2.6.0)
 add_definitions(-std=c++0x -W -Wall)
 
 FILE (READ "${CMAKE_CURRENT_SOURCE_DIR}/debian/changelog" DEBCHANGELOG)
