@@ -44,9 +44,9 @@ export DESTDIR="%{buildroot}"
 %if 0%{?rhel} < 6
 export CC=gcc44
 export CXX=g++44
-%{__cmake28} -DBoost_DIR=/usr/lib64/boost141 -DBOOST_INCLUDEDIR=/usr/include/boost141 -DCMAKE_CXX_COMPILER=g++44 -DCMAKE_C_COMPILER=gcc44 .
+%{cmake} -DBoost_DIR=/usr/lib64/boost141 -DBOOST_INCLUDEDIR=/usr/include/boost141 -DCMAKE_CXX_COMPILER=g++44 -DCMAKE_C_COMPILER=gcc44 .
 %else
-%{__cmake28} .
+%{cmake} .
 %endif
 make %{?_smp_mflags}
 
