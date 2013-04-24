@@ -11,14 +11,16 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 %if 0%{?rhel} < 6
 BuildRequires:	boost141-devel
+BuildRequires:	gcc44 gcc44-c++
 %else
 BuildRequires:	boost-devel
+BuildRequires:	gcc gcc-c++
 %endif
+
 BuildRequires:	cmake28
 BuildRequires:	msgpack-devel
-BuildRequires:	elliptics-c++-devel
+BuildRequires:	elliptics-client-devel
 BuildRequires:	fastcgi-daemon2-libs-devel
-BuildRequires:	gcc44 gcc44-c++
 BuildRequires:	eblob-devel
 
 %description
@@ -42,7 +44,7 @@ developing applications that use %{name}.
 %if 0%{?rhel} < 6
 export CC=gcc44
 export CXX=g++44
-CXXFLAGS="-pthread -I/usr/include/boost141" LDFLAGS="-L/usr/lib64/boost141" %{__cmake28} .
+%{__cmake28} -DCMAKE_CXX_COMPILER=g++44 -DCMAKE_C_COMPILER=gcc44 .
 %else
 %{__cmake28} .
 %endif
