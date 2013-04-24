@@ -10,13 +10,12 @@ Source0:	%{name}-%{version}.tar.bz2
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 %if 0%{?rhel} < 6
-BuildRequires:	boost141-devel
 BuildRequires:	gcc44 gcc44-c++
 %else
-BuildRequires:	boost-devel
 BuildRequires:	gcc gcc-c++
 %endif
 
+BuildRequires:	boost-devel, boost-thread, boost-system
 BuildRequires:	cmake28
 BuildRequires:	msgpack-devel
 BuildRequires:	elliptics-client-devel
@@ -44,7 +43,7 @@ developing applications that use %{name}.
 %if 0%{?rhel} < 6
 export CC=gcc44
 export CXX=g++44
-%{__cmake28} -DCMAKE_CXX_COMPILER=g++44 -DCMAKE_C_COMPILER=gcc44 .
+%{__cmake28} %{cmake} -DBoost_DIR=/usr/lib64/boost141 -DBOOST_INCLUDEDIR=/usr/include/boost141 -DCMAKE_CXX_COMPILER=g++44 -DCMAKE_C_COMPILER=gcc44 .
 %else
 %{__cmake28} .
 %endif
