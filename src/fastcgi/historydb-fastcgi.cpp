@@ -146,7 +146,7 @@ namespace history { namespace fcgi {
 
 	void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
-		m_logger->debug("Handle request for unknown/unexpected uri:%s\n", req->getURI().c_str());
+		m_logger->error("Handle request for unknown/unexpected uri:%s\n", req->getURI().c_str());
 		req->setStatus(404); // Sets 404 status for respone - wrong uri code
 	}
 
@@ -156,7 +156,7 @@ namespace history { namespace fcgi {
 		fastcgi::RequestStream stream(req);
 
 		if (!req->hasArg("data") || !req->hasArg("user")) { // checks required parameters
-			m_logger->debug("Required paramenter 'data' or 'user' is missing\n");
+			m_logger->error("Required paramenter 'data' or 'user' is missing\n");
 			req->setStatus(404);
 			return;
 		}
@@ -196,7 +196,7 @@ namespace history { namespace fcgi {
 			res = m_provider->get_active_users(timestamp); // gets active users by timestamp
 		}
 		else { // if key and timestamp aren't among the parameters
-			m_logger->debug("Key and timestamp are missing\n");
+			m_logger->error("Key and timestamp are missing\n");
 			req->setStatus(404);
 			return;
 		}
@@ -223,8 +223,9 @@ namespace history { namespace fcgi {
 	{
 		m_logger->debug("Handlle get user logs request\n");
 		fastcgi::RequestStream stream(req);
+
 		if (!req->hasArg("user") || !req->hasArg("begin_time") || !req->hasArg("end_time")) { // checks required parameters
-			m_logger->debug("Required parameter 'user' or 'begin_time' or 'end_time' is missing\n");
+			m_logger->error("Required parameter 'user' or 'begin_time' or 'end_time' is missing\n");
 			req->setStatus(404);
 			return;
 		}

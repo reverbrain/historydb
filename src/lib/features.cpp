@@ -2,7 +2,6 @@
 
 #include <msgpack.hpp>
 #include <functional>
-#include <chrono>
 
 #include <boost/thread/locks.hpp>
 #include <boost/thread/thread.hpp>
