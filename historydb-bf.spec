@@ -40,6 +40,7 @@ developing applications that use %{name}.
 
 
 %build
+export DESTDIR="%{buildroot}"
 %if 0%{?rhel} < 6
 export CC=gcc44
 export CXX=g++44
