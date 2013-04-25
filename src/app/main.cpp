@@ -79,7 +79,7 @@ void test1(std::shared_ptr<history::iprovider> provider) {
 
 	provider->for_active_users(tm, test1_for3);
 
-	provider->repartition_activity(tm, 10);
+	//provider->repartition_activity(tm, 10);
 
 	provider->for_active_users(tm, test1_for4);
 }
@@ -182,7 +182,11 @@ int main(int argc, char* argv[]) {
 		return err;
 	}
 
-	std::shared_ptr<history::iprovider> provider(history::create_provider(remote_addr.c_str(), port, family, LOG_FILE, LOG_LEVEL));
+	std::vector<history::server_info> servers;
+	history::server_info info = {remote_addr.c_str(), port, family};
+	servers.emplace_back(info);
+
+	std::shared_ptr<history::iprovider> provider(history::create_provider(servers, LOG_FILE, LOG_LEVEL));
 
 	if (provider.get() == NULL) {
 		std::cout << "Error! Provider hasn't been created!\n";

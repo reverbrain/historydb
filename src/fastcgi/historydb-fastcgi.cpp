@@ -42,23 +42,35 @@ namespace history { namespace fcgi {
 			throw std::runtime_error("cannot get component " + logger_component_name);
 		}
 
+		std::vector<std::string> subs;
+		std::vector<server_info> servers;
+		std::vector<std::string> addrs;
 		m_logger->debug("HistoryDB handler loaded\n");
 
-		const auto e_addr		= config->asString(xpath + "/elliptics_addr"); // gets elliptics address from config
-		const auto e_port		= config->asInt(xpath + "/elliptics_port"); // gets elliptics port from config
-		const auto e_family		= config->asInt(xpath + "/elliptics_family"); // gets elliptics network family from config
+		config->subKeys(xpath + "/elliptics", subs);
+		addrs.reserve(subs.size());
+
+		for(auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
+			addrs.emplace_back(config->asString(*it + "/addr"));
+			server_info info;
+			info.addr = addrs.rbegin()->c_str();
+			info.port = config->asInt(*it + "/port");
+			info.family = config->asInt(*it + "/family");
+			servers.emplace_back(info);
+		}
+
 		const auto log_file		= config->asString(xpath + "/log_file"); // gets historydb log file path from config
 		const auto log_level	= config->asString(xpath + "/log_level"); // gets historydb log level from config
 
-		m_provider = history::create_provider(e_addr.c_str(), e_port, e_family, log_file.c_str(), history::get_log_level(log_level.c_str())); // creates historydb provider instance
+		m_provider = history::create_provider(servers, log_file.c_str(), history::get_log_level(log_level.c_str())); // creates historydb provider instance
 
-		m_logger->debug("HistoryDB provider has been created: elliptics address: %s:%d:%d %s %s\n", e_addr.c_str(), e_port, e_family, log_file.c_str(), log_level.c_str());
+		m_logger->debug("HistoryDB provider has been created\n");
 
-		std::vector<std::string> subs;
 		std::vector<int> groups;
 
 		m_logger->debug("Setting elliptics groups:\n");
-		config->subKeys(xpath + "/elliptics_group_", subs); // gets set of groups keys in config
+		subs.clear();
+		config->subKeys(xpath + "/elliptics_group", subs); // gets set of groups keys in config
 
 		int group = 0;
 		for (auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {

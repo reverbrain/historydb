@@ -18,9 +18,9 @@
 
 namespace history {
 
-std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level)
+std::shared_ptr<iprovider> create_provider(const std::vector<server_info>& servers, const char* log_file, const int log_level)
 {
-	return std::make_shared<provider>(server_addr, server_port, family, log_file, log_level);
+	return std::make_shared<provider>(servers, log_file, log_level);
 }
 
 int get_log_level(const char* log_level)
@@ -53,12 +53,15 @@ provider::context::context(const char* log_file, const int log_level)
 	generator.seed(time(NULL));
 }
 
-provider::provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level)
+provider::provider(const std::vector<server_info>& servers, const char* log_file, const int log_level)
 : m_context(log_file, log_level)
 {
-	m_context.node.add_remote(server_addr, server_port, family);	// Adds connection parameters to the node.
+	for(auto it = servers.begin(), itEnd = servers.end(); it != itEnd; ++it) {
+		m_context.node.add_remote(it->addr, it->port, it->family);	// Adds connection parameters to the node.
+		LOG(DNET_LOG_INFO, "Added remote for %s:%d:%d\n", it->addr, it->port, it->family);
+	}
 
-	LOG(DNET_LOG_INFO, "Created provider for %s:%d:%d\n", server_addr, server_port, family);
+	LOG(DNET_LOG_INFO, "Provider has been created\n");
 }
 
 provider::~provider()
