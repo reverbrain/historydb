@@ -36,8 +36,6 @@ Interface of the History DB presented in `iprovider.h` file.
 	iprovider::add_user_activity() - appends data to user log and increments its activity counter.
 		There are two implementation of this function: synchronous and asynchronous.
 
-	iprovider::repartition_activity() - number of method for repartition current activy shards.
-
 	iprovider::get_user_logs() - gets user logs.
 
 	iprovider::get_active_user() - gets active user for specified day.
@@ -50,6 +48,7 @@ who were active (had at least one log update) during requested period of time.
 
 Tutorial
 =========
+
 Firstly, complete [elliptics tutorial](http://doc.reverbrain.com/elliptics:server-tutorial).
 It is neccessary to start work with elliptics.
 
@@ -67,3 +66,23 @@ Now you can start to use HistoryDB library:
 Include `historydb/iprovider.h`.
 Create `iprovider` instance by calling `create_provider` method.
 Use iprovider instance to write/read user logs, update activity, gets active user statistics, repartition shards etc.
+
+Fastcgi-daemon2 config file
+=========
+
+HistoryDB component element should have follow children:
+
+<log_file>/path/to/log_file</log_file> - path to elliptics client logs
+
+<log_level>LOG_LEVEL</log_level> - valid values = { DATA, ERROR, INFO, NOTICE, DEBUG }
+
+<elliptics> - one <elliptics> for each elliptics node
+	<addr>address</addr> - address of elliptics node
+	<port>port</port> - listening port on elliptics node
+	<family>family</family> - protocol family
+</elliptics>
+
+<group>group_number</group> - group number with which historydb will works. One <group> for each elliptics group.
+
+<min_writes>1</min_writes> - minimum number of succeded writes in groups. For example, if historydb tries to write in 5 groups and min_writes is 3
+the attemp will be failed if write will be succeded in less then 3 groups.
