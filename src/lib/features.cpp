@@ -113,7 +113,7 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 		msgpack::sbuffer sbuf;
 		msgpack::pack(sbuf, tmp); // packs the activity statistics chunk
 
-		auto skey = make_chunk_key(new_key, chunk_no);
+		auto skey = make_chunk_key(new_key, 0, chunk_no);
 
 		auto write_res = write_data(skey, sbuf.data(), sbuf.size()); // writes data to the elliptics
 
@@ -251,7 +251,7 @@ ioremap::elliptics::async_write_result features::increment_activity()
 
 	auto shard = std::hash<std::string>()(m_user) % consts::USERS_CHUNKS_COUNT;
 
-	m_chunk_key = make_chunk_key(m_activity_key + '.' + boost::lexical_cast<std::string>(shard), chunk);
+	m_chunk_key = make_chunk_key(m_activity_key, shard, chunk);
 	LOG(DNET_LOG_DEBUG, "Try to increment user activity in key %s\n", m_chunk_key.c_str());
 	return m_session.write_cas(m_chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL);
 }
@@ -266,9 +266,9 @@ std::string features::make_key(uint64_t time)
 	return boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
 }
 
-std::string features::make_chunk_key(const std::string& key, uint32_t chunk)
+std::string features::make_chunk_key(const std::string& key, uint32_t user_chunk, uint32_t chunk)
 {
-	return key + '.' + boost::lexical_cast<std::string>(chunk);
+	return key + '.' + boost::lexical_cast<std::string>(user_chunk) + '.' + boost::lexical_cast<std::string>(chunk);
 }
 
 bool features::write_data(const std::string& key, void* data, uint32_t size)
@@ -312,7 +312,7 @@ activity features::get_activity(const std::string& key)
 
 	for(uint32_t shard = 0; shard < consts::USERS_CHUNKS_COUNT; ++shard) {
 		for(uint32_t chunk = 0; chunk < consts::CHUNKS_COUNT; ++chunk) {
-			chunk_key = make_chunk_key(key + '.' + boost::lexical_cast<std::string>(shard), chunk);
+			chunk_key = make_chunk_key(key ,shard, chunk);
 			async_results.emplace_back(m_session.read_latest(chunk_key, 0, 0));
 		}
 	}

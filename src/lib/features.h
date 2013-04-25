@@ -79,7 +79,7 @@ namespace history {
 			key - general activity statistics key
 			chunk - number of chunk
 		*/
-		std::string make_chunk_key(const std::string& key, uint32_t chunk);
+		std::string make_chunk_key(const std::string& key, uint32_t user_chunk, uint32_t chunk);
 
 		/* Writes data to elliptics in specified sessio
 			key - id of file where data should be written
