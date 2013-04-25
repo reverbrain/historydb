@@ -70,7 +70,7 @@ namespace history { namespace fcgi {
 
 		m_logger->debug("Setting elliptics groups:\n");
 		subs.clear();
-		config->subKeys(xpath + "/elliptics_group", subs); // gets set of groups keys in config
+		config->subKeys(xpath + "/group", subs); // gets set of groups keys in config
 
 		int group = 0;
 		for (auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
@@ -79,7 +79,9 @@ namespace history { namespace fcgi {
 			m_logger->debug("Added %d group\n", group);
 		}
 
-		m_provider->set_session_parameters(groups, groups.size()); // sets provider session parameters
+		int min_writes = config->asInt(xpath + "/min_writes");
+
+		m_provider->set_session_parameters(groups, min_writes); // sets provider session parameters
 	}
 
 	void handler::onUnload()
