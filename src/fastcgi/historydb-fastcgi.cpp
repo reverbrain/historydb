@@ -197,9 +197,7 @@ namespace history { namespace fcgi {
 
 		std::map<std::string, uint32_t> res;
 
-		auto key = req->getArg("key");
-
-		if (!key.empty()) { // checks optional parameter key
+		if (req->hasArg("key") && !req->getArg("key").empty()) { // checks optional parameter key
 			auto key = req->getArg("key"); // gets key parameter
 			m_logger->debug("Gets active users by key: %s\n", key.c_str());
 			res = m_provider->get_active_users(key); // gets active users by key

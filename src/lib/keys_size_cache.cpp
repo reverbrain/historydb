@@ -8,7 +8,7 @@ uint32_t keys_size_cache::get(const std::string& key)
 
 	auto it = m_keys_sizes.find(key); //finds key in map
 
-	return it == m_keys_sizes.end() ? -1 : it->second; // if we have such key in map returns known size otherwise return -1
+	return it == m_keys_sizes.end() ? 0 : it->second; // if we have such key in map returns known size otherwise return -1
 }
 
 void keys_size_cache::set(const std::string& key, uint32_t size)

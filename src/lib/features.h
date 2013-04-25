@@ -69,17 +69,17 @@ namespace history {
 			user - name of user
 			time - timestamp
 		*/
-		std::string make_user_key(uint64_t time);
+		inline std::string make_user_key(uint64_t time) const;
 
 		/* Makes general activity statistics key
 		*/
-		std::string make_key(uint64_t time);
+		inline std::string make_key(uint64_t time) const;
 
 		/* Makes chunk key from general key
 			key - general activity statistics key
 			chunk - number of chunk
 		*/
-		std::string make_chunk_key(const std::string& key, uint32_t user_chunk, uint32_t chunk);
+		inline std::string make_chunk_key(const std::string& key, uint32_t chunk) const;
 
 		/* Writes data to elliptics in specified sessio
 			key - id of file where data should be written

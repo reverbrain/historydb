@@ -52,6 +52,7 @@ namespace history {
 			ioremap::elliptics::file_logger		log; // logger
 			ioremap::elliptics::node			node; // elliptics node
 			keys_size_cache						keys_cache; // cache of activity keys size
+			boost::mutex						gen_mutex;
 			boost::mt19937						generator; // random generator
 		};
 

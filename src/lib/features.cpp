@@ -22,8 +22,7 @@
 namespace history {
 namespace consts {
 	const uint32_t	SEC_PER_DAY			= 24 * 60 * 60; // number of seconds in one day. used for calculation days
-	const uint32_t	CHUNKS_COUNT		= 10; // number of chunks in user's shard
-	const uint32_t	USERS_CHUNKS_COUNT	= 1000; // number of user's shard.
+	const uint32_t	CHUNKS_COUNT		= 100; // number of chunks in user's shard
 	const uint32_t	WRITES_BEFORE_FAIL	= 3; // Number of attempts of write_cas before returning fail result
 } /* namespace consts */
 
@@ -113,7 +112,7 @@ void features::repartition_activity(const std::string& old_key, const std::strin
 		msgpack::sbuffer sbuf;
 		msgpack::pack(sbuf, tmp); // packs the activity statistics chunk
 
-		auto skey = make_chunk_key(new_key, 0, chunk_no);
+		auto skey = make_chunk_key(new_key, chunk_no);
 
 		auto write_res = write_data(skey, sbuf.data(), sbuf.size()); // writes data to the elliptics
 
@@ -156,7 +155,7 @@ std::list<std::vector<char>> features::get_user_logs(const std::string& user, ui
 
 	for_user_logs(m_user, begin_time, end_time, boost::bind(&features::get_user_logs_callback, this, boost::ref(ret), _1, _2, _3));
 
-	LOG(DNET_LOG_DEBUG, "User logs cout: %d", (uint32_t)ret.size());
+	LOG(DNET_LOG_DEBUG, "User logs size: %d", (uint32_t)ret.size());
 
 	m_self.reset();
 	return ret; //returns combined user logs.
@@ -245,30 +244,28 @@ ioremap::elliptics::async_write_result features::increment_activity()
 
 	uint32_t chunk = 0;
 	auto size = m_context.keys_cache.get(m_activity_key);
-	if(size != (uint32_t)-1) {
+	if(size != 0) {
 		chunk = rand(size);
 	}
 
-	auto shard = std::hash<std::string>()(m_user) % consts::USERS_CHUNKS_COUNT;
-
-	m_chunk_key = make_chunk_key(m_activity_key, shard, chunk);
+	m_chunk_key = make_chunk_key(m_activity_key, chunk);
 	LOG(DNET_LOG_DEBUG, "Try to increment user activity in key %s\n", m_chunk_key.c_str());
 	return m_session.write_cas(m_chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL);
 }
 
-std::string features::make_user_key(uint64_t time)
+inline std::string features::make_user_key(uint64_t time) const
 {
 	return m_user + '.' + boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
 }
 
-std::string features::make_key(uint64_t time)
+inline std::string features::make_key(uint64_t time) const
 {
 	return boost::lexical_cast<std::string>(time / consts::SEC_PER_DAY);
 }
 
-std::string features::make_chunk_key(const std::string& key, uint32_t user_chunk, uint32_t chunk)
+inline std::string features::make_chunk_key(const std::string& key, uint32_t chunk) const
 {
-	return key + '.' + boost::lexical_cast<std::string>(user_chunk) + '.' + boost::lexical_cast<std::string>(chunk);
+	return key + '.' + boost::lexical_cast<std::string>(chunk);
 }
 
 bool features::write_data(const std::string& key, void* data, uint32_t size)
@@ -282,6 +279,7 @@ bool features::write_data(const std::string& key, void* data, uint32_t size)
 
 uint32_t features::rand(uint32_t max)
 {
+	boost::lock_guard<boost::mutex> lock(m_context.gen_mutex);
 	boost::uniform_int<> dist(0, max - 1);
 	boost::variate_generator<boost::mt19937&, boost::uniform_int<>> limited(m_context.generator, dist);
 	return limited();
@@ -305,16 +303,34 @@ activity features::get_activity(const std::string& key)
 	m_session.set_ioflags(DNET_IO_FLAGS_CACHE/* | DNET_IO_FLAGS_CACHE_ONLY*/);
 
 	activity ret, tmp;
+	std::string chunk_key;
+	uint32_t chunk = 0;
 
 	auto size = m_context.keys_cache.get(key);
-	std::list<ioremap::elliptics::async_read_result> async_results;
-	std::string chunk_key;
-
-	for(uint32_t shard = 0; shard < consts::USERS_CHUNKS_COUNT; ++shard) {
-		for(uint32_t chunk = 0; chunk < consts::CHUNKS_COUNT; ++chunk) {
-			chunk_key = make_chunk_key(key ,shard, chunk);
-			async_results.emplace_back(m_session.read_latest(chunk_key, 0, 0));
+	if(size == 0) {
+		chunk_key = make_chunk_key(key, 0);
+		auto read_res = m_session.read_latest(chunk_key, 0, 0).get_one();
+		try {
+			auto file = read_res.file();
+			if(file.empty())
+				return ret;
+			msgpack::unpacked msg;
+			msgpack::unpack(&msg, file.data<const char>(), file.size());
+			msg.get().convert(&ret);
+			size = ret.size;
+			m_context.keys_cache.set(key, size);
+			++chunk;
 		}
+		catch(std::exception&) {
+			return ret;
+		}
+	}
+	std::list<ioremap::elliptics::async_read_result> async_results;
+
+	for(; chunk < size; ++chunk) {
+			chunk_key = make_chunk_key(key, chunk);
+			LOG(DNET_LOG_DEBUG, "Async read_latest for key %s\n", chunk_key.c_str());
+			async_results.emplace_back(m_session.read_latest(chunk_key, 0, 0));
 	}
 
 	for(auto it = async_results.begin(), itEnd = async_results.end(); it != itEnd; ++it) {
@@ -323,6 +339,7 @@ activity features::get_activity(const std::string& key)
 			if (!file.empty()) { // if it isn't empty
 				msgpack::unpacked msg;
 				msgpack::unpack(&msg, file.data<const char>(), file.size()); // unpack chunk
+				tmp.map.clear();
 				msg.get().convert(&tmp);
 
 				merge(ret, tmp);
@@ -380,6 +397,8 @@ ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::ell
 	auto res = act.map.insert(std::make_pair(m_user, 1)); //Trys to insert new record in map for the user
 	if (!res.second) // if the record wasn't inserted
 		++res.first->second; // increments old statistics
+
+	LOG(DNET_LOG_DEBUG, "Updated activity for user %s value %d\n", res.first->first.c_str(), res.first->second);
 
 	msgpack::sbuffer buff;
 	msgpack::pack(buff, act); // packs the activity statistics chunk
