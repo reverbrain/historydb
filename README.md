@@ -72,17 +72,18 @@ Fastcgi-daemon2 config file
 
 HistoryDB component element should have follow children:
 
-<log_file>/path/to/log_file</log_file> - path to elliptics client logs
+<pre>&lt;log_file&gt;/path/to/log_file&lt;/log_file&gt; - path to elliptics client logs
 
-<log_level>LOG_LEVEL</log_level> - valid values = { DATA, ERROR, INFO, NOTICE, DEBUG }
+&lt;log_level&gt;LOG_LEVEL&lt;/log_level&gt; - valid values = { DATA, ERROR, INFO, NOTICE, DEBUG }
 
-<elliptics> - one <elliptics> for each elliptics node
-	<addr>address</addr> - address of elliptics node
-	<port>port</port> - listening port on elliptics node
-	<family>family</family> - protocol family
-</elliptics>
+&lt;elliptics&gt; - one &lt;elliptics&gt; for each elliptics node
+	&lt;addr&gt;address&lt;/addr&gt; - address of elliptics node
+	&lt;port&gt;port&lt;/port&gt; - listening port on elliptics node
+	&lt;family&gt;family&lt;/family&gt; - protocol family
+&lt;/elliptics&gt;
 
-<group>group_number</group> - group number with which historydb will works. One <group> for each elliptics group.
+&lt;group&gt;group_number&lt;/group&gt; - group number with which historydb will works. One <group> for each elliptics group.
 
-<min_writes>1</min_writes> - minimum number of succeded writes in groups. For example, if historydb tries to write in 5 groups and min_writes is 3
+&lt;min_writes&gt;number&lt;/min_writes&gt; - minimum number of succeded writes in groups. For example, if historydb tries to write in 5 groups and min_writes is 3
 the attemp will be failed if write will be succeded in less then 3 groups.
+</pre>
