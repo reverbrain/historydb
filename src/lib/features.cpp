@@ -8,7 +8,6 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
 
-#include "activity.h"
 #include "keys_size_cache.h"
 
 #define __STDC_FORMAT_MACROS
@@ -49,14 +48,12 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 	auto add_res = add_user_data(data, size); // Adds data to the user log
 	auto increment_res = increment_activity();
 
-	auto res = add_res.get();
-	if (res.size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
+	if (add_res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s error: %s\n", m_user_key.c_str(), add_res.error().message().c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 
-	res = increment_res.get();
-	if (res.size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
+	if (increment_res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity for key: %s error: %s\n", m_chunk_key.c_str(), increment_res.error().message().c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
@@ -76,7 +73,7 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 	add_user_data(data, size).connect(boost::bind(&features::add_user_data_callback, this, _1, _2));
 }
 
-void features::repartition_activity(const std::string& key, uint32_t chunks)
+/*void features::repartition_activity(const std::string& key, uint32_t chunks)
 {
 	repartition_activity(key, key, chunks);
 	m_self.reset();
@@ -85,8 +82,8 @@ void features::repartition_activity(const std::string& key, uint32_t chunks)
 void features::repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks)
 {
 	LOG(DNET_LOG_DEBUG, "Repartition activity: (%s, %s, %d)\n", old_key.c_str(), new_key.c_str(), chunks);
-	m_session.set_ioflags(DNET_IO_FLAGS_CACHE/* | DNET_IO_FLAGS_CACHE_ONLY*/);
-	activity tmp;
+	m_session.set_ioflags(DNET_IO_FLAGS_CACHE);
+	activity tmp
 
 	auto res = get_activity(old_key);
 	if (res.size == 0) {
@@ -144,7 +141,7 @@ void features::repartition_activity(uint64_t time, const std::string& new_key, u
 {
 	repartition_activity(make_key(time), new_key, chunks);
 	m_self.reset();
-}
+}*/
 
 std::list<std::vector<char>> features::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
 {
@@ -161,20 +158,16 @@ std::list<std::vector<char>> features::get_user_logs(const std::string& user, ui
 	return ret; //returns combined user logs.
 }
 
-std::map<std::string, uint32_t> features::get_active_users(uint64_t time)
+std::set<std::string> features::get_active_users(uint64_t time)
 {
 	return get_active_users(make_key(time));
 }
 
-std::map<std::string, uint32_t> features::get_active_users(const std::string& key)
+std::set<std::string> features::get_active_users(const std::string& key)
 {
 	LOG(DNET_LOG_INFO, "Getting active users with key: %s\n", key.c_str());
 
-	auto ret = get_activity(key).map; // returns result map
-
-	m_self.reset();
-
-	return ret;
+	return get_activity(key);
 }
 
 void features::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time,
@@ -206,20 +199,20 @@ void features::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 	m_self.reset();
 }
 
-void features::for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func)
+void features::for_active_users(uint64_t time, std::function<bool(const std::string&)> func)
 {
 	for_active_users(make_key(time), func);
 
 	m_self.reset();
 }
 
-void features::for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func)
+void features::for_active_users(const std::string& key, std::function<bool(const std::string&)> func)
 {
 	LOG(DNET_LOG_INFO, "Iterating by active users for key:%s\n", key.c_str());
 	auto res = get_active_users(key); // gets activity map for the key
 
 	for (auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) { // iterates by users from activity map
-		if (!func(it->first, it->second)) //calls callback for each user activity from activity map
+		if (!func(*it)) //calls callback for each user activity from activity map
 			break;
 	}
 
@@ -238,19 +231,22 @@ ioremap::elliptics::async_write_result features::add_user_data(void* data, uint3
 	return m_session.write_data(m_user_key, dp, 0); // write data into elliptics
 }
 
-ioremap::elliptics::async_write_result features::increment_activity()
+ioremap::elliptics::async_update_indexes_result features::increment_activity()
 {
 	m_session.set_ioflags(DNET_IO_FLAGS_CACHE/* | DNET_IO_FLAGS_CACHE_ONLY*/);
-
 	uint32_t chunk = 0;
 	auto size = m_context.keys_cache.get(m_activity_key);
 	if(size != 0) {
 		chunk = rand(size);
 	}
 
-	m_chunk_key = make_chunk_key(m_activity_key, chunk);
-	LOG(DNET_LOG_DEBUG, "Try to increment user activity in key %s\n", m_chunk_key.c_str());
-	return m_session.write_cas(m_chunk_key, boost::bind(&features::write_cas_callback, this, _1), 0, consts::WRITES_BEFORE_FAIL);
+	std::vector<std::string> indexes;
+	std::vector<ioremap::elliptics::data_pointer> datas;
+	indexes.emplace_back(make_chunk_key(m_activity_key, chunk));
+	datas.emplace_back(m_user);
+
+	LOG(DNET_LOG_DEBUG, "Update indexes with key: %s and index: %s\n", m_user.c_str(), indexes.front().c_str());
+	return m_session.update_indexes(m_user, indexes, datas);
 }
 
 inline std::string features::make_user_key(uint64_t time) const
@@ -285,73 +281,30 @@ uint32_t features::rand(uint32_t max)
 	return limited();
 }
 
-void features::merge(activity& res_chunk, const activity& merge_chunk) const
+std::set<std::string> features::get_activity(const std::string& key)
 {
-	res_chunk.size = merge_chunk.size;
-	auto res_it = res_chunk.map.begin(); // sets res_it to begin of res_map
-	size_t size;
-	for (auto it = merge_chunk.map.begin(), itEnd = merge_chunk.map.end(); it != itEnd; ++it) { // iterates by merge_chunk map pairs
-		size = res_chunk.map.size(); // saves old res_map size
-		res_it = res_chunk.map.insert(res_it, *it); // trys insert pair from merge_chunk map into res_map at res_it and sets to res_it iterator to the inserted element. If pair would be inserted then size of res_map will be increased.
-		if (size == res_chunk.map.size()) // checks saved size with current size of res_map if they are equal - item wasn't inserted and we should add data from it with res_it.
-			res_it->second += it->second;
-	}
-}
-
-activity features::get_activity(const std::string& key)
-{
+	std::set<std::string> ret;
 	m_session.set_ioflags(DNET_IO_FLAGS_CACHE/* | DNET_IO_FLAGS_CACHE_ONLY*/);
-
-	activity ret, tmp;
-	std::string chunk_key;
-	uint32_t chunk = 0;
-
-	auto size = m_context.keys_cache.get(key);
-	if(size == 0) {
-		chunk_key = make_chunk_key(key, 0);
-		auto read_res = m_session.read_latest(chunk_key, 0, 0).get_one();
-		try {
-			auto file = read_res.file();
-			if(file.empty())
-				return ret;
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, file.data<const char>(), file.size());
-			msg.get().convert(&ret);
-			size = ret.size;
-			m_context.keys_cache.set(key, size);
-			++chunk;
-		}
-		catch(std::exception&) {
-			return ret;
-		}
-	}
-	std::list<ioremap::elliptics::async_read_result> async_results;
-
-	for(; chunk < size; ++chunk) {
-			chunk_key = make_chunk_key(key, chunk);
-			LOG(DNET_LOG_DEBUG, "Async read_latest for key %s\n", chunk_key.c_str());
-			async_results.emplace_back(m_session.read_latest(chunk_key, 0, 0));
+	std::vector<std::string> indexes;
+	for(int i = 0; i < 1; ++i) {
+		indexes.emplace_back(make_chunk_key(key, i));
 	}
 
-	for(auto it = async_results.begin(), itEnd = async_results.end(); it != itEnd; ++it) {
-		try {
-			auto file = it->get_one().file(); // trys to read chunk data
-			if (!file.empty()) { // if it isn't empty
-				msgpack::unpacked msg;
-				msgpack::unpack(&msg, file.data<const char>(), file.size()); // unpack chunk
-				tmp.map.clear();
-				msg.get().convert(&tmp);
+	LOG(DNET_LOG_DEBUG, "Find indexes %s\n", indexes.front().c_str());
+	std::vector<ioremap::elliptics::find_indexes_result_entry> res = m_session.find_indexes(indexes);
+	LOG(DNET_LOG_DEBUG, "Found %d results\n", res.size());
 
-				merge(ret, tmp);
-			}
+	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
+		for(auto ind_it = it->indexes.begin(), ind_end = it->indexes.end(); ind_it != ind_end; ++ind_it) {
+			LOG(DNET_LOG_DEBUG, "Found value: %s\n", ind_it->second.to_string().c_str());
+			ret.insert(ind_it->second.to_string());
 		}
-		catch(std::exception& e) {}
 	}
 
 	return ret;
 }
 
-void features::increment_activity_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info&)
+void features::increment_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info&)
 {
 	bool written = res.size() >= m_context.min_writes;
 
@@ -375,35 +328,6 @@ void features::add_user_data_callback(const ioremap::elliptics::sync_write_resul
 	LOG(DNET_LOG_DEBUG, "Add user data callback result: %s\n", (m_log_written ? "written" : "failed"));
 
 	increment_activity().connect(boost::bind(&features::increment_activity_callback, this, _1, _2));
-}
-
-ioremap::elliptics::data_pointer features::write_cas_callback(const ioremap::elliptics::data_pointer& data)
-{
-	activity act;
-	act.size = consts::CHUNKS_COUNT;
-
-	if (!data.empty()) {
-		try {
-			msgpack::unpacked msg;
-			msgpack::unpack(&msg, data.data<const char>(), data.size());
-			msg.get().convert(&act);
-		}
-		catch(...) {}
-	}
-
-	if (!m_context.keys_cache.has(m_activity_key))
-		m_context.keys_cache.set(m_activity_key, act.size);
-
-	auto res = act.map.insert(std::make_pair(m_user, 1)); //Trys to insert new record in map for the user
-	if (!res.second) // if the record wasn't inserted
-		++res.first->second; // increments old statistics
-
-	LOG(DNET_LOG_DEBUG, "Updated activity for user %s value %d\n", res.first->first.c_str(), res.first->second);
-
-	msgpack::sbuffer buff;
-	msgpack::pack(buff, act); // packs the activity statistics chunk
-
-	return ioremap::elliptics::data_pointer::copy(buff.data(), buff.size());
 }
 
 }

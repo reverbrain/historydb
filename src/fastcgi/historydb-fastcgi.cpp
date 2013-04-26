@@ -195,7 +195,7 @@ namespace history { namespace fcgi {
 		m_logger->debug("Handle get active user request\n");
 		fastcgi::RequestStream stream(req);
 
-		std::map<std::string, uint32_t> res;
+		std::set<std::string> res;
 
 		if (req->hasArg("key") && !req->getArg("key").empty()) { // checks optional parameter key
 			auto key = req->getArg("key"); // gets key parameter
@@ -216,9 +216,14 @@ namespace history { namespace fcgi {
 		rapidjson::Document d; // creates document for json serialization
 		d.SetObject();
 
+		rapidjson::Value active_users(rapidjson::kArrayType);
+
 		for (auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) { // adds all active user with counters to json
-			d.AddMember(it->first.c_str(), it->second, d.GetAllocator());
+			rapidjson::Value user(it->c_str(), it->size(), d.GetAllocator());
+			active_users.PushBack(user, d.GetAllocator());
 		}
+
+		d.AddMember("active_users", active_users, d.GetAllocator());
 
 		rapidjson::StringBuffer buffer; // creates string buffer for serialized json
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); // creates json writer

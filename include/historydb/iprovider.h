@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include <map>
+#include <set>
 #include <list>
 
 namespace history {
@@ -52,13 +52,13 @@ namespace history {
 			time - day of activity statistics
 			returns map of active user with activity statistics
 		*/
-		virtual std::map<std::string, uint32_t> get_active_users(uint64_t time) = 0;
+		virtual std::set<std::string> get_active_users(uint64_t time) = 0;
 
 		/* Gets active users with activity statistics for specified key
 			key - custom key of activity statistics
 			return map of active user with activity statistics
 		*/
-		virtual std::map<std::string, uint32_t> get_active_users(const std::string& key) = 0;
+		virtual std::set<std::string> get_active_users(const std::string& key) = 0;
 
 		/* Iterates by user's logs and calls func for each log record
 			user - name of user
@@ -71,12 +71,12 @@ namespace history {
 		/* Iterates by activity statistics and calls func for each user
 			time - day of activity statistics
 		*/
-		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) = 0;
+		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user)> func) = 0;
 
 		/* Iterates by activity statistics and calls func for each user
 			key - custom key of activity statistics
 		*/
-		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) = 0;
+		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user)> func) = 0;
 	};
 
 	struct server_info

@@ -39,15 +39,15 @@ bool test1_for2(uint64_t time, void* data, uint32_t size)
 	return true;
 }
 
-bool test1_for3(const std::string& user, uint32_t number)
+bool test1_for3(const std::string& user)
 {
-	std::cout << "ACT1 LAMBDA: " << user << " " << number << std::endl;
+	std::cout << "ACT1 LAMBDA: " << user << " " << std::endl;
 	return true;
 }
 
-bool test1_for4(const std::string& user, uint32_t number)
+bool test1_for4(const std::string& user)
 {
-	std::cout << "ACT2 LAMBDA: " << user << " " << number << std::endl;
+	std::cout << "ACT2 LAMBDA: " << user << " " << std::endl;
 	return true;
 }
 
@@ -98,9 +98,9 @@ bool test3_for1(uint32_t ind, uint64_t time, void* data, uint32_t size)
 	return true;
 }
 
-bool test3_for2(uint32_t ind, const std::string& user, uint32_t number)
+bool test3_for2(uint32_t ind, const std::string& user)
 {
-	std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << number << std::endl;
+	std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << std::endl;
 	++ind;
 	return true;
 }
@@ -115,7 +115,7 @@ void test3(std::shared_ptr<history::iprovider> provider) {
 
 		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, boost::ref(ind), _1, _2, _3));
 
-		provider->for_active_users(tm, boost::bind(&test3_for2, boost::ref(ind), _1, _2));
+		provider->for_active_users(tm, boost::bind(&test3_for2, boost::ref(ind), _1));
 	}
 }
 

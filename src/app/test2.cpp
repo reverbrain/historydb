@@ -36,9 +36,9 @@ void test_method(std::shared_ptr<history::iprovider> provider, uint32_t)
 	}
 }
 
-bool test2_for(uint32_t total, const std::string&, uint32_t number)
+bool test2_for(uint32_t total, const std::string&)
 {
-	total += number;
+	++total;
 	return true;
 }
 
@@ -66,7 +66,7 @@ void test2(std::shared_ptr<history::iprovider> provider)
 
 	uint32_t total = 0;
 
-	provider->for_active_users(current_time, boost::bind(&test2_for, boost::ref(total), _1, _2));
+	provider->for_active_users(current_time, boost::bind(&test2_for, boost::ref(total), _1));
 
 	std::cout << "Total activities: " << total << std::endl;
 }

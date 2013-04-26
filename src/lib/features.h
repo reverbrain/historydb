@@ -17,7 +17,6 @@ struct dnet_id;
 
 namespace history {
 
-	struct activity;
 	class keys_size_cache;
 
 	class features
@@ -30,20 +29,20 @@ namespace history {
 		void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string());
 		void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key = std::string());
 
-		void repartition_activity(const std::string& key, uint32_t parts);
+		/*void repartition_activity(const std::string& key, uint32_t parts);
 		void repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts);
 		void repartition_activity(uint64_t time, uint32_t parts);
-		void repartition_activity(uint64_t time, const std::string& new_key, uint32_t parts);
+		void repartition_activity(uint64_t time, const std::string& new_key, uint32_t parts);*/
 
 		std::list<std::vector<char>> get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time);
 
-		std::map<std::string, uint32_t> get_active_users(uint64_t time);
-		std::map<std::string, uint32_t> get_active_users(const std::string& key);
+		std::set<std::string> get_active_users(uint64_t time);
+		std::set<std::string> get_active_users(const std::string& key);
 
 		void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(uint64_t time, void* data, uint32_t size)> func);
 
-		void for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func);
-		void for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func);
+		void for_active_users(uint64_t time, std::function<bool(const std::string&)> func);
+		void for_active_users(const std::string& key, std::function<bool(const std::string&)> func);
 
 		void set_self(std::shared_ptr<features> self) { m_self = self; }
 
@@ -60,10 +59,8 @@ namespace history {
 		ioremap::elliptics::async_write_result add_user_data(void* data, uint32_t size);
 
 		/* Increments user activity statistics
-			user -nane of user
-			time - timestamp
 		*/
-		ioremap::elliptics::async_write_result increment_activity();
+		ioremap::elliptics::async_update_indexes_result increment_activity();
 
 		/* Makes user log id from user name and timestamp
 			user - name of user
@@ -93,24 +90,16 @@ namespace history {
 		*/
 		uint32_t rand(uint32_t max);
 
-		/*Merges two chunks. res_chunk will contain result of merging
-			res_chunk - chunk in which result will be written
-			merge_chunk - chunk data from which will be added to res_chunk
-		*/
-		void merge(activity& res_chunk, const activity& merge_chunk) const;
-
 		/* Gets full activity statistics for specified general tree
 			key - general key
 		*/
-		activity get_activity(const std::string& key);
+		std::set<std::string> get_activity(const std::string& key);
 
-		void increment_activity_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
+		void increment_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
 
 		void add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
 
 		bool get_user_logs_callback(std::list<std::vector<char>>& ret, uint64_t time, void* data, uint32_t size);
-
-		ioremap::elliptics::data_pointer write_cas_callback(const ioremap::elliptics::data_pointer& data);
 
 		provider::context&					m_context;
 
