@@ -19,7 +19,7 @@ namespace history {
 	class provider: public iprovider
 	{
 	public:
-		provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level);
+		provider(const std::vector<server_info>& servers, const char* log_file, const int log_level);
 		virtual ~provider();
 
 		virtual void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes);
@@ -27,20 +27,20 @@ namespace history {
 		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string());
 		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key = std::string());
 
-		virtual void repartition_activity(const std::string& key, uint32_t parts);
+		/*virtual void repartition_activity(const std::string& key, uint32_t parts);
 		virtual void repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts);
 		virtual void repartition_activity(uint64_t time, uint32_t parts);
-		virtual void repartition_activity(uint64_t time, const std::string& new_key, uint32_t parts);
+		virtual void repartition_activity(uint64_t time, const std::string& new_key, uint32_t parts);*/
 
 		virtual std::list<std::vector<char>> get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time);
 
-		virtual std::map<std::string, uint32_t> get_active_users(uint64_t time);
-		virtual std::map<std::string, uint32_t> get_active_users(const std::string& key);
+		virtual std::set<std::string> get_active_users(uint64_t time);
+		virtual std::set<std::string> get_active_users(const std::string& key);
 
 		virtual void for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(uint64_t time, void* data, uint32_t size)> func);
 
-		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func);
-		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func);
+		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user)> func);
+		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user)> func);
 
 		struct context
 		{
@@ -52,6 +52,7 @@ namespace history {
 			ioremap::elliptics::file_logger		log; // logger
 			ioremap::elliptics::node			node; // elliptics node
 			keys_size_cache						keys_cache; // cache of activity keys size
+			boost::mutex						gen_mutex;
 			boost::mt19937						generator; // random generator
 		};
 

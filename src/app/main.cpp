@@ -39,15 +39,15 @@ bool test1_for2(uint64_t time, void* data, uint32_t size)
 	return true;
 }
 
-bool test1_for3(const std::string& user, uint32_t number)
+bool test1_for3(const std::string& user)
 {
-	std::cout << "ACT1 LAMBDA: " << user << " " << number << std::endl;
+	std::cout << "ACT1 LAMBDA: " << user << " " << std::endl;
 	return true;
 }
 
-bool test1_for4(const std::string& user, uint32_t number)
+bool test1_for4(const std::string& user)
 {
-	std::cout << "ACT2 LAMBDA: " << user << " " << number << std::endl;
+	std::cout << "ACT2 LAMBDA: " << user << " " << std::endl;
 	return true;
 }
 
@@ -79,7 +79,7 @@ void test1(std::shared_ptr<history::iprovider> provider) {
 
 	provider->for_active_users(tm, test1_for3);
 
-	provider->repartition_activity(tm, 10);
+	//provider->repartition_activity(tm, 10);
 
 	provider->for_active_users(tm, test1_for4);
 }
@@ -98,9 +98,9 @@ bool test3_for1(uint32_t ind, uint64_t time, void* data, uint32_t size)
 	return true;
 }
 
-bool test3_for2(uint32_t ind, const std::string& user, uint32_t number)
+bool test3_for2(uint32_t ind, const std::string& user)
 {
-	std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << number << std::endl;
+	std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << std::endl;
 	++ind;
 	return true;
 }
@@ -115,7 +115,7 @@ void test3(std::shared_ptr<history::iprovider> provider) {
 
 		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, boost::ref(ind), _1, _2, _3));
 
-		provider->for_active_users(tm, boost::bind(&test3_for2, boost::ref(ind), _1, _2));
+		provider->for_active_users(tm, boost::bind(&test3_for2, boost::ref(ind), _1));
 	}
 }
 
@@ -182,7 +182,11 @@ int main(int argc, char* argv[]) {
 		return err;
 	}
 
-	std::shared_ptr<history::iprovider> provider(history::create_provider(remote_addr.c_str(), port, family, LOG_FILE, LOG_LEVEL));
+	std::vector<history::server_info> servers;
+	history::server_info info = {remote_addr.c_str(), port, family};
+	servers.emplace_back(info);
+
+	std::shared_ptr<history::iprovider> provider(history::create_provider(servers, LOG_FILE, LOG_LEVEL));
 
 	if (provider.get() == NULL) {
 		std::cout << "Error! Provider hasn't been created!\n";

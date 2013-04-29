@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include <map>
+#include <set>
 #include <list>
 
 namespace history {
@@ -40,17 +40,6 @@ namespace history {
 		*/
 		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key = std::string()) = 0;
 
-		/*	Repartitions activity's statistics.
-			key/old_key - current key of activity files
-			new_key - new key for activity files
-			time - timstamp of activity
-			chunks - numbers of chunks in new decomposition
-		*/
-		virtual void repartition_activity(const std::string& key, uint32_t chunks) = 0;
-		virtual void repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t chunks) = 0;
-		virtual void repartition_activity(uint64_t time, uint32_t chunks) = 0;
-		virtual void repartition_activity(uint64_t time, const std::string& new_key, uint32_t chunks) = 0;
-
 		/* Gets user's logs for specified period
 			user - name of user
 			begin_time - begin of the time period
@@ -63,13 +52,13 @@ namespace history {
 			time - day of activity statistics
 			returns map of active user with activity statistics
 		*/
-		virtual std::map<std::string, uint32_t> get_active_users(uint64_t time) = 0;
+		virtual std::set<std::string> get_active_users(uint64_t time) = 0;
 
 		/* Gets active users with activity statistics for specified key
 			key - custom key of activity statistics
 			return map of active user with activity statistics
 		*/
-		virtual std::map<std::string, uint32_t> get_active_users(const std::string& key) = 0;
+		virtual std::set<std::string> get_active_users(const std::string& key) = 0;
 
 		/* Iterates by user's logs and calls func for each log record
 			user - name of user
@@ -82,12 +71,19 @@ namespace history {
 		/* Iterates by activity statistics and calls func for each user
 			time - day of activity statistics
 		*/
-		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func) = 0;
+		virtual void for_active_users(uint64_t time, std::function<bool(const std::string& user)> func) = 0;
 
 		/* Iterates by activity statistics and calls func for each user
 			key - custom key of activity statistics
 		*/
-		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func) = 0;
+		virtual void for_active_users(const std::string& key, std::function<bool(const std::string& user)> func) = 0;
+	};
+
+	struct server_info
+	{
+		const char* addr;
+		int port;
+		int family;
 	};
 
 	/* Creates inctance of history::iprovider
@@ -95,7 +91,7 @@ namespace history {
 		server_port - elliptics port
 		family - inet family
 	*/
-	extern std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level);
+	extern std::shared_ptr<iprovider> create_provider(const std::vector<server_info>& servers, const char* log_file, const int log_level);
 	extern int get_log_level(const char* log_level);
 } /* namespace history */
 

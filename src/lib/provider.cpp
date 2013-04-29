@@ -10,7 +10,6 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#include "activity.h"
 #include "features.h"
 
 //log macro adds HDB: prefix to each log record
@@ -18,9 +17,9 @@
 
 namespace history {
 
-std::shared_ptr<iprovider> create_provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level)
+std::shared_ptr<iprovider> create_provider(const std::vector<server_info>& servers, const char* log_file, const int log_level)
 {
-	return std::make_shared<provider>(server_addr, server_port, family, log_file, log_level);
+	return std::make_shared<provider>(servers, log_file, log_level);
 }
 
 int get_log_level(const char* log_level)
@@ -53,12 +52,15 @@ provider::context::context(const char* log_file, const int log_level)
 	generator.seed(time(NULL));
 }
 
-provider::provider(const char* server_addr, const int server_port, const int family, const char* log_file, const int log_level)
+provider::provider(const std::vector<server_info>& servers, const char* log_file, const int log_level)
 : m_context(log_file, log_level)
 {
-	m_context.node.add_remote(server_addr, server_port, family);	// Adds connection parameters to the node.
+	for(auto it = servers.begin(), itEnd = servers.end(); it != itEnd; ++it) {
+		m_context.node.add_remote(it->addr, it->port, it->family);	// Adds connection parameters to the node.
+		LOG(DNET_LOG_INFO, "Added remote for %s:%d:%d\n", it->addr, it->port, it->family);
+	}
 
-	LOG(DNET_LOG_INFO, "Created provider for %s:%d:%d\n", server_addr, server_port, family);
+	LOG(DNET_LOG_INFO, "Provider has been created\n");
 }
 
 provider::~provider()
@@ -88,7 +90,7 @@ void provider::add_user_activity(const std::string& user, uint64_t time, void* d
 	make_features()->add_user_activity(user, time, data, size, func, key);
 }
 
-void provider::repartition_activity(const std::string& key, uint32_t chunks)
+/*void provider::repartition_activity(const std::string& key, uint32_t chunks)
 {
 	features f(m_context);
 	f.repartition_activity(key, chunks);
@@ -110,7 +112,7 @@ void provider::repartition_activity(uint64_t time, const std::string& new_key, u
 {
 	features f(m_context);
 	f.repartition_activity(time, new_key, chunks);
-}
+}*/
 
 std::list<std::vector<char>> provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
 {
@@ -118,13 +120,13 @@ std::list<std::vector<char>> provider::get_user_logs(const std::string& user, ui
 	return f.get_user_logs(user, begin_time, end_time);
 }
 
-std::map<std::string, uint32_t> provider::get_active_users(uint64_t time)
+std::set<std::string> provider::get_active_users(uint64_t time)
 {
 	features f(m_context);
 	return f.get_active_users(time);
 }
 
-std::map<std::string, uint32_t> provider::get_active_users(const std::string& key)
+std::set<std::string> provider::get_active_users(const std::string& key)
 {
 	features f(m_context);
 	return f.get_active_users(key);
@@ -137,13 +139,13 @@ void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint6
 	f.for_user_logs(user, begin_time, end_time, func);
 }
 
-void provider::for_active_users(uint64_t time, std::function<bool(const std::string& user, uint32_t number)> func)
+void provider::for_active_users(uint64_t time, std::function<bool(const std::string& user)> func)
 {
 	features f(m_context);
 	f.for_active_users(time, func);
 }
 
-void provider::for_active_users(const std::string& key, std::function<bool(const std::string& user, uint32_t number)> func)
+void provider::for_active_users(const std::string& key, std::function<bool(const std::string& user)> func)
 {
 	features f(m_context);
 	f.for_active_users(key, func);
