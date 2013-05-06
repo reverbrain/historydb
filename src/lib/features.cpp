@@ -292,7 +292,7 @@ std::set<std::string> features::get_activity(const std::string& key)
 
 	LOG(DNET_LOG_DEBUG, "Find indexes %s\n", indexes.front().c_str());
 	std::vector<ioremap::elliptics::find_indexes_result_entry> res = m_session.find_indexes(indexes);
-	LOG(DNET_LOG_DEBUG, "Found %d results\n", res.size());
+	LOG(DNET_LOG_DEBUG, "Found %zd results\n", res.size());
 
 	for(auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
 		for(auto ind_it = it->indexes.begin(), ind_end = it->indexes.end(); ind_it != ind_end; ++ind_it) {

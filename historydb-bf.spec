@@ -16,7 +16,7 @@ BuildRequires:	gcc gcc-c++
 %endif
 
 BuildRequires:	boost-devel, boost-thread, boost-system
-BuildRequires:	cmake28
+BuildRequires:	cmake
 BuildRequires:	msgpack-devel
 BuildRequires:	elliptics-client-devel
 BuildRequires:	fastcgi-daemon2-libs-devel
