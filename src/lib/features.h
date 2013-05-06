@@ -26,8 +26,13 @@ namespace history {
 
 		void set_session_parameters(const std::vector<int>&, uint32_t) {}
 
-		void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string());
-		void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key = std::string());
+		void add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size);
+		void add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size, std::function<void(bool added)> callback);
+		void add_activity(const std::string& user, uint64_t timestamp, const std::string& key);
+		void add_activity(const std::string& user, uint64_t timestamp, std::function<void(bool added)> callback, const std::string& key);
+
+		void add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, const std::string& key = std::string());
+		void add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key = std::string());
 
 		/*void repartition_activity(const std::string& key, uint32_t parts);
 		void repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts);
@@ -56,7 +61,7 @@ namespace history {
 			data - pointer to the log data
 			size - size of log data
 		*/
-		ioremap::elliptics::async_write_result add_user_data(void* data, uint32_t size);
+		ioremap::elliptics::async_write_result add_user_data(const void* data, uint32_t size);
 
 		/* Increments user activity statistics
 		*/
@@ -95,6 +100,9 @@ namespace history {
 		*/
 		std::set<std::string> get_activity(const std::string& key);
 
+		void add_log_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
+		void add_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
+
 		void increment_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
 
 		void add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
@@ -111,6 +119,10 @@ namespace history {
 		bool								m_log_written;
 		bool								m_stat_updated;
 		ioremap::elliptics::session			m_session;
+
+		std::function<void(bool added)>		m_add_log_callback;
+		std::function<void(bool added)>		m_add_activity_callback;
+
 		std::function<void(bool log_written, bool statistics_updated)>	m_add_user_activity_callback;
 	};
 

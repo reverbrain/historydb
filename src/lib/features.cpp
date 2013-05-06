@@ -36,7 +36,69 @@ features::features(provider::context& context)
 	m_session.set_exceptions_policy(ioremap::elliptics::session::exceptions_policy::no_exceptions);
 }
 
-void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
+void features::add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size)
+{
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Add user log: %s timestamp:%" PRIu64 " data size: %d\n", m_user.c_str(), timestamp, size);
+	m_user_key = make_user_key(timestamp);
+
+	auto res = add_user_data(data, size); // Adds data to the user log
+
+	if(res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
+		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s error: %s\n", m_user_key.c_str(), res.error().message().c_str());
+		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
+	}
+
+	m_self.reset();
+}
+
+void features::add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size, std::function<void(bool added)> callback)
+{
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Add user log: %s timestamp:%" PRIu64 " data size: %d\n", m_user.c_str(), timestamp, size);
+
+	m_user_key = make_user_key(timestamp);
+	m_add_log_callback = callback;
+
+	auto res = add_user_data(data, size); // Adds data to the user log
+
+	res.connect(boost::bind(&features::add_log_callback, this, _1, _2)); // connect callback
+}
+
+void features::add_activity(const std::string& user, uint64_t timestamp, const std::string& key)
+{
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Add user activity: %s timestamp:%" PRIu64 " custom key: %s\n", m_user.c_str(), timestamp, key.c_str());
+
+	m_user_key = make_user_key(timestamp);
+
+	m_activity_key = key.empty() ? make_key(timestamp) : key;
+
+	auto res = increment_activity(); // increment user activity
+
+	if (res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
+		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity for key: %s error: %s\n", m_chunk_key.c_str(), res.error().message().c_str());
+		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
+	}
+	m_self.reset();
+}
+
+void features::add_activity(const std::string& user, uint64_t timestamp, std::function<void(bool added)> callback, const std::string& key)
+{
+	m_user = user;
+	LOG(DNET_LOG_INFO, "Add user activity: %s timestamp:%" PRIu64 " custom key: %s\n", m_user.c_str(), timestamp, key.c_str());
+
+	m_user_key = make_user_key(timestamp);
+	m_add_activity_callback = callback;
+
+	m_activity_key = key.empty() ? make_key(timestamp) : key;
+
+	auto res = increment_activity(); // increment user activity
+
+	res.connect(boost::bind(&features::add_activity_callback, this, _1, _2)); // connect callback
+}
+
+void features::add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, const std::string& key)
 {
 	m_user = user;
 	LOG(DNET_LOG_INFO, "Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", m_user.c_str(), time, size, key.c_str());
@@ -60,7 +122,7 @@ void features::add_user_activity(const std::string& user, uint64_t time, void* d
 	m_self.reset();
 }
 
-void features::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key)
+void features::add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, std::function<void(bool log_written, bool statistics_updated)> func, const std::string& key)
 {
 	m_user = user;
 	LOG(DNET_LOG_INFO, "Async: Add activity user: %s time: %" PRIu64 " data size: %d custom key: %s\n", m_user.c_str(), time, size, key.c_str());
@@ -219,7 +281,7 @@ void features::for_active_users(const std::string& key, std::function<bool(const
 	m_self.reset();
 }
 
-ioremap::elliptics::async_write_result features::add_user_data(void* data, uint32_t size)
+ioremap::elliptics::async_write_result features::add_user_data(const void* data, uint32_t size)
 {
 	LOG(DNET_LOG_DEBUG, "Adding DNET_IO_FLAGS_APPEND to session ioflags\n");
 	m_session.set_ioflags(DNET_IO_FLAGS_APPEND);
@@ -302,6 +364,24 @@ std::set<std::string> features::get_activity(const std::string& key)
 	}
 
 	return ret;
+}
+
+void features::add_log_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error)
+{
+	bool added = res.size() < m_context.min_writes;
+	if(!added)
+		LOG(DNET_LOG_ERROR, "Can't write data while async adding data to user log key: %s error: %s\n", m_user_key.c_str(), error.message().c_str());
+
+	m_add_log_callback(added);
+}
+
+void features::add_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error)
+{
+	bool added = res.size() < m_context.min_writes;
+	if(!added)
+		LOG(DNET_LOG_ERROR, "Can't write data while async incrementing activity for key: %s error: %s\n", m_chunk_key.c_str(), error.message().c_str());
+
+	m_add_activity_callback(added);
 }
 
 void features::increment_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info&)

@@ -34,9 +34,10 @@ namespace fcgi {
 
 		void handle_root(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle request to root path
 		void handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle request to unknown path
-		void handle_test(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle request to test path
 
-		void handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle add activity request
+		void handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void handle_add_user_activity(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle add activity request
 		void handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get active user request
 		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get user logs request
 

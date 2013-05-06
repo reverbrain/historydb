@@ -25,8 +25,13 @@ namespace history {
 
 		virtual void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes);
 
-		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string());
-		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key = std::string());
+		virtual void add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size);
+		virtual void add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size, std::function<void(bool added)> callback);
+		virtual void add_activity(const std::string& user, uint64_t timestamp, const std::string& key);
+		virtual void add_activity(const std::string& user, uint64_t timestamp, std::function<void(bool added)> callback, const std::string& key);
+
+		virtual void add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, const std::string& key = std::string());
+		virtual void add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key = std::string());
 
 		/*virtual void repartition_activity(const std::string& key, uint32_t parts);
 		virtual void repartition_activity(const std::string& old_key, const std::string& new_key, uint32_t parts);
@@ -53,7 +58,7 @@ namespace history {
 			ioremap::elliptics::file_logger		log; // logger
 			ioremap::elliptics::node			node; // elliptics node
 			keys_size_cache						keys_cache; // cache of activity keys size
-			boost::mutex						gen_mutex;
+			boost::mutex						gen_mutex; // mutex for generator
 			boost::mt19937						generator; // random generator
 		};
 

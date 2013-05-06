@@ -95,13 +95,37 @@ void provider::set_session_parameters(const std::vector<int>& groups, uint32_t m
 	LOG(DNET_LOG_INFO, "minimum number of successfull writes: %d\n", min_writes);
 }
 
-void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key)
+void provider::add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size)
+{
+	features f(m_context);
+	f.add_log(user, timestamp, data, size);
+}
+
+void provider::add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size, std::function<void(bool added)> callback)
+{
+	features f(m_context);
+	f.add_log(user, timestamp, data, size, callback);
+}
+
+void provider::add_activity(const std::string& user, uint64_t timestamp, const std::string& key)
+{
+	features f(m_context);
+	f.add_activity(user, timestamp, key);
+}
+
+void provider::add_activity(const std::string& user, uint64_t timestamp, std::function<void(bool added)> callback, const std::string& key)
+{
+	features f(m_context);
+	f.add_activity(user, timestamp, callback, key);
+}
+
+void provider::add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, const std::string& key)
 {
 	features f(m_context);
 	f.add_user_activity(user, time, data, size, key);
 }
 
-void provider::add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key)
+void provider::add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key)
 {
 	make_features()->add_user_activity(user, time, data, size, func, key);
 }

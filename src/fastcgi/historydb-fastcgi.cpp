@@ -107,8 +107,9 @@ namespace history { namespace fcgi {
 	void handler::init_handlers()
 	{
 		ADD_HANDLER("/",					handle_root);
-		ADD_HANDLER("/test",				handle_test);
+		ADD_HANDLER("/add_log",				handle_add_log);
 		ADD_HANDLER("/add_activity",		handle_add_activity);
+		ADD_HANDLER("/add_user_activity",	handle_add_user_activity);
 		ADD_HANDLER("/get_active_users",	handle_get_active_users);
 		ADD_HANDLER("/get_user_logs",		handle_get_user_logs);
 	}
@@ -116,46 +117,7 @@ namespace history { namespace fcgi {
 	void handler::handle_root(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle root request\n");
-		fastcgi::RequestStream stream(req);
-
-		stream <<	"\
-					<html> \n\
-						<head> \n\
-						<script src=\"//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js\"></script> \n\
-						</head> \n\
-						<body>\n\
-							<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Add activity</div>\n\
-								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
-									<form name=\"add\" action=\"add_activity\" method=\"post\">\n\
-										User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
-										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"0\"><br>\n\
-										Data: <input type=\"text\" name=\"data\" value=\"DATA_\"><br>\n\
-										Key: <input type=\"text\" name=\"key\" valude=\"\"><br>\n\
-										<input type=\"submit\" value=\"Send\">\n\
-									</form>\n\
-								</div>\n\
-							</div>\n\
-							<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Get active users</div>\n\
-								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
-									<form name=\"get_user\" action=\"get_active_users\" method=\"get\">\n\
-										Timestamp: <input type=\"text\" name=\"timestamp\" value=\"0\"><br>\n\
-										Key: <input type=\"text\" name=\"key\" valude=\"0\"><br>\n\
-										<input type=\"submit\" value=\"Send\">\n\
-									</form>\n\
-								</div>\n\
-							</div>\n\
-							<div class=\"title\" onclick=\"$(this).next('.content').toggle();\" style=\"cursor: pointer;\">Get user logs</div>\n\
-								<div class=\"content\" style=\"display:none;background-color:gainsboro;\">\n\
-									<form name=\"get_logs\" action=\"get_user_logs\" method=\"get\">\n\
-										User name: <input type=\"text\" name=\"user\" value=\"WebUser1\"><br>\n\
-										Begin timestamp: <input type=\"text\" name=\"begin_time\" value=\"0\"><br>\n\
-										End timestamp: <input type=\"text\" name=\"end_time\" value=\"0\"><br>\n\
-										<input type=\"submit\" value=\"Send\">\n\
-									</form>\n\
-								</div>\n\
-							</div>\n\
-						</body> \n\
-					</html>";
+		req->setStatus(200);
 	}
 
 	void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext*)
@@ -164,13 +126,58 @@ namespace history { namespace fcgi {
 		req->setStatus(404); // Sets 404 status for respone - wrong uri code
 	}
 
-	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
+	void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	{
+		m_logger->debug("Handle add log request\n");
+
+		if(!req->hasArg("user") || !req->hasArg("data") || !req->hasArg("timestamp")) {
+			m_logger->error("Required parameter 'data' or 'user' or 'timestamp' is missing\n");
+			req->setStatus(404);
+			return;
+		}
+
+		fastcgi::RequestStream stream(req);
+
+		auto user = req->getArg("user");
+		auto timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
+		auto data = req->getArg("data");
+
+		m_provider->add_log(user, timestamp, data.c_str(), data.size());
+	}
+
+	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context)
 	{
 		m_logger->debug("Handle add activity request\n");
+
+		if(!req->hasArg("user")) {
+			m_logger->error("Required parameter 'user' is missing\n");
+			req->setStatus(404);
+			return;
+		}
+
+		fastcgi::RequestStream stream(req);
+
+		auto user = req->getArg("user");
+
+		uint64_t timestamp = time(NULL);
+		std::string key = std::string();
+
+		if(req->hasArg("timestamp"))
+			timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
+
+		if(req->hasArg("key"))
+			key = req->getArg("key");
+
+		m_provider->add_activity(user, timestamp, key);
+	}
+
+	void handler::handle_add_user_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
+	{
+		m_logger->debug("Handle add user activity request\n");
 		fastcgi::RequestStream stream(req);
 
 		if (!req->hasArg("data") || !req->hasArg("user")) { // checks required parameters
-			m_logger->error("Required paramenter 'data' or 'user' is missing\n");
+			m_logger->error("Required parameter 'data' or 'user' is missing\n");
 			req->setStatus(404);
 			return;
 		}
@@ -275,12 +282,6 @@ namespace history { namespace fcgi {
 		m_logger->debug("Result json: %s\n", json);
 
 		stream << json; // writes result json to fastcgi stream
-	}
-
-	void handler::handle_test(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->debug("Handle test request\n");
-		req->setStatus(200); // sets 200 status for test request.
 	}
 
 	FCGIDAEMON_REGISTER_FACTORIES_BEGIN()

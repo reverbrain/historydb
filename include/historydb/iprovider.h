@@ -21,6 +21,38 @@ namespace history {
 		*/
 		virtual void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes) = 0;
 
+		/* Adds data to user logs
+			user - name of user
+			timestamp - timestamp of the log record
+			data - pointer to the data of log record
+			size - size of the data
+		*/
+		virtual void add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size) = 0;
+
+		/* Async adds data to user logs
+			user - name of user
+			timestamp - timestamp of the log record
+			data - pointer to the data of log record
+			size - size of the data
+			callback - functor which will be called when operation be completed
+		*/
+		virtual void add_log(const std::string& user, uint64_t timestamp, const void* data, uint32_t size, std::function<void(bool added)> callback) = 0;
+
+		/* Increments user activity statistics
+			user - name of user
+			timestamp - timestamp of activity
+			key - custom key of activity statistics
+		*/
+		virtual void add_activity(const std::string& user, uint64_t timestamp, const std::string& key = std::string()) = 0;
+
+		/* Increments user activity statistics
+			user - name of user
+			timestamp - timestamp of activity
+			callback - functor which will be called when operation be completed
+			key - custom key of activity statistics
+		*/
+		virtual void add_activity(const std::string& user, uint64_t timestamp, std::function<void(bool added)> callback, const std::string& key = std::string()) = 0;
+
 		/* Adds data to user log file and increments user activity statistics.
 			user - name of user
 			time - current time, or time when data was created.
@@ -28,7 +60,7 @@ namespace history {
 			size - size of the data for user log
 			key - custom key for activity statistics. It used for identification activity statistics file in elliptics. If key is std::string() generated id will be used instead of custom key.
 		*/
-		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, const std::string& key = std::string()) = 0;
+		virtual void add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, const std::string& key = std::string()) = 0;
 
 		/* Async adds data to user log file and increments user activity statistics.
 			user - name of user
@@ -38,7 +70,7 @@ namespace history {
 			func - callback which will be called after all
 			key - custom key for activity statistics. It used for identification activity statistics file in elliptics. If key is std::string() generated id will be used instead of custom key.
 		*/
-		virtual void add_user_activity(const std::string& user, uint64_t time, void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key = std::string()) = 0;
+		virtual void add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, std::function<void(bool log_writed, bool statistics_updated)> func, const std::string& key = std::string()) = 0;
 
 		/* Gets user's logs for specified period
 			user - name of user
