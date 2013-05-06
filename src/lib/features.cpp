@@ -74,10 +74,10 @@ void features::add_activity(const std::string& user, uint64_t timestamp, const s
 
 	m_activity_key = key.empty() ? make_key(timestamp) : key;
 
-	auto res = increment_activity(); // increment user activity
+	auto res = update_activity(); // updatea user activity
 
 	if (res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity for key: %s error: %s\n", m_chunk_key.c_str(), res.error().message().c_str());
+		LOG(DNET_LOG_ERROR, "Can't write data while updating activity for key: %s error: %s\n", m_chunk_key.c_str(), res.error().message().c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 	m_self.reset();
@@ -93,7 +93,7 @@ void features::add_activity(const std::string& user, uint64_t timestamp, std::fu
 
 	m_activity_key = key.empty() ? make_key(timestamp) : key;
 
-	auto res = increment_activity(); // increment user activity
+	auto res = update_activity(); // updates user activity
 
 	res.connect(boost::bind(&features::add_activity_callback, this, _1, _2)); // connect callback
 }
@@ -108,15 +108,15 @@ void features::add_user_activity(const std::string& user, uint64_t time, const v
 	m_activity_key = key.empty() ? make_key(time) : key;
 
 	auto add_res = add_user_data(data, size); // Adds data to the user log
-	auto increment_res = increment_activity();
+	auto update_res = update_activity();
 
 	if (add_res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
 		LOG(DNET_LOG_ERROR, "Can't write data while adding data to user log key: %s error: %s\n", m_user_key.c_str(), add_res.error().message().c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 
-	if (increment_res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
-		LOG(DNET_LOG_ERROR, "Can't write data while incrementing activity for key: %s error: %s\n", m_chunk_key.c_str(), increment_res.error().message().c_str());
+	if (update_res.get().size() < m_context.min_writes) { // Checks number of successfull results and if it is less minimum then throw exception
+		LOG(DNET_LOG_ERROR, "Can't write data while updating activity for key: %s error: %s\n", m_chunk_key.c_str(), update_res.error().message().c_str());
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 	}
 	m_self.reset();
@@ -293,7 +293,7 @@ ioremap::elliptics::async_write_result features::add_user_data(const void* data,
 	return m_session.write_data(m_user_key, dp, 0); // write data into elliptics
 }
 
-ioremap::elliptics::async_update_indexes_result features::increment_activity()
+ioremap::elliptics::async_update_indexes_result features::update_activity()
 {
 	m_session.set_ioflags(DNET_IO_FLAGS_CACHE/* | DNET_IO_FLAGS_CACHE_ONLY*/);
 	uint32_t chunk = 0;
@@ -379,12 +379,12 @@ void features::add_activity_callback(const ioremap::elliptics::sync_update_index
 {
 	bool added = res.size() < m_context.min_writes;
 	if(!added)
-		LOG(DNET_LOG_ERROR, "Can't write data while async incrementing activity for key: %s error: %s\n", m_chunk_key.c_str(), error.message().c_str());
+		LOG(DNET_LOG_ERROR, "Can't write data while async updating activity for key: %s error: %s\n", m_chunk_key.c_str(), error.message().c_str());
 
 	m_add_activity_callback(added);
 }
 
-void features::increment_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info&)
+void features::update_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info&)
 {
 	bool written = res.size() >= m_context.min_writes;
 
@@ -407,7 +407,7 @@ void features::add_user_data_callback(const ioremap::elliptics::sync_write_resul
 	m_log_written = res.size() >= m_context.min_writes;
 	LOG(DNET_LOG_DEBUG, "Add user data callback result: %s\n", (m_log_written ? "written" : "failed"));
 
-	increment_activity().connect(boost::bind(&features::increment_activity_callback, this, _1, _2));
+	update_activity().connect(boost::bind(&features::update_activity_callback, this, _1, _2));
 }
 
 }

@@ -63,9 +63,9 @@ namespace history {
 		*/
 		ioremap::elliptics::async_write_result add_user_data(const void* data, uint32_t size);
 
-		/* Increments user activity statistics
+		/* Updatess user activity statistics
 		*/
-		ioremap::elliptics::async_update_indexes_result increment_activity();
+		ioremap::elliptics::async_update_indexes_result update_activity();
 
 		/* Makes user log id from user name and timestamp
 			user - name of user
@@ -103,7 +103,7 @@ namespace history {
 		void add_log_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
 		void add_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
 
-		void increment_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
+		void update_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
 
 		void add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
 

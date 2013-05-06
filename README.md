@@ -33,7 +33,11 @@ Interface of the History DB presented in `iprovider.h` file.
 		It includes vector of elliptics groups (replicas) in which HistoryDB stores data and
 		minimum number of succeded writes.
 
-	iprovider::add_user_activity() - appends data to user log and increments its activity counter.
+	iprovider::add_log - appends data to user log
+
+	iprovider::add_activity - updates user activity
+
+	iprovider::add_user_activity() - appends data to user log and updates user activity.
 		There are two implementation of this function: synchronous and asynchronous.
 
 	iprovider::get_user_logs() - gets user logs.
