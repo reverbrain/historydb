@@ -17,12 +17,17 @@
 
 namespace history {
 
-std::shared_ptr<iprovider> create_provider(const std::vector<server_info>& servers, const char* log_file, const int log_level)
+std::shared_ptr<iprovider> create_provider(const std::vector<server_info>& servers, const std::string& log_file, const int log_level)
 {
 	return std::make_shared<provider>(servers, log_file, log_level);
 }
 
-int get_log_level(const char* log_level)
+std::shared_ptr<iprovider> create_provider(const std::vector<std::string>& servers, const std::string& log_file, const int log_level)
+{
+	return std::make_shared<provider>(servers, log_file, log_level);
+}
+
+int get_log_level(const std::string& log_level)
 {
 			if (boost::iequals(log_level,	"DATA"))	return DNET_LOG_DATA;
 	else	if (boost::iequals(log_level,	"ERROR"))	return DNET_LOG_ERROR;
@@ -44,20 +49,31 @@ dnet_config create_config()
 	return config;
 }
 
-provider::context::context(const char* log_file, const int log_level)
+provider::context::context(const std::string& log_file, const int log_level)
 : config(create_config())
-, log(log_file, log_level)
+, log(log_file.c_str(), log_level)
 , node(log, config)
 {
 	generator.seed(time(NULL));
 }
 
-provider::provider(const std::vector<server_info>& servers, const char* log_file, const int log_level)
+provider::provider(const std::vector<server_info>& servers, const std::string& log_file, const int log_level)
 : m_context(log_file, log_level)
 {
 	for(auto it = servers.begin(), itEnd = servers.end(); it != itEnd; ++it) {
-		m_context.node.add_remote(it->addr, it->port, it->family);	// Adds connection parameters to the node.
-		LOG(DNET_LOG_INFO, "Added remote for %s:%d:%d\n", it->addr, it->port, it->family);
+		m_context.node.add_remote(it->addr.c_str(), it->port, it->family);	// Adds connection parameters to the node.
+		LOG(DNET_LOG_INFO, "Added remote for %s:%d:%d\n", it->addr.c_str(), it->port, it->family);
+	}
+
+	LOG(DNET_LOG_INFO, "Provider has been created\n");
+}
+
+provider::provider(const std::vector<std::string>& servers, const std::string& log_file, const int log_level)
+: m_context(log_file, log_level)
+{
+	for(auto it = servers.begin(), itEnd = servers.end(); it != itEnd; ++it) {
+		m_context.node.add_remote(it->c_str());	// Adds connection parameters to the node.
+		LOG(DNET_LOG_INFO, "Added remote for %s\n", it->c_str());
 	}
 
 	LOG(DNET_LOG_INFO, "Provider has been created\n");

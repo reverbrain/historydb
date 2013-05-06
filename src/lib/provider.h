@@ -19,7 +19,8 @@ namespace history {
 	class provider: public iprovider
 	{
 	public:
-		provider(const std::vector<server_info>& servers, const char* log_file, const int log_level);
+		provider(const std::vector<server_info>& servers, const std::string& log_file, const int log_level);
+		provider(const std::vector<std::string>& servers, const std::string& log_file, const int log_level);
 		virtual ~provider();
 
 		virtual void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes);
@@ -44,7 +45,7 @@ namespace history {
 
 		struct context
 		{
-			context(const char* log_file, const int log_level);
+			context(const std::string& log_file, const int log_level);
 
 			std::vector<int>					groups; // groups of elliptics
 			uint32_t							min_writes; // minimum number of succeeded writes for each write attempt

@@ -81,18 +81,25 @@ namespace history {
 
 	struct server_info
 	{
-		const char* addr;
+		std::string addr;
 		int port;
 		int family;
 	};
 
-	/* Creates inctance of history::iprovider
-		server_addr - elliptics address
-		server_port - elliptics port
-		family - inet family
+	/* Creates instance of history::iprovider
+		servers - vector of elliptics servers info
+		log_file - path to log file
+		log_level - logging level
 	*/
-	extern std::shared_ptr<iprovider> create_provider(const std::vector<server_info>& servers, const char* log_file, const int log_level);
-	extern int get_log_level(const char* log_level);
+	extern std::shared_ptr<iprovider> create_provider(const std::vector<server_info>& servers, const std::string& log_file, const int log_level);
+
+	/* Creates instance of history::iprovider
+		servers - vector of elliptics servers addresses in follow format: address:port:family
+		log_file - path to log file
+		log_level - logging level
+	*/
+	extern std::shared_ptr<iprovider> create_provider(const std::vector<std::string>& servers, const std::string& log_file, const int log_level);
+	extern int get_log_level(const std::string& log_level);
 } /* namespace history */
 
 #endif //HISTORY_IPROVIDER_H

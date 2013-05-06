@@ -53,7 +53,7 @@ namespace history { namespace fcgi {
 		for(auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
 			addrs.emplace_back(config->asString(*it + "/addr"));
 			server_info info;
-			info.addr = addrs.rbegin()->c_str();
+			info.addr = *(addrs.rbegin());
 			info.port = config->asInt(*it + "/port");
 			info.family = config->asInt(*it + "/family");
 			servers.emplace_back(info);
@@ -62,7 +62,7 @@ namespace history { namespace fcgi {
 		const auto log_file		= config->asString(xpath + "/log_file"); // gets historydb log file path from config
 		const auto log_level	= config->asString(xpath + "/log_level"); // gets historydb log level from config
 
-		m_provider = history::create_provider(servers, log_file.c_str(), history::get_log_level(log_level.c_str())); // creates historydb provider instance
+		m_provider = history::create_provider(servers, log_file, history::get_log_level(log_level)); // creates historydb provider instance
 
 		m_logger->debug("HistoryDB provider has been created\n");
 
