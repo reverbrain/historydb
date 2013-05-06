@@ -1,3 +1,16 @@
+historydb (0.1.1.0) unstable; urgency=low
+
+  * Implemented fastcgi proxy library and include it in debian package.
+  * Chose json as output format for fastcgi proxy.
+  * Replaced using write_cas'es to using indexes.
+  * Improved configuring HistoryDB via fastcgi config file and c++ interface.
+  * Extended logging HistoryDB.
+  * Fixed build on rhel 5/6.
+  * Added separated methods for adding user log and incrementing user activity.
+
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Mon, 06 May 2013 16:43:36 +0400
+
 historydb (0.1.0.0) unstable; urgency=low
 
   * History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
