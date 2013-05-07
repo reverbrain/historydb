@@ -5,6 +5,7 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
 
 #include "historydb/iprovider.h"
 
@@ -19,7 +20,8 @@ char USER2[]	= "BlaUser2";
 char LOG_FILE[]	= "/tmp/hdb_log"; // path to log file
 int LOG_LEVEL	= 0; // log level
 
-void print_usage(char* s) {
+void print_usage(char* s)
+{
 	std::cout << "Usage: " << s << "\n"
 	<< " -r addr:port:family    - adds a route to the given node\n"
 	<< " -g groups              - groups id to connect which are separated by ','\n"
@@ -51,7 +53,8 @@ bool test1_for4(const std::string& user)
 	return true;
 }
 
-void test1(std::shared_ptr<history::iprovider> provider) {
+void test1(std::shared_ptr<history::iprovider> provider)
+{
 	std::cout << "Run test1" << std::endl;
 	auto tm = 0;
 
@@ -105,7 +108,8 @@ bool test3_for2(uint32_t ind, const std::string& user)
 	return true;
 }
 
-void test3(std::shared_ptr<history::iprovider> provider) {
+void test3(std::shared_ptr<history::iprovider> provider)
+{
 	auto tm = 1;
 	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM), test3_add);
 
@@ -119,15 +123,32 @@ void test3(std::shared_ptr<history::iprovider> provider) {
 	}
 }
 
-void run_test(int test_no, std::shared_ptr<history::iprovider> provider) {
+void test4_callback(bool added)
+{
+	std::cout << "Test4 res: " << (added ? "added" : "failed") << std::endl;
+}
+
+void test4(std::shared_ptr<history::iprovider> provider)
+{
+	std::cout << "TEST4:" << std::endl;
+
+	provider->add_log("PU", 0, "ASDSADA", 8, &test4_callback);
+
+	boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+}
+
+void run_test(int test_no, std::shared_ptr<history::iprovider> provider)
+{
 	switch(test_no) {
 		case 1:	test1(provider); break;
 		case 2:	test2(provider); break;
 		case 3: test3(provider); break;
+		case 4: test4(provider); break;
 	}
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 	int ch, err = 0;
 	std::string remote_addr;
 	int port = -1;

@@ -7,6 +7,7 @@
 #include <boost/thread/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
+#include <boost/lambda/lambda.hpp>
 
 #include "keys_size_cache.h"
 
@@ -62,7 +63,8 @@ void features::add_log(const std::string& user, uint64_t timestamp, const void* 
 
 	auto res = add_user_data(data, size); // Adds data to the user log
 
-	res.connect(boost::bind(&features::add_log_callback, this, _1, _2)); // connect callback
+	res.connect(boost::bind(callback,
+							(boost::bind(&ioremap::elliptics::sync_write_result::size, _1) >= m_context.min_writes)));
 }
 
 void features::add_activity(const std::string& user, uint64_t timestamp, const std::string& key)
@@ -95,7 +97,8 @@ void features::add_activity(const std::string& user, uint64_t timestamp, std::fu
 
 	auto res = update_activity(); // updates user activity
 
-	res.connect(boost::bind(&features::add_activity_callback, this, _1, _2)); // connect callback
+	res.connect(boost::bind(callback,
+							(boost::bind(&ioremap::elliptics::sync_update_indexes_result::size, _1) >= m_context.min_writes)));
 }
 
 void features::add_user_activity(const std::string& user, uint64_t time, const void* data, uint32_t size, const std::string& key)
@@ -364,24 +367,6 @@ std::set<std::string> features::get_activity(const std::string& key)
 	}
 
 	return ret;
-}
-
-void features::add_log_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error)
-{
-	bool added = res.size() < m_context.min_writes;
-	if(!added)
-		LOG(DNET_LOG_ERROR, "Can't write data while async adding data to user log key: %s error: %s\n", m_user_key.c_str(), error.message().c_str());
-
-	m_add_log_callback(added);
-}
-
-void features::add_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error)
-{
-	bool added = res.size() < m_context.min_writes;
-	if(!added)
-		LOG(DNET_LOG_ERROR, "Can't write data while async updating activity for key: %s error: %s\n", m_chunk_key.c_str(), error.message().c_str());
-
-	m_add_activity_callback(added);
 }
 
 void features::update_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info&)

@@ -100,9 +100,6 @@ namespace history {
 		*/
 		std::set<std::string> get_activity(const std::string& key);
 
-		void add_log_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
-		void add_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
-
 		void update_activity_callback(const ioremap::elliptics::sync_update_indexes_result& res, const ioremap::elliptics::error_info& error);
 
 		void add_user_data_callback(const ioremap::elliptics::sync_write_result& res, const ioremap::elliptics::error_info& error);
