@@ -1,3 +1,9 @@
+historydb (0.1.1.1) unstable; urgency=low
+
+  * Fixed spec file 
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Tue, 07 May 2013 12:22:15 +0400
+
 historydb (0.1.1.0) unstable; urgency=low
 
   * Implemented fastcgi proxy library and include it in debian package.

@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.1.0.0
+Version:	0.1.1.1
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -70,6 +70,18 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Tue, 07 May 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.1.1.1
+- Fixed spec file
+
+* Mon, 06 May 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.1.1.0
+- Implemented fastcgi proxy library and include it in debian package.
+- Chose json as output format for fastcgi proxy.
+- Replaced using write_cas'es to using indexes.
+- Improved configuring HistoryDB via fastcgi config file and c++ interface.
+- Extended logging HistoryDB.
+- Fixed build on rhel 5/6.
+- Added separated methods for adding user log and incrementing user activity.
+
 * Wed Apr  3 2013 Evgeniy Polyakov <zbr@ioremap.net> - 0.1.0.0-1
 - initial build
 
