@@ -117,9 +117,6 @@ namespace history {
 		bool								m_stat_updated;
 		ioremap::elliptics::session			m_session;
 
-		std::function<void(bool added)>		m_add_log_callback;
-		std::function<void(bool added)>		m_add_activity_callback;
-
 		std::function<void(bool log_written, bool statistics_updated)>	m_add_user_activity_callback;
 	};
 

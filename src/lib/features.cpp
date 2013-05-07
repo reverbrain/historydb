@@ -59,7 +59,6 @@ void features::add_log(const std::string& user, uint64_t timestamp, const void* 
 	LOG(DNET_LOG_INFO, "Add user log: %s timestamp:%" PRIu64 " data size: %d\n", m_user.c_str(), timestamp, size);
 
 	m_user_key = make_user_key(timestamp);
-	m_add_log_callback = callback;
 
 	auto res = add_user_data(data, size); // Adds data to the user log
 
@@ -91,7 +90,6 @@ void features::add_activity(const std::string& user, uint64_t timestamp, std::fu
 	LOG(DNET_LOG_INFO, "Add user activity: %s timestamp:%" PRIu64 " custom key: %s\n", m_user.c_str(), timestamp, key.c_str());
 
 	m_user_key = make_user_key(timestamp);
-	m_add_activity_callback = callback;
 
 	m_activity_key = key.empty() ? make_key(timestamp) : key;
 
