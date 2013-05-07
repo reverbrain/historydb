@@ -70,10 +70,10 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
-* Tue, 07 May 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.1.1.1
+* Tue May  7 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.1.1.1
 - Fixed spec file
 
-* Mon, 06 May 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.1.1.0
+* Mon May  6 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.1.1.0
 - Implemented fastcgi proxy library and include it in debian package.
 - Chose json as output format for fastcgi proxy.
 - Replaced using write_cas'es to using indexes.
