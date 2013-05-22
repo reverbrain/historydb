@@ -71,6 +71,43 @@ Include `historydb/iprovider.h`.
 Create `iprovider` instance by calling `create_provider` method.
 Use iprovider instance to write/read user logs, update activity, gets active user statistics, repartition shards etc.
 
+HTTP interface
+=========
+HistoryDB has follow HTTP interface implemented via fastcgi-daemon2:
+
+	"/add_log" - adds record to user logs.
+		Parameters:
+			user - name of the user
+			data - data of the log record
+			timestamp - timestamp of log record
+
+	"/add_activity" - marks user as active in the day.
+		Parameters:
+			user - name of the user
+			[timestamp] - timestamp of user activity
+			[key] - custom key for storing user's activity
+	
+	"/add_user_activity" - adds record to user logs and marks user as active in the day.
+		Parameters:
+			user - name of the user
+			data - data of the log record
+			[timestamp] - timestamp of user activity
+			[key] - custom key for storing user's activity
+	
+	"/get_active_users" - returns users who was active in the day.
+		Parameters:
+			timestamp - timestamp around of which will be searching for active users
+			key - custom key of activity statistics
+		Use only one parameter. If both are specified the key will be used.
+	
+	"/get_user_logs" - returns logs of user.
+		Parameters:
+			user - name of the user
+			begin_time - timestamp of the first day for which user's log should be picked
+			end_time - timestamp of the last day for which user's log should be picked
+			
+	"/" - has no parameters. If all is ok - returns HTTP 200. May be used for checking service.
+
 Fastcgi-daemon2 config file
 =========
 
