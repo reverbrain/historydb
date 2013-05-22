@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.1.1.1
+Version:	0.2.1.0
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -70,6 +70,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Wed May 22 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.1.0
+- Updated dependencies: changed elliptics version to 2.25
+
 * Tue May  7 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.1.1.1
 - Fixed spec file
 
