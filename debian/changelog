@@ -1,12 +1,6 @@
-historydb (0.2.1.0) unstable; urgency=low
-
-  * Updated dependencies: changed elliptics version to 2.25
-
- -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Wed, 22 May 2013 16:17:51 +0400
-
 historydb (0.1.1.1) unstable; urgency=low
 
-  * Fixed spec file
+  * Fixed spec file 
 
  -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Tue, 07 May 2013 12:22:15 +0400
 
