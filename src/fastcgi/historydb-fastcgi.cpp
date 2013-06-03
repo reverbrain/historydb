@@ -107,7 +107,7 @@ namespace history { namespace fcgi {
 		ADD_HANDLER("/",					handle_root);
 		ADD_HANDLER("/add_log",				handle_add_log);
 		ADD_HANDLER("/add_activity",		handle_add_activity);
-		ADD_HANDLER("/add_user_activity",	handle_add_user_activity);
+		//ADD_HANDLER("/add_user_activity",	handle_add_user_activity);
 		ADD_HANDLER("/get_active_users",	handle_get_active_users);
 		ADD_HANDLER("/get_user_logs",		handle_get_user_logs);
 	}
