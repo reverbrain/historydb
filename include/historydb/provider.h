@@ -1,5 +1,5 @@
-#ifndef HISTORY_IPROVIDER_H
-#define HISTORY_IPROVIDER_H
+#ifndef HISTORY_PROVIDER_H
+#define HISTORY_PROVIDER_H
 
 #include <memory>
 #include <stdint.h>
@@ -186,4 +186,4 @@ extern int get_log_level(const std::string& log_level);
 
 } /* namespace history */
 
-#endif //HISTORY_IPROVIDER_H
+#endif //HISTORY_PROVIDER_H
