@@ -11,7 +11,7 @@
 #include <fastcgi2/request.h>
 #include <fastcgi2/component_factory.h>
 
-#include <historydb/iprovider.h>
+#include <historydb/provider.h>
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -62,8 +62,6 @@ namespace history { namespace fcgi {
 		const auto log_file		= config->asString(xpath + "/log_file"); // gets historydb log file path from config
 		const auto log_level	= config->asString(xpath + "/log_level"); // gets historydb log level from config
 
-		m_provider = history::create_provider(servers, log_file, history::get_log_level(log_level)); // creates historydb provider instance
-
 		m_logger->debug("HistoryDB provider has been created\n");
 
 		std::vector<int> groups;
@@ -81,7 +79,7 @@ namespace history { namespace fcgi {
 
 		int min_writes = config->asInt(xpath + "/min_writes");
 
-		m_provider->set_session_parameters(groups, min_writes); // sets provider session parameters
+		m_provider = std::make_shared<history::provider>(servers, groups, min_writes, log_file, history::get_log_level(log_level)); // creates historydb provider instance
 	}
 
 	void handler::onUnload()
@@ -126,7 +124,7 @@ namespace history { namespace fcgi {
 		req->setStatus(404); // Sets 404 status for respone - wrong uri code
 	}
 
-	void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle add log request\n");
 
@@ -142,10 +140,12 @@ namespace history { namespace fcgi {
 		auto timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
 		auto data = req->getArg("data");
 
-		m_provider->add_log(user, timestamp, data.c_str(), data.size());
+		std::vector<char> std_data(data.begin(), data.end());
+
+		m_provider->add_log(user, timestamp, std_data);
 	}
 
-	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context)
+	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle add activity request\n");
 
@@ -159,19 +159,20 @@ namespace history { namespace fcgi {
 
 		auto user = req->getArg("user");
 
-		uint64_t timestamp = time(NULL);
-		std::string key = std::string();
-
-		if(req->hasArg("timestamp"))
-			timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
-
-		if(req->hasArg("key"))
-			key = req->getArg("key");
-
-		m_provider->add_activity(user, timestamp, key);
+		if(req->hasArg("key") && !req->getArg("key").empty()) {
+			auto key = req->getArg("key");
+			m_provider->add_activity(user, key);
+		}
+		else if(req->hasArg("timestamp")) {
+			auto timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
+			m_provider->add_activity(user, timestamp);
+		}
+		else {
+			m_provider->add_activity(user, time(NULL));
+		}
 	}
 
-	void handler::handle_add_user_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
+	/*void handler::handle_add_user_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle add user activity request\n");
 		fastcgi::RequestStream stream(req);
@@ -195,14 +196,14 @@ namespace history { namespace fcgi {
 
 		m_logger->debug("Add user activity: (%s, %d, ..., %d, %s\n", user.c_str(), tm, data.size(), key.c_str());
 		m_provider->add_user_activity(user, tm, const_cast<char*>(data.c_str()), data.size(), key); // calls provider function to add user activity
-	}
+	}*/
 
 	void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle get active user request\n");
 		fastcgi::RequestStream stream(req);
 
-		std::set<std::string> res;
+		std::list<std::string> res;
 
 		if (req->hasArg("key") && !req->getArg("key").empty()) { // checks optional parameter key
 			auto key = req->getArg("key"); // gets key parameter

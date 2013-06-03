@@ -32,6 +32,6 @@ add_subdirectory(src/lib)
 add_subdirectory(src/fastcgi)
 
 install(FILES
-	include/historydb/iprovider.h
+	include/historydb/provider.h
 	DESTINATION include/historydb/
 )

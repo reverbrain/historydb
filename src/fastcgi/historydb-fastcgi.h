@@ -15,7 +15,7 @@ namespace fastcgi {
 }
 
 namespace history {
-	class iprovider;
+	class provider;
 namespace fcgi {
 
 	class handler : virtual public fastcgi::Component, virtual public fastcgi::Handler
@@ -42,7 +42,7 @@ namespace fcgi {
 		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get user logs request
 
 		fastcgi::Logger*																			m_logger;
-		std::shared_ptr<history::iprovider>															m_provider;
+		std::shared_ptr<history::provider>															m_provider;
 
 		std::map<	std::string,
 					std::function<void(fastcgi::Request* req, fastcgi::HandlerContext* context)>>	m_handlers;

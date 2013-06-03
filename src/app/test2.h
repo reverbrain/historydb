@@ -4,9 +4,9 @@
 #include <memory>
 
 namespace history {
-	class iprovider;
+	class provider;
 } /* namespace history */
 
-void test2(std::shared_ptr<history::iprovider> provider);
+void test2(std::shared_ptr<history::provider> provider);
 
 #endif //APP_TEST2_H

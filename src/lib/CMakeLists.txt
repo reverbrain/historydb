@@ -1,4 +1,4 @@
-add_library(historydb SHARED keys_size_cache.cpp features.cpp provider.cpp)
+add_library(historydb SHARED provider.cpp)
 target_link_libraries(historydb
 	${ELLIPTICS_CLIENT_LIBRARIES}
 	${ELLIPTICS_CPP_LIBRARIES}

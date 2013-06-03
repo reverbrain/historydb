@@ -4,7 +4,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
 
-#include "historydb/iprovider.h"
+#include "historydb/provider.h"
 #include "test2.h"
 
 namespace consts {
@@ -28,21 +28,22 @@ bool update()
 	return false;
 }
 
-void test_method(std::shared_ptr<history::iprovider> provider, uint32_t)
+void test_method(std::shared_ptr<history::provider> provider, uint32_t)
 {
+	auto request = std::vector<char>(consts::REQUEST, consts::REQUEST + sizeof(consts::REQUEST));
 	while(update()) {
 		auto user = "user" + boost::lexical_cast<std::string>(rand() % consts::USERS_NO);
-		provider->add_user_activity(user, current_time, consts::REQUEST, sizeof(consts::REQUEST));
+		provider->add_log(user, current_time, request);
 	}
 }
 
-bool test2_for(uint32_t total, const std::string&)
+bool test2_for(uint32_t &total, const std::list<std::string>&)
 {
 	++total;
 	return true;
 }
 
-void test2(std::shared_ptr<history::iprovider> provider)
+void test2(std::shared_ptr<history::provider> provider)
 {
 	std::cout << "Run test2" << std::endl;
 
@@ -66,7 +67,7 @@ void test2(std::shared_ptr<history::iprovider> provider)
 
 	uint32_t total = 0;
 
-	provider->for_active_users(current_time, boost::bind(&test2_for, boost::ref(total), _1));
+	provider->for_active_users(current_time, current_time+1, boost::bind(&test2_for, boost::ref(total), _1));
 
 	std::cout << "Total activities: " << total << std::endl;
 }

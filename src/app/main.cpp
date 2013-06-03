@@ -7,7 +7,7 @@
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
 
-#include "historydb/iprovider.h"
+#include "historydb/provider.h"
 
 #include "test2.h"
 
@@ -29,97 +29,101 @@ void print_usage(char* s)
 	;
 }
 
-bool test1_for1(uint64_t time, void* data, uint32_t size)
+bool test1_for1(const std::vector<char>& data)
 {
-	std::cout << "LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+	std::cout << "LOG1 LAMBDA: " << std::string((char*)&data.front(), data.size()) << " " << time << std::endl;
 	return true;
 }
 
-bool test1_for2(uint64_t time, void* data, uint32_t size)
+bool test1_for2(const std::vector<char>& data)
 {
-	std::cout << "LOG2 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+	std::cout << "LOG2 LAMBDA: " << std::string((char*)&data.front(), data.size()) << " " << time << std::endl;
 	return true;
 }
 
-bool test1_for3(const std::string& user)
+bool test1_for3(const std::list<std::string>& user)
 {
-	std::cout << "ACT1 LAMBDA: " << user << " " << std::endl;
+	std::cout << "ACT1 LAMBDA: " << user.size() << " " << std::endl;
 	return true;
 }
 
-bool test1_for4(const std::string& user)
+bool test1_for4(const std::list<std::string>& user)
 {
-	std::cout << "ACT2 LAMBDA: " << user << " " << std::endl;
+	std::cout << "ACT2 LAMBDA: " << user.size() << " " << std::endl;
 	return true;
 }
 
-void test1(std::shared_ptr<history::iprovider> provider)
+std::vector<char> make_vector(const char* data, uint32_t size)
+{
+	return std::vector<char>(data, data + size);
+}
+
+void test1(std::shared_ptr<history::provider> provider)
 {
 	std::cout << "Run test1" << std::endl;
 	auto tm = 0;
 
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
-	provider->add_user_activity(USER1, tm++, UCM, sizeof(UCM));
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
-	provider->add_user_activity(USER1, tm++, UCR, sizeof(UCR));
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
-	provider->add_user_activity(USER1, tm++, UCR, sizeof(UCR));
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM));
+	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_vector(UCM, sizeof(UCM)));
+	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_vector(UCR, sizeof(UCR)));
+	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_vector(UCR, sizeof(UCR)));
+	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
 
-	provider->add_user_activity(USER2, tm++, UCR, sizeof(UCR));
-	provider->add_user_activity(USER2, tm++, UCR, sizeof(UCR));
-	provider->add_user_activity(USER2, tm++, UCM, sizeof(UCM));
-	provider->add_user_activity(USER2, tm++, UMM, sizeof(UMM));
-	provider->add_user_activity(USER2, tm++, UCR, sizeof(UCR));
-	provider->add_user_activity(USER2, tm++, UMM, sizeof(UMM));
-	provider->add_user_activity(USER2, tm++, UCM, sizeof(UCM));
+	provider->add_log(USER2, tm++, make_vector(UCR, sizeof(UCR)));
+	provider->add_log(USER2, tm++, make_vector(UCR, sizeof(UCR)));
+	provider->add_log(USER2, tm++, make_vector(UCM, sizeof(UCM)));
+	provider->add_log(USER2, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER2, tm++, make_vector(UCR, sizeof(UCR)));
+	provider->add_log(USER2, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER2, tm++, make_vector(UCM, sizeof(UCM)));
 
 	provider->for_user_logs(USER1, 3, tm, test1_for1);
 
 	provider->for_user_logs(USER2, 0, 10, test1_for2);
 
-	provider->for_active_users(tm, test1_for3);
+	provider->for_active_users(tm, tm + 1, test1_for3);
 
 	//provider->repartition_activity(tm, 10);
 
-	provider->for_active_users(tm, test1_for4);
+	provider->for_active_users(tm, tm + 1, test1_for4);
 }
 
-void test3_add(bool log_writed, bool statistics_updated)
+void test3_add(bool log_writed)
 {
-	std::cout	<< "TEST3: add_user_activity: log: " << (log_writed ? "writed" : "not writed")
-				<< " statistics: " << (statistics_updated ? "updated" : "not updated")
+	std::cout	<< "TEST3: add_log: " << (log_writed ? "writed" : "not writed")
 				<< std::endl;
 }
 
-bool test3_for1(uint32_t ind, uint64_t time, void* data, uint32_t size)
+bool test3_for1(uint32_t& ind, const std::vector<char>& data)
 {
-	std::cout << "TEST3: LOG1 LAMBDA: " << std::string((char*)data, size) << " " << time << std::endl;
+	std::cout << "TEST3: LOG1 LAMBDA: " << std::string((char*)&data.front(), data.size()) << std::endl;
 	++ind;
 	return true;
 }
 
-bool test3_for2(uint32_t ind, const std::string& user)
+bool test3_for2(uint32_t& ind, const std::list<std::string>& user)
 {
-	std::cout << "TEST3: ACT1 LAMBDA: " << user << " " << std::endl;
+	std::cout << "TEST3: ACT1 LAMBDA: " << user.size() << " " << std::endl;
 	++ind;
 	return true;
 }
 
-void test3(std::shared_ptr<history::iprovider> provider)
+void test3(std::shared_ptr<history::provider> provider)
 {
 	auto tm = 1;
-	provider->add_user_activity(USER1, tm++, UMM, sizeof(UMM), test3_add);
+	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)), test3_add);
 
 	uint32_t ind = 0;
 
 	while(ind < 2) {
 
-		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, boost::ref(ind), _1, _2, _3));
+		provider->for_user_logs(USER1, 0, tm, boost::bind(&test3_for1, boost::ref(ind), _1));
 
-		provider->for_active_users(tm, boost::bind(&test3_for2, boost::ref(ind), _1));
+		provider->for_active_users(tm, tm + 1, boost::bind(&test3_for2, boost::ref(ind), _1));
 	}
 }
 
@@ -128,16 +132,16 @@ void test4_callback(bool added)
 	std::cout << "Test4 res: " << (added ? "added" : "failed") << std::endl;
 }
 
-void test4(std::shared_ptr<history::iprovider> provider)
+void test4(std::shared_ptr<history::provider> provider)
 {
 	std::cout << "TEST4:" << std::endl;
 
-	provider->add_log("PU", 0, "ASDSADA", 8, &test4_callback);
+	provider->add_log("PU", 0, make_vector("ASDSADA", 8), &test4_callback);
 
 	boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }
 
-void run_test(int test_no, std::shared_ptr<history::iprovider> provider)
+void run_test(int test_no, std::shared_ptr<history::provider> provider)
 {
 	switch(test_no) {
 		case 1:	test1(provider); break;
@@ -207,7 +211,7 @@ int main(int argc, char* argv[])
 	history::server_info info = {remote_addr.c_str(), port, family};
 	servers.emplace_back(info);
 
-	std::shared_ptr<history::iprovider> provider(history::create_provider(servers, LOG_FILE, LOG_LEVEL));
+	auto provider = std::make_shared<history::provider>(servers, std::vector<int>(), 0, LOG_FILE, LOG_LEVEL);
 
 	if (provider.get() == NULL) {
 		std::cout << "Error! Provider hasn't been created!\n";

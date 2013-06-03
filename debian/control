@@ -8,7 +8,7 @@ Build-Depends:	debhelper (>= 7.0.50~),
 		libboost-system-dev,
 		libboost-thread-dev,
 		libfastcgi-daemon2-dev,
-		elliptics-dev (>= 2.22.6.3),
+		elliptics-dev (>= 2.24),
 		libmsgpack-dev
 Standards-Version: 3.8.0
 Homepage: http://github.com/reverbrain/historydb/
