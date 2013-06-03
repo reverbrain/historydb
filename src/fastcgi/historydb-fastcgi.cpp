@@ -128,8 +128,8 @@ namespace history { namespace fcgi {
 	{
 		m_logger->debug("Handle add log request\n");
 
-		if(!req->hasArg("user") || !req->hasArg("data") || !req->hasArg("timestamp")) {
-			m_logger->error("Required parameter 'data' or 'user' or 'timestamp' is missing\n");
+		if(!req->hasArg("user") || !req->hasArg("data") || !req->hasArg("time")) {
+			m_logger->error("Required parameter 'data' or 'user' or 'time' is missing\n");
 			req->setStatus(404);
 			return;
 		}
@@ -137,12 +137,12 @@ namespace history { namespace fcgi {
 		fastcgi::RequestStream stream(req);
 
 		auto user = req->getArg("user");
-		auto timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
+		auto time = boost::lexical_cast<uint64_t>(req->getArg("time"));
 		auto data = req->getArg("data");
 
 		std::vector<char> std_data(data.begin(), data.end());
 
-		m_provider->add_log(user, timestamp, std_data);
+		m_provider->add_log(user, time, std_data);
 	}
 
 	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
@@ -163,12 +163,12 @@ namespace history { namespace fcgi {
 			auto key = req->getArg("key");
 			m_provider->add_activity(user, key);
 		}
-		else if(req->hasArg("timestamp")) {
-			auto timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp"));
-			m_provider->add_activity(user, timestamp);
+		else if(req->hasArg("time")) {
+			auto time = boost::lexical_cast<uint64_t>(req->getArg("time"));
+			m_provider->add_activity(user, time);
 		}
 		else {
-			m_provider->add_activity(user, time(NULL));
+			m_provider->add_activity(user, ::time(NULL));
 		}
 	}
 
@@ -191,8 +191,8 @@ namespace history { namespace fcgi {
 			key = req->getArg("key"); // gets key parameter
 
 		uint64_t tm = time(NULL);
-		if (req->hasArg("timestamp")) // checks optional parameter timestamp
-			tm = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
+		if (req->hasArg("time")) // checks optional parameter time
+			tm = boost::lexical_cast<uint64_t>(req->getArg("time")); // gets time parameter
 
 		m_logger->debug("Add user activity: (%s, %d, ..., %d, %s\n", user.c_str(), tm, data.size(), key.c_str());
 		m_provider->add_user_activity(user, tm, const_cast<char*>(data.c_str()), data.size(), key); // calls provider function to add user activity
@@ -210,13 +210,13 @@ namespace history { namespace fcgi {
 			m_logger->debug("Gets active users by key: %s\n", key.c_str());
 			res = m_provider->get_active_users(key); // gets active users by key
 		}
-		else if(req->hasArg("timestamp")) { // checks optional parameter timestamp
-			auto timestamp = boost::lexical_cast<uint64_t>(req->getArg("timestamp")); // gets timestamp parameter
-			m_logger->debug("Gets active users by timestamp: %d\n", timestamp);
-			res = m_provider->get_active_users(timestamp); // gets active users by timestamp
+		else if(req->hasArg("time")) { // checks optional parameter time
+			auto time = boost::lexical_cast<uint64_t>(req->getArg("time")); // gets time parameter
+			m_logger->debug("Gets active users by time: %d\n", time);
+			res = m_provider->get_active_users(time); // gets active users by time
 		}
-		else { // if key and timestamp aren't among the parameters
-			m_logger->error("Key and timestamp are missing\n");
+		else { // if key and time aren't among the parameters
+			m_logger->error("Key and time are missing\n");
 			req->setStatus(404);
 			return;
 		}
