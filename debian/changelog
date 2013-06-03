@@ -1,6 +1,12 @@
+historydb (0.2.0.0) unstable; urgency=low
+
+  * New API implementation. Removed inheritance and virtual functions.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Mon, 03 Jun 2013 20:04:47 +0400
+
 historydb (0.1.1.1) unstable; urgency=low
 
-  * Fixed spec file 
+  * Fixed spec file
 
  -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Tue, 07 May 2013 12:22:15 +0400
 
