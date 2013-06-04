@@ -158,7 +158,7 @@ void provider::impl::add_log(const std::string& user, const std::string& subkey,
 
 void provider::impl::add_activity(const std::string& user, const std::string& subkey)
 {
-	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY);
+	auto s = create_session(DNET_IO_FLAGS_CACHE);
 
 	auto res = add_activity(s, user, subkey);
 
@@ -170,7 +170,7 @@ void provider::impl::add_activity(const std::string& user, const std::string& su
 
 void provider::impl::add_activity(const std::string& user, const std::string& subkey, std::function<void(bool added)> callback)
 {
-	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY);
+	auto s = create_session(DNET_IO_FLAGS_CACHE);
 
 	auto res = add_activity(s, user, subkey);
 
@@ -240,21 +240,22 @@ std::set<std::string> provider::impl::get_active_users(const std::string& subkey
 {
 	std::set<std::string> ret;
 
-	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY);
+	auto s = create_session(DNET_IO_FLAGS_CACHE);
 
-	std::vector<std::string> indexes;
-	indexes.reserve(consts::CHUNKS_COUNT);
+	std::list<ioremap::elliptics::async_find_indexes_result> async_results;
 
-	for(uint32_t i = 0; i < consts::CHUNKS_COUNT; ++i) {
-		indexes.emplace_back(combine_key(subkey, boost::lexical_cast<std::string>(i)));
+	for (uint32_t i = 0; i < consts::CHUNKS_COUNT; ++i) {
+		std::vector<std::string> indexes;
+		indexes.push_back(combine_key(subkey, boost::lexical_cast<std::string>(i)));
+		LOG(DNET_LOG_DEBUG, "Add index: '%s' to find request\n", indexes.back().c_str());
+		async_results.emplace_back(s.find_indexes(indexes));
 	}
 
-	LOG(DNET_LOG_DEBUG, "Find indexes: %zd\n", indexes.size());
-	std::vector<ioremap::elliptics::find_indexes_result_entry> results = s.find_indexes(indexes);
-	LOG(DNET_LOG_DEBUG, "Found %zd results\n", results.size());
+	LOG(DNET_LOG_DEBUG, "Find indexes: %zd\n", async_results.size());
 
-	for(auto it = results.begin(), end = results.end(); it != end; ++it) {
-		for(auto ind_it = it->indexes.begin(), ind_end = it->indexes.end(); ind_it != ind_end; ++ind_it) {
+	for(auto it = async_results.begin(), end = async_results.end(); it != end; ++it) {
+		auto entry = it->get_one();
+		for(auto ind_it = entry.indexes.begin(), ind_end = entry.indexes.end(); ind_it != ind_end; ++ind_it) {
 			LOG(DNET_LOG_DEBUG, "Found value: %s\n", ind_it->second.to_string().c_str());
 			ret.insert(ind_it->second.to_string());
 		}
@@ -327,8 +328,8 @@ ioremap::elliptics::async_update_indexes_result provider::impl::add_activity(ior
 
 	std::vector<std::string> indexes;
 	std::vector<ioremap::elliptics::data_pointer> datas;
-	indexes.emplace_back(combine_key(subkey, boost::lexical_cast<std::string>(chunk)));
-	datas.emplace_back(user);
+	indexes.push_back(combine_key(subkey, boost::lexical_cast<std::string>(chunk)));
+	datas.push_back(user);
 
 	LOG(DNET_LOG_DEBUG, "Update indexes with key: %s and index: %s\n", subkey.c_str(), indexes.front().c_str());
 	return s.update_indexes(user, indexes, datas);
