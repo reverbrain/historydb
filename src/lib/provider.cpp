@@ -114,12 +114,12 @@ std::list<std::vector<char>> provider::get_user_logs(const std::string& user, co
 	return impl_->get_user_logs(user, subkeys);
 }
 
-std::list<std::string> provider::get_active_users(uint64_t time)
+std::set<std::string> provider::get_active_users(uint64_t time)
 {
 	return impl_->get_active_users(time_to_subkey(time));
 }
 
-std::list<std::string> provider::get_active_users(const std::string& subkey)
+std::set<std::string> provider::get_active_users(const std::string& subkey)
 {
 	return impl_->get_active_users(subkey);
 }
@@ -134,12 +134,12 @@ void provider::for_user_logs(const std::string& user, const std::vector<std::str
 	impl_->for_user_logs(user, subkeys, callback);
 }
 
-void provider::for_active_users(uint64_t begin_time, uint64_t end_time, std::function<bool(const std::list<std::string>& active_users)> callback)
+void provider::for_active_users(uint64_t begin_time, uint64_t end_time, std::function<bool(const std::set<std::string>& active_users)> callback)
 {
 	impl_->for_active_users(time_period_to_subkeys(begin_time, end_time), callback);
 }
 
-void provider::for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::list<std::string>& active_users)> callback)
+void provider::for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback)
 {
 	impl_->for_active_users(subkeys, callback);
 }

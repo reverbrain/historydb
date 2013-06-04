@@ -39,11 +39,11 @@ public:
 
 	std::list<std::vector<char>> get_user_logs(const std::string& user, const std::vector<std::string>& subkeys);
 
-	std::list<std::string> get_active_users(const std::string& subkey);
+	std::set<std::string> get_active_users(const std::string& subkey);
 
 	void for_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<bool(const std::vector<char>& data)> callback);
 
-	void for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::list<std::string>& active_users)> callback);
+	void for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback);
 
 private:
 	ioremap::elliptics::session create_session(uint32_t io_flags) const;
@@ -236,9 +236,9 @@ std::list<std::vector<char>> provider::impl::get_user_logs(const std::string& us
 	return ret;
 }
 
-std::list<std::string> provider::impl::get_active_users(const std::string& subkey)
+std::set<std::string> provider::impl::get_active_users(const std::string& subkey)
 {
-	std::list<std::string> ret;
+	std::set<std::string> ret;
 
 	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY);
 
@@ -256,7 +256,7 @@ std::list<std::string> provider::impl::get_active_users(const std::string& subke
 	for(auto it = results.begin(), end = results.end(); it != end; ++it) {
 		for(auto ind_it = it->indexes.begin(), ind_end = it->indexes.end(); ind_it != ind_end; ++ind_it) {
 			LOG(DNET_LOG_DEBUG, "Found value: %s\n", ind_it->second.to_string().c_str());
-			ret.emplace_back(ind_it->second.to_string());
+			ret.insert(ind_it->second.to_string());
 		}
 	}
 
@@ -288,13 +288,10 @@ void provider::impl::for_user_logs(const std::string& user, const std::vector<st
 	}
 }
 
-void provider::impl::for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::list<std::string>& active_users)> callback)
+void provider::impl::for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback)
 {
-	std::list<std::string> active_users;
-
 	for(auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
-		active_users = get_active_users(*it);
-		if(!callback(active_users))
+		if(!callback(get_active_users(*it)))
 			return;
 	}
 }

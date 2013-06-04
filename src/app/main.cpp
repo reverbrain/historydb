@@ -41,13 +41,13 @@ bool test1_for2(const std::vector<char>& data)
 	return true;
 }
 
-bool test1_for3(const std::list<std::string>& user)
+bool test1_for3(const std::set<std::string>& user)
 {
 	std::cout << "ACT1 LAMBDA: " << user.size() << " " << std::endl;
 	return true;
 }
 
-bool test1_for4(const std::list<std::string>& user)
+bool test1_for4(const std::set<std::string>& user)
 {
 	std::cout << "ACT2 LAMBDA: " << user.size() << " " << std::endl;
 	return true;
@@ -105,7 +105,7 @@ bool test3_for1(uint32_t& ind, const std::vector<char>& data)
 	return true;
 }
 
-bool test3_for2(uint32_t& ind, const std::list<std::string>& user)
+bool test3_for2(uint32_t& ind, const std::set<std::string>& user)
 {
 	std::cout << "TEST3: ACT1 LAMBDA: " << user.size() << " " << std::endl;
 	++ind;

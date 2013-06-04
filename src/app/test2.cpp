@@ -37,7 +37,7 @@ void test_method(std::shared_ptr<history::provider> provider, uint32_t)
 	}
 }
 
-bool test2_for(uint32_t &total, const std::list<std::string>&)
+bool test2_for(uint32_t &total, const std::set<std::string>&)
 {
 	++total;
 	return true;

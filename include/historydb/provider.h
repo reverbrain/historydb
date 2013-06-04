@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <set>
 
 namespace history {
 
@@ -61,14 +62,12 @@ public:
 	/* Adds user to activity statistics
 		user - name of user
 		time - timestamp of activity statistics
-		key - custom key of activity statistics
 	*/
 	void add_activity(const std::string& user, uint64_t time);
 
 	/* Adds user to activity statistics
 		user - name of user
 		subkey - custom key for activity statistics
-		key - custom key of activity statistics
 	*/
 	void add_activity(const std::string& user, const std::string& subkey);
 
@@ -138,13 +137,13 @@ public:
 		time - timestamp of the activity statistics day
 		returns list of active users
 	*/
-	std::list<std::string> get_active_users(uint64_t time);
+	std::set<std::string> get_active_users(uint64_t time);
 
 	/* Gets active users with activity statistics for specified subkey
 		subkey - custom key of activity statistics
 		return list of active users
 	*/
-	std::list<std::string> get_active_users(const std::string& subkey);
+	std::set<std::string> get_active_users(const std::string& subkey);
 
 	/* Runs through users logs for specified time period and calls callback on each log file
 		user - name of user
@@ -166,13 +165,13 @@ public:
 		end_time - end of the time period
 		callback - on active users callback
 	*/
-	void for_active_users(uint64_t begin_time, uint64_t end_time, std::function<bool(const std::list<std::string>& active_users)> callback);
+	void for_active_users(uint64_t begin_time, uint64_t end_time, std::function<bool(const std::set<std::string>& active_users)> callback);
 
 	/* Runs throgh activity statistics for specified subkeys and calls callback on each activity statistics
 		subkeys - custom keys of activity statistics
 		callback - on active users callback
 	*/
-	void for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::list<std::string>& active_users)> callback);
+	void for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback);
 
 private:
 	provider(const provider&) = delete;

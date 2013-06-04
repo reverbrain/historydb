@@ -203,7 +203,7 @@ namespace history { namespace fcgi {
 		m_logger->debug("Handle get active user request\n");
 		fastcgi::RequestStream stream(req);
 
-		std::list<std::string> res;
+		std::set<std::string> res;
 
 		if (req->hasArg("key") && !req->getArg("key").empty()) { // checks optional parameter key
 			auto key = req->getArg("key"); // gets key parameter
