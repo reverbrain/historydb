@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.0.1
+Version:	0.2.0.2
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -70,7 +70,11 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Wed Jun  5 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.2
+- Fixed http api. Changed missed parameters http code.
+
 * Tue Jun  4 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.1
+- Fixed activity statistics methods
 
 * Mon Jun  3 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.0
 - New API implementation. Removed inheritance and virtual functions.
