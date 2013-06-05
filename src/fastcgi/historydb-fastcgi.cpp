@@ -128,21 +128,27 @@ namespace history { namespace fcgi {
 	{
 		m_logger->debug("Handle add log request\n");
 
-		if(!req->hasArg("user") || !req->hasArg("data") || !req->hasArg("time")) {
+		if (!req->hasArg("user") || !req->hasArg("data") || (!req->hasArg("time") && !req->hasArg("key"))) {
 			m_logger->error("Required parameter 'data' or 'user' or 'time' is missing\n");
-			req->setStatus(404);
+			req->setStatus(400);
 			return;
 		}
 
 		fastcgi::RequestStream stream(req);
 
 		auto user = req->getArg("user");
-		auto time = boost::lexical_cast<uint64_t>(req->getArg("time"));
 		auto data = req->getArg("data");
 
 		std::vector<char> std_data(data.begin(), data.end());
 
-		m_provider->add_log(user, time, std_data);
+		if (req->hasArg("key")) {
+			auto key = req->getArg("key");
+			m_provider->add_log(user, key, std_data);
+		}
+		else if (req->hasArg("time")) {
+			auto time = boost::lexical_cast<uint64_t>(req->getArg("time"));
+			m_provider->add_log(user, time, std_data);
+		}
 	}
 
 	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
@@ -151,7 +157,7 @@ namespace history { namespace fcgi {
 
 		if(!req->hasArg("user")) {
 			m_logger->error("Required parameter 'user' is missing\n");
-			req->setStatus(404);
+			req->setStatus(400);
 			return;
 		}
 
@@ -217,7 +223,7 @@ namespace history { namespace fcgi {
 		}
 		else { // if key and time aren't among the parameters
 			m_logger->error("Key and time are missing\n");
-			req->setStatus(404);
+			req->setStatus(400);
 			return;
 		}
 
@@ -251,7 +257,7 @@ namespace history { namespace fcgi {
 
 		if (!req->hasArg("user") || !req->hasArg("begin_time") || !req->hasArg("end_time")) { // checks required parameters
 			m_logger->error("Required parameter 'user' or 'begin_time' or 'end_time' is missing\n");
-			req->setStatus(404);
+			req->setStatus(400);
 			return;
 		}
 
