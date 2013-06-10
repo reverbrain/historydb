@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.0.2
+Version:	0.2.0.3
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -70,6 +70,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Mon Jun  10 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.3
+- Added extra exception check while adding data to user log.
+
 * Wed Jun  5 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.2
 - Fixed http api. Changed missed parameters http code.
 
