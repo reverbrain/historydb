@@ -12,6 +12,7 @@
 #include <fastcgi2/component_factory.h>
 
 #include <historydb/provider.h>
+#include <elliptics/error.hpp>
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -143,12 +144,38 @@ namespace history { namespace fcgi {
 
 		if (req->hasArg("key")) {
 			auto key = req->getArg("key");
-			m_provider->add_log(user, key, std_data);
+			try {
+				m_provider->add_log(user, key, std_data);
+			}
+			catch(ioremap::elliptics::error& e) {
+				m_logger->error("Got exception while adding record to user: %s log by key: %s: %s", user.c_str(), key.c_str(), e.error_message().c_str());
+				req->setStatus(500);
+				return;
+			}
+			catch(...) {
+				m_logger->error("Unexpected error while adding record to user: %s log by key: %s", user.c_str(), key.c_str());
+				req->setStatus(500);
+				return;
+			}
 		}
 		else if (req->hasArg("time")) {
 			auto time = boost::lexical_cast<uint64_t>(req->getArg("time"));
-			m_provider->add_log(user, time, std_data);
+			try {
+				m_provider->add_log(user, time, std_data);
+			}
+			catch(ioremap::elliptics::error &e) {
+				m_logger->error("Got exception while adding record to user: %s log by time: %llu: %s", user.c_str(), time, e.error_message().c_str());
+				req->setStatus(500);
+				return;
+			}
+			catch(...) {
+				m_logger->error("Unexpected error while adding record to user: %s log by time: %llu: %s", user.c_str(), time);
+				req->setStatus(500);
+				return;
+			}
 		}
+
+		req->setStatus(200);
 	}
 
 	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
@@ -176,6 +203,7 @@ namespace history { namespace fcgi {
 		else {
 			m_provider->add_activity(user, ::time(NULL));
 		}
+		req->setStatus(200);
 	}
 
 	/*void handler::handle_add_user_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
