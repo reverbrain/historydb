@@ -1,10 +1,10 @@
-historydb
+[HistoryDB](http://doc.reverbrain.com/historydb:historydb)
 =========
 
-History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
+[History DB](http://doc.reverbrain.com/historydb:historydb) is a trully scalable (hundreds of millions updates per day) distributed archive system
 with per user and per day activity statistics.
 
-History DB uses [elliptics](http://reverbrain.com/elliptics) as storage backend.
+[History DB](http://doc.reverbrain.com/historydb:historydb) uses [elliptics](http://reverbrain.com/elliptics) as storage backend.
 It supports 2 record types: user logs (updated via append or write) and activity.
 Each user logs file hosts user logs for certain user and for specified period (by default this equals ot 1 day).
 Activity is secondary index which hosts information about
@@ -20,36 +20,35 @@ One can specify own activity prefix if needed.
 User log is a blob which can be either appended or rewritten.
 
 
-User guide
+[User guide](http://doc.reverbrain.com/historydb:cplusplus_api)
 ===========
 
-Interface of the History DB presented in `iprovider.h` file.
+Interface of the [History DB](http://doc.reverbrain.com/historydb:historydb) presented in `provider.h` file.
 
-	create_provider() - creates instance of iprovider. The instance is used to manipulate the library.
-
-	iprovider::set_session_parameters() - sets parameters for all sessions.
+	provider::provider() - contructor
+	
+	provider::set_session_parameters() - sets parameters for all sessions.
 		It includes vector of elliptics groups (replicas) in which HistoryDB stores data and
 		minimum number of succeded writes.
 
-	iprovider::add_log - appends data to user log
+	provider::add_log - appends data to user log
 
-	iprovider::add_activity - updates user activity
+	provider::add_activity - updates user activity
 
-	iprovider::add_user_activity() - appends data to user log and updates user activity.
-		There are two implementation of this function: synchronous and asynchronous.
+	provider::get_user_logs() - gets user logs.
 
-	iprovider::get_user_logs() - gets user logs.
+	provider::get_active_user() - gets active user for specified day.
 
-	iprovider::get_active_user() - gets active user for specified day.
-
-	iprovider::for_user_logs() - iterates over user's logs in specified time period.
-	iprovider::for_active_user() - iterates over activity logs in specified time period.
+	provider::for_user_logs() - iterates over user's logs in specified time period.
+	
+	provider::for_active_user() - iterates over activity logs in specified time period.
 
 One can grab user logs for specified for specified period of time as well as list of all users,
 who were active (had at least one log update) during requested period of time.
 
-Tutorial
+[Tutorial](http://doc.reverbrain.com/historydb:tutorial)
 =========
+See [extended tutorial](http://doc.reverbrain.com/historydb:tutorial)
 
 Firstly, complete [elliptics tutorial](http://doc.reverbrain.com/elliptics:server-tutorial).
 It is neccessary to start work with elliptics.
@@ -62,54 +61,49 @@ Building library
 
 	cd historydb
 	debuild
-	sudo dpkg -i ../historydb_0.1.0.0_amd64.deb
+	sudo dpkg -i ../historydb_*.deb
 
 Now you can start to use HistoryDB library:
-Include `historydb/iprovider.h`.
-Create `iprovider` instance by calling `create_provider` method.
-Use iprovider instance to write/read user logs, update activity, gets active user statistics, repartition shards etc.
+Include `historydb/provider.h`.
+Create `provider` instance.
+Use provider instance to write/read user logs, update activity, gets active user statistics, repartition shards etc.
 
-HTTP interface
+[HTTP interface](http://doc.reverbrain.com/historydb:http_api)
 =========
-HistoryDB has follow HTTP interface implemented via fastcgi-daemon2:
+[HistoryDB](http://doc.reverbrain.com/historydb:historydb) has follow HTTP interface implemented via fastcgi-daemon2:
 
 	"/add_log" - adds record to user logs.
 		Parameters:
 			user - name of the user
 			data - data of the log record
-			timestamp - timestamp of log record
+			time or key. If both: key and time are specified - key will be used
+				time - timestamp of record
+				key - custom key of record
 
 	"/add_activity" - marks user as active in the day.
 		Parameters:
 			user - name of the user
-			[timestamp] - timestamp of user activity
-			[key] - custom key for storing user's activity
-	
-	"/add_user_activity" - adds record to user logs and marks user as active in the day.
-		Parameters:
-			user - name of the user
-			data - data of the log record
-			[timestamp] - timestamp of user activity
-			[key] - custom key for storing user's activity
+			time or key. If both: key and time are specified - key will be used
+				time - timestamp of activity statistics
+				key - custom key of activity statistics
 	
 	"/get_active_users" - returns users who was active in the day.
 		Parameters:
-			timestamp - timestamp around of which will be searching for active users
-			key - custom key of activity statistics
-		Use only one parameter. If both are specified the key will be used.
+			time or key. If both: key and time are specified - key will be used
+				time - timestamp of activity statistics
+				key - custom key of activity statistics
 	
 	"/get_user_logs" - returns logs of user.
 		Parameters:
 			user - name of the user
-			begin_time - timestamp of the first day for which user's log should be picked
-			end_time - timestamp of the last day for which user's log should be picked
+			begin_time and end_time - time period for logs
 			
 	"/" - has no parameters. If all is ok - returns HTTP 200. May be used for checking service.
 
-Fastcgi-daemon2 config file
+[Fastcgi-daemon2 config file](http://doc.reverbrain.com/historydb:http_configure)
 =========
 
-HistoryDB component element should have follow children:
+[HistoryDB](http://doc.reverbrain.com/historydb:historydb) component element should have follow children:
 
 <pre>&lt;log_file&gt;/path/to/log_file&lt;/log_file&gt; - path to elliptics client logs
 
