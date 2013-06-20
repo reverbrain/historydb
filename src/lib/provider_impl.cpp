@@ -248,7 +248,7 @@ std::set<std::string> provider::impl::get_active_users(const std::string& subkey
 		std::vector<std::string> indexes;
 		indexes.push_back(combine_key(subkey, boost::lexical_cast<std::string>(i)));
 		LOG(DNET_LOG_DEBUG, "Add index: '%s' to find request\n", indexes.back().c_str());
-		async_results.emplace_back(s.find_indexes(indexes));
+		async_results.emplace_back(s.find_all_indexes(indexes));
 	}
 
 	LOG(DNET_LOG_DEBUG, "Find indexes: %zd\n", async_results.size());

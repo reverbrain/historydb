@@ -116,26 +116,27 @@ namespace history { namespace fcgi {
 	void handler::handle_root(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle root request\n");
+		req->setHeader("Content-Length", "0");
 		req->setStatus(200);
 	}
 
 	void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->error("Handle request for unknown/unexpected uri:%s\n", req->getURI().c_str());
+		req->setHeader("Content-Length", "0");
 		req->setStatus(404); // Sets 404 status for respone - wrong uri code
 	}
 
 	void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle add log request\n");
+		req->setHeader("Content-Length", "0");
 
 		if (!req->hasArg("user") || !req->hasArg("data") || (!req->hasArg("time") && !req->hasArg("key"))) {
 			m_logger->error("Required parameter 'data' or 'user' or 'time' is missing\n");
 			req->setStatus(400);
 			return;
 		}
-
-		fastcgi::RequestStream stream(req);
 
 		auto user = req->getArg("user");
 		auto data = req->getArg("data");
@@ -181,6 +182,7 @@ namespace history { namespace fcgi {
 	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
 	{
 		m_logger->debug("Handle add activity request\n");
+		req->setHeader("Content-Length", "0");
 
 		if(!req->hasArg("user")) {
 			m_logger->error("Required parameter 'user' is missing\n");
@@ -251,6 +253,7 @@ namespace history { namespace fcgi {
 		}
 		else { // if key and time aren't among the parameters
 			m_logger->error("Key and time are missing\n");
+			req->setHeader("Content-Length", "0");
 			req->setStatus(400);
 			return;
 		}
@@ -274,6 +277,7 @@ namespace history { namespace fcgi {
 		auto json = buffer.GetString();
 
 		m_logger->debug("Result json: %s\n", json);
+		req->setHeader("Content-Length", boost::lexical_cast<std::string>(buffer.Size()));
 
 		stream << json; // write result json to fastcgi stream
 	}
@@ -285,6 +289,7 @@ namespace history { namespace fcgi {
 
 		if (!req->hasArg("user") || !req->hasArg("begin_time") || !req->hasArg("end_time")) { // checks required parameters
 			m_logger->error("Required parameter 'user' or 'begin_time' or 'end_time' is missing\n");
+			req->setHeader("Content-Length", "0");
 			req->setStatus(400);
 			return;
 		}
@@ -316,7 +321,11 @@ namespace history { namespace fcgi {
 
 		m_logger->debug("Result json: %s\n", json);
 
+		req->setHeader("Content-Length", boost::lexical_cast<std::string>(buffer.Size()));
+
 		stream << json; // writes result json to fastcgi stream
+
+		req->setStatus(200);
 	}
 
 	FCGIDAEMON_REGISTER_FACTORIES_BEGIN()
