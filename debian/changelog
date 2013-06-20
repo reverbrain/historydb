@@ -1,3 +1,9 @@
+historydb (0.2.0.4) unstable; urgency=low
+
+  * Fixed missing Content-Length in HTTP response header.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Fri, 21 Jun 2013 00:06:52 +0400
+
 historydb (0.2.0.3) unstable; urgency=low
 
   * Added extra exception check while adding data to user log.

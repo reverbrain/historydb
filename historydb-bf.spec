@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.0.3
+Version:	0.2.0.4
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -70,6 +70,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Fri Jun  21 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.4
+- Fixed missing Content-Length in HTTP response header.
+
 * Mon Jun  10 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.3
 - Added extra exception check while adding data to user log.
 
