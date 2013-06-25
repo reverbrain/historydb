@@ -8,6 +8,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "../fastcgi/rapidjson/document.h"
 #include "../fastcgi/rapidjson/writer.h"
@@ -15,30 +16,38 @@
 
 namespace history {
 
+namespace consts {
+const char USER_ITEM[] = "user";
+const char DATA_ITEM[] = "data";
+const char BEGIN_TIME_ITEM[] = "begin_time";
+const char END_TIME_ITEM[] = "end_time";
+const char KEYS_ITEM[] = "keys";
+}
+
 void on_get_active_users::on_request(const ioremap::swarm::network_request &req, const boost::asio::const_buffer &/*buffer*/)
 {
-	printf("GetActiveUsers request\n");
 	try {
+		printf("URL: %s\n", req.get_url().c_str());
 		ioremap::swarm::network_url url(req.get_url());
 		ioremap::swarm::network_query_list query_list(url.query());
 
-		auto provider = get_server()->get_provider();
-
-		if (query_list.has_item("key")) {
+		if (query_list.has_item(consts::KEYS_ITEM)) {
+			std::string keys_value = query_list.item_value(consts::KEYS_ITEM);
 			std::vector<std::string> keys;
-			keys.push_back(query_list.item_value("key"));
-			provider->get_active_users(keys,
-			                           std::bind(&on_get_active_users::on_finished,
-			                                     shared_from_this(),
-			                                     std::placeholders::_1));
+			boost::split(keys, keys_value, boost::is_any_of(":"));
+			get_server()->get_provider()->get_active_users(keys,
+			                                               std::bind(&on_get_active_users::on_finished,
+			                                                         shared_from_this(),
+			                                                         std::placeholders::_1)
+			                                               );
 		}
-		else if (query_list.has_item("time")) {
-			auto time = boost::lexical_cast<uint64_t>(query_list.item_value("time"));
-			provider->get_active_users(time,
-			                           time,
-			                           std::bind(&on_get_active_users::on_finished,
-			                                     shared_from_this(),
-			                                     std::placeholders::_1));
+		else if (query_list.has_item(consts::BEGIN_TIME_ITEM) and query_list.has_item(consts::END_TIME_ITEM)) {
+			get_server()->get_provider()->get_active_users(boost::lexical_cast<uint64_t>(query_list.item_value(consts::BEGIN_TIME_ITEM)),
+			                                               boost::lexical_cast<uint64_t>(query_list.item_value(consts::END_TIME_ITEM)),
+			                                               std::bind(&on_get_active_users::on_finished,
+			                                                         shared_from_this(),
+			                                                         std::placeholders::_1)
+			                                               );
 		}
 		else
 			throw std::invalid_argument("key and time are missed");
@@ -85,11 +94,6 @@ void on_get_active_users::on_finished(const std::set<std::string>& active_users)
 void on_get_active_users::on_send_finished(const std::string &)
 {
 	get_reply()->close(boost::system::error_code());
-}
-
-void on_get_active_users::on_close(const boost::system::error_code &/*err*/)
-{
-	printf("GetActiveUsers close\n");
 }
 
 } /* namespace history */

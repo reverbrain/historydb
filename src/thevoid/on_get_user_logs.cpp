@@ -8,6 +8,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "../fastcgi/rapidjson/document.h"
 #include "../fastcgi/rapidjson/writer.h"
@@ -15,26 +16,44 @@
 
 namespace history {
 
+namespace consts {
+const char USER_ITEM[] = "user";
+const char BEGIN_TIME_ITEM[] = "begin_time";
+const char END_TIME_ITEM[] = "end_time";
+const char KEYS_ITEM[] = "keys";
+}
+
 void on_get_user_logs::on_request(const ioremap::swarm::network_request &req, const boost::asio::const_buffer &/*buffer*/)
 {
-	printf("GetUserLogs request\n");
 	try {
 		ioremap::swarm::network_url url(req.get_url());
 		ioremap::swarm::network_query_list query_list(url.query());
 
-		if (!query_list.has_item("user") || !query_list.has_item("begin_time") || !query_list.has_item("end_time")) // checks required parameters
+		if (!query_list.has_item(consts::USER_ITEM) || (!query_list.has_item(consts::KEYS_ITEM) && (!query_list.has_item(consts::BEGIN_TIME_ITEM) || !query_list.has_item(consts::END_TIME_ITEM)))) // checks required parameters
 			throw std::invalid_argument("user or begin_time or end_time is missed");
 
-		auto user = query_list.item_value("user"); // gets user parameter
-		auto begin_time = boost::lexical_cast<uint64_t>(query_list.item_value("begin_time")); // gets begin_time parameter
-		auto end_time = boost::lexical_cast<uint64_t>(query_list.item_value("end_time")); // gets end_time parameter
-
-		get_server()->get_provider()->get_user_logs(user,
-		                                            begin_time,
-		                                            end_time,
-		                                            std::bind(&on_get_user_logs::on_finished,
-		                                                      shared_from_this(),
-		                                                      std::placeholders::_1));
+		if (query_list.has_item(consts::KEYS_ITEM)) {
+			std::string keys_value = query_list.item_value(consts::KEYS_ITEM);
+			std::vector<std::string> keys;
+			boost::split(keys, keys_value, boost::is_any_of(":"));
+			get_server()->get_provider()->get_user_logs(query_list.item_value(consts::USER_ITEM),
+			                                            keys,
+			                                            std::bind(&on_get_user_logs::on_finished,
+			                                                      shared_from_this(),
+			                                                      std::placeholders::_1)
+			                                            );
+		}
+		else if(query_list.has_item(consts::BEGIN_TIME_ITEM) && query_list.has_item(consts::END_TIME_ITEM)) {
+			get_server()->get_provider()->get_user_logs(query_list.item_value(consts::USER_ITEM),
+			                                            boost::lexical_cast<uint64_t>(query_list.item_value(consts::BEGIN_TIME_ITEM)),
+			                                            boost::lexical_cast<uint64_t>(query_list.item_value(consts::END_TIME_ITEM)),
+			                                            std::bind(&on_get_user_logs::on_finished,
+			                                                      shared_from_this(),
+			                                                      std::placeholders::_1)
+			                                            );
+		}
+		else
+			throw std::invalid_argument("something is missed");
 
 	}
 	catch(ioremap::elliptics::error& e) {
@@ -68,18 +87,14 @@ bool on_get_user_logs::on_finished(const std::vector<char>& data)
 	                          boost::asio::buffer(result_str),
 	                          std::bind(&on_get_user_logs::on_send_finished,
 	                                    shared_from_this(),
-	                                    result_str));
+	                                    result_str)
+	                          );
 	return false;
 }
 
 void on_get_user_logs::on_send_finished(const std::string &)
 {
 	get_reply()->close(boost::system::error_code());
-}
-
-void on_get_user_logs::on_close(const boost::system::error_code &/*err*/)
-{
-	printf("GetUserLogs close\n");
 }
 
 } /* namespace history */

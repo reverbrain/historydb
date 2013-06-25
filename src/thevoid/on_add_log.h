@@ -9,7 +9,7 @@ namespace history {
 	{
 		virtual void on_request(const ioremap::swarm::network_request &req, const boost::asio::const_buffer &buffer);
 		void on_finish(bool added);
-		virtual void on_close(const boost::system::error_code &err);
+		virtual void on_close(const boost::system::error_code &) {}
 	};
 
 } /* namespace history */

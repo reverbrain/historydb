@@ -258,7 +258,9 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
                                  const std::vector<ioremap::elliptics::read_result_entry> &entry,
                                  const ioremap::elliptics::error_info &/*error*/)
 {
+	printf("provider::impl::on_user_log\n");
 	try {
+		results->erase(results->begin());
 		auto file = entry.front().file();
 		if (!file.empty())
 			data->insert(data->end(), file.data<char>(), file.data<char>() + file.size());
@@ -266,9 +268,7 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
 	catch (ioremap::elliptics::error& e) {}
 
 	if (!results->empty()) {
-		auto& front = results->front();
-		results->erase(results->begin());
-		front.connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
+		results->front().connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
 	}
 	else
 		callback(std::vector<char>(data->begin(), data->end()));
@@ -276,6 +276,7 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
 
 void provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<void(const std::vector<char>& data)> callback)
 {
+	printf("provider::impl::get_user_logs\n");
 	auto data = std::make_shared<std::deque<char>>();
 
 	auto results = std::make_shared<std::list<ioremap::elliptics::async_read_result>>();
@@ -286,9 +287,7 @@ void provider::impl::get_user_logs(const std::string& user, const std::vector<st
 		results->emplace_back(s.read_latest(combine_key(user, *it), 0, 0));
 	}
 
-	auto& front = results->front();
-	results->erase(results->begin());
-	front.connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
+	results->front().connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
 }
 
 ioremap::elliptics::async_find_indexes_result provider::impl::get_active_users(ioremap::elliptics::session& s, const std::vector<std::string>& subkeys)

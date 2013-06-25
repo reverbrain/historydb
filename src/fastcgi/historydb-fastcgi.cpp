@@ -4,6 +4,7 @@
 
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <fastcgi2/logger.h>
 #include <fastcgi2/config.h>
@@ -22,243 +23,209 @@
 
 namespace history { namespace fcgi {
 
-	handler::handler(fastcgi::ComponentContext* context)
-	: fastcgi::Component(context)
-	, m_logger(NULL)
-	{
-		init_handlers(); // Inits handlers map
+namespace consts {
+const char USER_ITEM[] = "user";
+const char KEY_ITEM[] = "key";
+const char TIME_ITEM[] = "time";
+const char DATA_ITEM[] = "data";
+const char BEGIN_TIME_ITEM[] = "begin_time";
+const char END_TIME_ITEM[] = "end_time";
+const char KEYS_ITEM[] = "keys";
+}
+
+handler::handler(fastcgi::ComponentContext* context)
+: fastcgi::Component(context)
+, m_logger(NULL)
+{
+	init_handlers(); // Inits handlers map
+}
+
+handler::~handler()
+{}
+
+void handler::onLoad()
+{
+	const auto xpath = context()->getComponentXPath();
+	auto config = context()->getConfig();
+	const std::string logger_component_name = config->asString(xpath + "/logger"); // get logger name
+	m_logger = context()->findComponent<fastcgi::Logger>(logger_component_name); // get logger component
+
+	if (!m_logger) {
+		throw std::runtime_error("cannot get component " + logger_component_name);
 	}
 
-	handler::~handler()
-	{}
+	std::vector<std::string> subs;
+	std::vector<server_info> servers;
+	std::vector<std::string> addrs;
+	m_logger->debug("HistoryDB handler loaded\n");
 
-	void handler::onLoad()
-	{
-		const auto xpath = context()->getComponentXPath();
-		auto config = context()->getConfig();
-		const std::string logger_component_name = config->asString(xpath + "/logger"); // get logger name
-		m_logger = context()->findComponent<fastcgi::Logger>(logger_component_name); // get logger component
+	config->subKeys(xpath + "/elliptics", subs);
+	addrs.reserve(subs.size());
 
-		if (!m_logger) {
-			throw std::runtime_error("cannot get component " + logger_component_name);
-		}
-
-		std::vector<std::string> subs;
-		std::vector<server_info> servers;
-		std::vector<std::string> addrs;
-		m_logger->debug("HistoryDB handler loaded\n");
-
-		config->subKeys(xpath + "/elliptics", subs);
-		addrs.reserve(subs.size());
-
-		for(auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
-			addrs.emplace_back(config->asString(*it + "/addr"));
-			server_info info;
-			info.addr = *(addrs.rbegin());
-			info.port = config->asInt(*it + "/port");
-			info.family = config->asInt(*it + "/family");
-			servers.emplace_back(info);
-		}
-
-		const auto log_file		= config->asString(xpath + "/log_file"); // gets historydb log file path from config
-		const auto log_level	= config->asString(xpath + "/log_level"); // gets historydb log level from config
-
-		m_logger->debug("HistoryDB provider has been created\n");
-
-		std::vector<int> groups;
-
-		m_logger->debug("Setting elliptics groups:\n");
-		subs.clear();
-		config->subKeys(xpath + "/group", subs); // gets set of groups keys in config
-
-		int group = 0;
-		for (auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
-			group = config->asInt(*it); // gets group number from config
-			groups.push_back(group); // adds the group number to vector
-			m_logger->debug("Added %d group\n", group);
-		}
-
-		int min_writes = config->asInt(xpath + "/min_writes");
-
-		m_provider = std::make_shared<history::provider>(servers, groups, min_writes, log_file, history::get_log_level(log_level)); // creates historydb provider instance
+	for(auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
+		addrs.emplace_back(config->asString(*it + "/addr"));
+		server_info info;
+		info.addr = *(addrs.rbegin());
+		info.port = config->asInt(*it + "/port");
+		info.family = config->asInt(*it + "/family");
+		servers.emplace_back(info);
 	}
 
-	void handler::onUnload()
-	{
-		m_logger->debug("Unloading HistoryDB handler\n");
-		m_provider.reset(); // destroys provider
-		m_logger->debug("HistoryDB provider has been destroyed\n");
+	const auto log_file		= config->asString(xpath + "/log_file"); // gets historydb log file path from config
+	const auto log_level	= config->asString(xpath + "/log_level"); // gets historydb log level from config
+
+	m_logger->debug("HistoryDB provider has been created\n");
+
+	std::vector<int> groups;
+
+	m_logger->debug("Setting elliptics groups:\n");
+	subs.clear();
+	config->subKeys(xpath + "/group", subs); // gets set of groups keys in config
+
+	int group = 0;
+	for (auto it = subs.begin(), itEnd = subs.end(); it != itEnd; ++it) {
+		group = config->asInt(*it); // gets group number from config
+		groups.push_back(group); // adds the group number to vector
+		m_logger->debug("Added %d group\n", group);
 	}
 
-	void handler::handleRequest(fastcgi::Request* req, fastcgi::HandlerContext* context)
-	{
-		auto script_name = req->getScriptName();
-		m_logger->debug("Handle request: URI:%s\n", script_name.c_str());
-		auto it = m_handlers.find(script_name); // finds handler for the script
-		if (it != m_handlers.end()) { // if handler has been found
-			it->second(req, context); // call handler
-			return;
-		}
+	int min_writes = config->asInt(xpath + "/min_writes");
 
-		handle_wrong_uri(req, context); // calls wrong uri handler
+	m_provider = std::make_shared<history::provider>(servers, groups, min_writes, log_file, history::get_log_level(log_level)); // creates historydb provider instance
+}
+
+void handler::onUnload()
+{
+	m_logger->debug("Unloading HistoryDB handler\n");
+	m_provider.reset(); // destroys provider
+	m_logger->debug("HistoryDB provider has been destroyed\n");
+}
+
+void handler::handleRequest(fastcgi::Request* req, fastcgi::HandlerContext* context)
+{
+	auto script_name = req->getScriptName();
+	m_logger->debug("Handle request: URI:%s\n", script_name.c_str());
+	auto it = m_handlers.find(script_name); // finds handler for the script
+	if (it != m_handlers.end()) { // if handler has been found
+		it->second(req, context); // call handler
+		return;
 	}
 
-	void handler::init_handlers()
-	{
-		ADD_HANDLER("/",					handle_root);
-		ADD_HANDLER("/add_log",				handle_add_log);
-		ADD_HANDLER("/add_activity",		handle_add_activity);
-		//ADD_HANDLER("/add_user_activity",	handle_add_user_activity);
-		ADD_HANDLER("/get_active_users",	handle_get_active_users);
-		ADD_HANDLER("/get_user_logs",		handle_get_user_logs);
-	}
+	handle_wrong_uri(req, context); // calls wrong uri handler
+}
 
-	void handler::handle_root(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->debug("Handle root request\n");
-		req->setHeader("Content-Length", "0");
-		req->setStatus(200);
-	}
+void handler::init_handlers()
+{
+	ADD_HANDLER("/",					handle_root);
+	ADD_HANDLER("/add_log",				handle_add_log);
+	ADD_HANDLER("/add_activity",		handle_add_activity);
+	ADD_HANDLER("/get_active_users",	handle_get_active_users);
+	ADD_HANDLER("/get_user_logs",		handle_get_user_logs);
+}
 
-	void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->error("Handle request for unknown/unexpected uri:%s\n", req->getURI().c_str());
-		req->setHeader("Content-Length", "0");
-		req->setStatus(404); // Sets 404 status for respone - wrong uri code
-	}
+void handler::handle_root(fastcgi::Request* req, fastcgi::HandlerContext*)
+{
+	m_logger->debug("Handle root request\n");
+	req->setHeader("Content-Length", "0");
+	req->setStatus(200);
+}
 
-	void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->debug("Handle add log request\n");
-		req->setHeader("Content-Length", "0");
+void handler::handle_wrong_uri(fastcgi::Request* req, fastcgi::HandlerContext*)
+{
+	m_logger->error("Handle request for unknown/unexpected uri:%s\n", req->getURI().c_str());
+	req->setHeader("Content-Length", "0");
+	req->setStatus(404); // Sets 404 status for respone - wrong uri code
+}
 
-		if (!req->hasArg("user") || !req->hasArg("data") || (!req->hasArg("time") && !req->hasArg("key"))) {
-			m_logger->error("Required parameter 'data' or 'user' or 'time' is missing\n");
-			req->setStatus(400);
-			return;
-		}
+void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext*)
+{
+	m_logger->debug("Handle add log request\n");
+	req->setHeader("Content-Length", "0");
 
-		auto user = req->getArg("user");
-		auto data = req->getArg("data");
+	try {
+		if (!req->hasArg("user") || !req->hasArg(consts::DATA_ITEM) || (!req->hasArg(consts::TIME_ITEM) && !req->hasArg(consts::KEY_ITEM)))
+			throw std::invalid_argument("Required parameters are missing");
 
+		auto data = req->getArg(consts::DATA_ITEM);
 		std::vector<char> std_data(data.begin(), data.end());
 
-		if (req->hasArg("key")) {
-			auto key = req->getArg("key");
-			try {
-				m_provider->add_log(user, key, std_data);
-			}
-			catch(ioremap::elliptics::error& e) {
-				m_logger->error("Got exception while adding record to user: %s log by key: %s: %s", user.c_str(), key.c_str(), e.error_message().c_str());
-				req->setStatus(500);
-				return;
-			}
-			catch(...) {
-				m_logger->error("Unexpected error while adding record to user: %s log by key: %s", user.c_str(), key.c_str());
-				req->setStatus(500);
-				return;
-			}
+		if (req->hasArg(consts::KEY_ITEM)) {
+			m_provider->add_log(req->getArg(consts::USER_ITEM),
+			                    req->getArg(consts::KEY_ITEM),
+			                    std_data);
 		}
-		else if (req->hasArg("time")) {
-			auto time = boost::lexical_cast<uint64_t>(req->getArg("time"));
-			try {
-				m_provider->add_log(user, time, std_data);
-			}
-			catch(ioremap::elliptics::error &e) {
-				m_logger->error("Got exception while adding record to user: %s log by time: %llu: %s", user.c_str(), time, e.error_message().c_str());
-				req->setStatus(500);
-				return;
-			}
-			catch(...) {
-				m_logger->error("Unexpected error while adding record to user: %s log by time: %llu: %s", user.c_str(), time);
-				req->setStatus(500);
-				return;
-			}
+		else if (req->hasArg(consts::TIME_ITEM)) {
+			m_provider->add_log(req->getArg(consts::USER_ITEM),
+			                    boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM)),
+			                    std_data);
 		}
+		else
+			throw std::invalid_argument("Required parameters are missing");
 
 		req->setStatus(200);
 	}
+	catch(ioremap::elliptics::error&) {
+		req->setStatus(500);
+	}
+	catch(...) {
+		req->setStatus(400);
+	}
+}
 
-	void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->debug("Handle add activity request\n");
-		req->setHeader("Content-Length", "0");
+void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
+{
+	m_logger->debug("Handle add activity request\n");
+	req->setHeader("Content-Length", "0");
 
-		if(!req->hasArg("user")) {
-			m_logger->error("Required parameter 'user' is missing\n");
-			req->setStatus(400);
-			return;
+	try {
+		if(!req->hasArg(consts::USER_ITEM))
+			throw std::invalid_argument("Required parameters are missing");
+
+		if(req->hasArg(consts::KEY_ITEM) && !req->getArg(consts::KEY_ITEM).empty()) {
+			m_provider->add_activity(req->getArg(consts::USER_ITEM),
+			                         req->getArg(consts::KEY_ITEM)
+			                         );
 		}
-
-		fastcgi::RequestStream stream(req);
-
-		auto user = req->getArg("user");
-
-		if(req->hasArg("key") && !req->getArg("key").empty()) {
-			auto key = req->getArg("key");
-			m_provider->add_activity(user, key);
+		else if(req->hasArg(consts::TIME_ITEM)) {
+			m_provider->add_activity(req->getArg(consts::USER_ITEM),
+			                         boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM))
+			                         );
 		}
-		else if(req->hasArg("time")) {
-			auto time = boost::lexical_cast<uint64_t>(req->getArg("time"));
-			m_provider->add_activity(user, time);
-		}
-		else {
-			m_provider->add_activity(user, ::time(NULL));
-		}
+		else
+			throw std::invalid_argument("Required parameters are missing");
+
 		req->setStatus(200);
 	}
+	catch(ioremap::elliptics::error&) {
+		req->setStatus(500);
+	}
+	catch(...) {
+		req->setStatus(400);
+	}
+}
 
-	/*void handler::handle_add_user_activity(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->debug("Handle add user activity request\n");
-		fastcgi::RequestStream stream(req);
-
-		if (!req->hasArg("data") || !req->hasArg("user")) { // checks required parameters
-			m_logger->error("Required parameter 'data' or 'user' is missing\n");
-			req->setStatus(404);
-			return;
-		}
-
-		auto user = req->getArg("user"); // gets user parameter
-		auto data = req->getArg("data"); // gets data parameter
-
-		std::string key = std::string();
-		if (req->hasArg("key")) // checks optional parameter key
-			key = req->getArg("key"); // gets key parameter
-
-		uint64_t tm = time(NULL);
-		if (req->hasArg("time")) // checks optional parameter time
-			tm = boost::lexical_cast<uint64_t>(req->getArg("time")); // gets time parameter
-
-		m_logger->debug("Add user activity: (%s, %d, ..., %d, %s\n", user.c_str(), tm, data.size(), key.c_str());
-		m_provider->add_user_activity(user, tm, const_cast<char*>(data.c_str()), data.size(), key); // calls provider function to add user activity
-	}*/
-
-	void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->debug("Handle get active user request\n");
+void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext*)
+{
+	m_logger->debug("Handle get active user request\n");
+	try {
 		fastcgi::RequestStream stream(req);
 
 		std::set<std::string> res;
 
-		if (req->hasArg("key") && !req->getArg("key").empty()) { // checks optional parameter key
+		if (req->hasArg(consts::KEYS_ITEM) && !req->getArg(consts::KEYS_ITEM).empty()) { // checks optional parameter key
+			std::string keys_value = req->getArg(consts::KEYS_ITEM);
 			std::vector<std::string> keys;
-			keys.push_back(req->getArg("key"));
+			boost::split(keys, keys_value, boost::is_any_of(":"));
 			m_logger->debug("Gets active users by key: %s\n", keys.front().c_str());
 
 			res = m_provider->get_active_users(keys); // gets active users by key
 		}
-		else if(req->hasArg("time")) { // checks optional parameter time
-			auto time = boost::lexical_cast<uint64_t>(req->getArg("time")); // gets time parameter
-			m_logger->debug("Gets active users by time: %d\n", time);
-			res = m_provider->get_active_users(time, time); // gets active users by time
+		else if(req->hasArg(consts::BEGIN_TIME_ITEM) and req->hasArg(consts::END_TIME_ITEM)) { // checks optional parameter time
+			res = m_provider->get_active_users(boost::lexical_cast<uint64_t>(req->getArg(consts::BEGIN_TIME_ITEM)),
+											   boost::lexical_cast<uint64_t>(req->getArg(consts::END_TIME_ITEM))); // gets active users by time
 		}
-		else { // if key and time aren't among the parameters
-			m_logger->error("Key and time are missing\n");
-			req->setHeader("Content-Length", "0");
-			req->setStatus(400);
-			return;
-		}
+		else
+			throw std::invalid_argument("Required parameters are missing");
 
 		rapidjson::Document d; // creates document for json serialization
 		d.SetObject();
@@ -283,25 +250,42 @@ namespace history { namespace fcgi {
 
 		stream << json; // write result json to fastcgi stream
 	}
+	catch(ioremap::elliptics::error&) {
+		req->setHeader("Content-Length", "0");
+		req->setStatus(500);
+	}
+	catch(...) {
+		req->setHeader("Content-Length", "0");
+		req->setStatus(400);
+	}
+}
 
-	void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext*)
-	{
-		m_logger->debug("Handlle get user logs request\n");
+void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext*)
+{
+	m_logger->debug("Handlle get user logs request\n");
+	try {
 		fastcgi::RequestStream stream(req);
 
-		if (!req->hasArg("user") || !req->hasArg("begin_time") || !req->hasArg("end_time")) { // checks required parameters
-			m_logger->error("Required parameter 'user' or 'begin_time' or 'end_time' is missing\n");
-			req->setHeader("Content-Length", "0");
-			req->setStatus(400);
-			return;
+		if (!req->hasArg(consts::USER_ITEM))
+			throw std::invalid_argument("Required parameters are missing");
+
+		std::vector<char> res;
+
+		if(req->hasArg(consts::KEYS_ITEM)) {
+			std::string keys_value = req->getArg(consts::KEYS_ITEM);
+			std::vector<std::string> keys;
+			boost::split(keys, keys_value, boost::is_any_of(":"));
+
+			res = m_provider->get_user_logs(req->getArg(consts::USER_ITEM),
+											keys); // gets user logs from historydb library
 		}
-
-		auto user = req->getArg("user"); // gets user parameter
-		auto begin_time = boost::lexical_cast<uint64_t>(req->getArg("begin_time")); // gets begin_time parameter
-		auto end_time = boost::lexical_cast<uint64_t>(req->getArg("end_time")); // gets end_time parameter
-
-		m_logger->debug("Gets user logs for: (%s, %d, %d)\n", user.c_str(), begin_time, end_time);
-		auto res = m_provider->get_user_logs(user, begin_time, end_time); // gets user logs from historydb library
+		else if(req->hasArg(consts::BEGIN_TIME_ITEM) && req->hasArg(consts::END_TIME_ITEM)) {
+			res = m_provider->get_user_logs(req->getArg(consts::USER_ITEM),
+											boost::lexical_cast<uint64_t>(req->getArg(consts::BEGIN_TIME_ITEM)),
+											boost::lexical_cast<uint64_t>(req->getArg(consts::END_TIME_ITEM))); // gets user logs from historydb library
+		}
+		else
+			throw std::invalid_argument("Required parameters are missing");
 
 		rapidjson::Document d; // creates json document
 		d.SetObject();
@@ -324,9 +308,18 @@ namespace history { namespace fcgi {
 
 		req->setStatus(200);
 	}
+	catch(ioremap::elliptics::error&) {
+		req->setHeader("Content-Length", "0");
+		req->setStatus(500);
+	}
+	catch(...) {
+		req->setHeader("Content-Length", "0");
+		req->setStatus(400);
+	}
+}
 
-	FCGIDAEMON_REGISTER_FACTORIES_BEGIN()
-		FCGIDAEMON_ADD_DEFAULT_FACTORY("historydb", handler)
-	FCGIDAEMON_REGISTER_FACTORIES_END()
+FCGIDAEMON_REGISTER_FACTORIES_BEGIN()
+	FCGIDAEMON_ADD_DEFAULT_FACTORY("historydb", handler)
+FCGIDAEMON_REGISTER_FACTORIES_END()
 
 } } /* namespace history { namespace fastcgi */
