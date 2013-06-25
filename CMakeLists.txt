@@ -30,6 +30,7 @@ LINK_DIRECTORIES(
 add_subdirectory(src/app)
 add_subdirectory(src/lib)
 add_subdirectory(src/fastcgi)
+add_subdirectory(src/thevoid)
 
 install(FILES
 	include/historydb/provider.h
