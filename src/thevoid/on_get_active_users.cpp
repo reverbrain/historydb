@@ -27,7 +27,6 @@ const char KEYS_ITEM[] = "keys";
 void on_get_active_users::on_request(const ioremap::swarm::network_request &req, const boost::asio::const_buffer &/*buffer*/)
 {
 	try {
-		printf("URL: %s\n", req.get_url().c_str());
 		ioremap::swarm::network_url url(req.get_url());
 		ioremap::swarm::network_query_list query_list(url.query());
 

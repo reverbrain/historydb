@@ -65,14 +65,7 @@ bool webserver::initialize(const rapidjson::Value &config)
 
 void webserver::on_root::on_request(const ioremap::swarm::network_request &/*req*/, const boost::asio::const_buffer &/*buffer*/)
 {
-	printf("Root request\n");
-
 	get_reply()->send_error(ioremap::swarm::network_reply::ok);
-}
-
-void webserver::on_root::on_close(const boost::system::error_code &/*err*/)
-{
-	printf("Root close\n");
 }
 
 } /* namespace history */
