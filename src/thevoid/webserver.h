@@ -4,12 +4,13 @@
 #include <thevoid/server.hpp>
 
 namespace history {
+class provider;
 
 class webserver : public ioremap::thevoid::server<webserver>
 {
 public:
 	webserver();
-	virtual void initialize();
+	virtual bool initialize(const rapidjson::Value &config);
 
 	struct on_root : public ioremap::thevoid::simple_request_stream<webserver>
 	{
@@ -17,9 +18,10 @@ public:
 		virtual void on_close(const boost::system::error_code &err);
 	};
 
+	std::shared_ptr<provider> get_provider() { return provider_; }
+
 private:
-	class context;
-	std::shared_ptr<context> context_;
+	std::shared_ptr<provider> provider_;
 };
 
 } /* namespace history */

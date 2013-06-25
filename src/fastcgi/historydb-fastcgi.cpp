@@ -242,14 +242,16 @@ namespace history { namespace fcgi {
 		std::set<std::string> res;
 
 		if (req->hasArg("key") && !req->getArg("key").empty()) { // checks optional parameter key
-			auto key = req->getArg("key"); // gets key parameter
-			m_logger->debug("Gets active users by key: %s\n", key.c_str());
-			res = m_provider->get_active_users(key); // gets active users by key
+			std::vector<std::string> keys;
+			keys.push_back(req->getArg("key"));
+			m_logger->debug("Gets active users by key: %s\n", keys.front().c_str());
+
+			res = m_provider->get_active_users(keys); // gets active users by key
 		}
 		else if(req->hasArg("time")) { // checks optional parameter time
 			auto time = boost::lexical_cast<uint64_t>(req->getArg("time")); // gets time parameter
 			m_logger->debug("Gets active users by time: %d\n", time);
-			res = m_provider->get_active_users(time); // gets active users by time
+			res = m_provider->get_active_users(time, time); // gets active users by time
 		}
 		else { // if key and time aren't among the parameters
 			m_logger->error("Key and time are missing\n");
@@ -304,12 +306,7 @@ namespace history { namespace fcgi {
 		rapidjson::Document d; // creates json document
 		d.SetObject();
 
-		rapidjson::Value user_logs(rapidjson::kArrayType); // array value which will contain all user logs for specified time
-
-		for (auto it = res.begin(), itEnd = res.end(); it != itEnd; ++it) {
-			rapidjson::Value vec(&it->front(), it->size(), d.GetAllocator()); // creates vector value for user one's day log
-			user_logs.PushBack(vec, d.GetAllocator()); // adds daily logs to result array
-		}
+		rapidjson::Value user_logs(&res.front(), res.size(), d.GetAllocator()); // creates vector value for user one's day log
 
 		d.AddMember("logs", user_logs, d.GetAllocator()); // adds logs array to json document
 

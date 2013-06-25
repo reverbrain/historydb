@@ -3,6 +3,7 @@
 #include <elliptics/cppdef.h>
 
 #include <functional>
+#include <deque>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
@@ -38,9 +39,11 @@ public:
 	//void add_log_and_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data);
 	//void add_log_and_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool log_added, bool activity_added)> callback);
 
-	std::list<std::vector<char>> get_user_logs(const std::string& user, const std::vector<std::string>& subkeys);
+	std::vector<char> get_user_logs(const std::string& user, const std::vector<std::string>& subkeys);
+	void get_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<void(const std::vector<char>& data)> callback);
 
-	std::set<std::string> get_active_users(const std::string& subkey);
+	std::set<std::string> get_active_users(const std::vector<std::string>& subkeys);
+	void get_active_users(const std::vector<std::string>& subkeys, std::function<void(const std::set<std::string> &active_users)> callback);
 
 	void for_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<bool(const std::vector<char>& data)> callback);
 
@@ -51,6 +54,16 @@ private:
 
 	ioremap::elliptics::async_write_result add_log(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey, const std::vector<char> data);
 	ioremap::elliptics::async_update_indexes_result add_activity(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey);
+	ioremap::elliptics::async_find_indexes_result get_active_users(ioremap::elliptics::session& s, const std::vector<std::string>& subkeys);
+
+	static void on_user_log(std::shared_ptr<std::list<ioremap::elliptics::async_read_result>> results,
+							std::shared_ptr<std::deque<char>> data,
+							std::function<void(const std::vector<char>& data)> callback,
+							const std::vector<ioremap::elliptics::read_result_entry> &entry,
+							const ioremap::elliptics::error_info &error);
+	static void on_active_users(std::function<void(const std::set<std::string> &active_users)> callback,
+	                            const std::vector<ioremap::elliptics::find_indexes_result_entry> &result,
+	                            const ioremap::elliptics::error_info &error);
 
 
 	std::string combine_key(const std::string& user, const std::string& subkey) const;
@@ -211,9 +224,9 @@ void provider::impl::add_log_and_activity(const std::string& user, const std::st
 
 } */
 
-std::list<std::vector<char>> provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys)
+std::vector<char> provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys)
 {
-	std::list<std::vector<char>> ret;
+	std::deque<char> data;
 
 	std::list<ioremap::elliptics::async_read_result> results;
 
@@ -229,23 +242,70 @@ std::list<std::vector<char>> provider::impl::get_user_logs(const std::string& us
 			if (file.empty()) // if the file is empty
 				continue; // skip it and go to the next
 
-			ret.push_back(std::vector<char>(file.data<char>(), file.data<char>() + file.size()));
+			data.insert(data.end(), file.data<char>(), file.data<char>() + file.size());
 		}
 		catch(ioremap::elliptics::error& e) {
 			LOG(DNET_LOG_ERROR, "Can't read log file: %s\n", e.error_message().c_str());
 		}
 	}
 
-	return ret;
+	return std::vector<char>(data.begin(), data.end());
 }
 
-std::set<std::string> provider::impl::get_active_users(const std::string& subkey)
+void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::async_read_result>> results,
+                                 std::shared_ptr<std::deque<char>> data,
+                                 std::function<void(const std::vector<char>& data)> callback,
+                                 const std::vector<ioremap::elliptics::read_result_entry> &entry,
+                                 const ioremap::elliptics::error_info &/*error*/)
 {
-	std::set<std::string> ret;
+	try {
+		auto file = entry.front().file();
+		if (!file.empty())
+			data->insert(data->end(), file.data<char>(), file.data<char>() + file.size());
+	}
+	catch (ioremap::elliptics::error& e) {}
 
-	auto s = create_session(DNET_IO_FLAGS_CACHE);
+	if (!results->empty()) {
+		auto& front = results->front();
+		results->erase(results->begin());
+		front.connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
+	}
+	else
+		callback(std::vector<char>(data->begin(), data->end()));
+}
 
-	std::list<ioremap::elliptics::async_find_indexes_result> async_results;
+void provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<void(const std::vector<char>& data)> callback)
+{
+	auto data = std::make_shared<std::deque<char>>();
+
+	auto results = std::make_shared<std::list<ioremap::elliptics::async_read_result>>();
+
+	auto s = create_session(0);
+
+	for (auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
+		results->emplace_back(s.read_latest(combine_key(user, *it), 0, 0));
+	}
+
+	auto& front = results->front();
+	results->erase(results->begin());
+	front.connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
+}
+
+ioremap::elliptics::async_find_indexes_result provider::impl::get_active_users(ioremap::elliptics::session& s, const std::vector<std::string>& subkeys)
+{
+	std::vector<std::string> indexes;
+	indexes.reserve(consts::CHUNKS_COUNT);
+
+	for (auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
+		for (uint32_t i = 0; i < consts::CHUNKS_COUNT; ++i) {
+			indexes.push_back(combine_key(*it, boost::lexical_cast<std::string>(i)));
+			LOG(DNET_LOG_DEBUG, "Add index: '%s' to find request\n", indexes.back().c_str());
+		}
+	}
+
+	return s.find_any_indexes(indexes);
+
+	/*std::list<ioremap::elliptics::async_find_indexes_result> async_results;
 
 	for (uint32_t i = 0; i < consts::CHUNKS_COUNT; ++i) {
 		std::vector<std::string> indexes;
@@ -256,15 +316,53 @@ std::set<std::string> provider::impl::get_active_users(const std::string& subkey
 
 	LOG(DNET_LOG_DEBUG, "Find indexes: %zd\n", async_results.size());
 
-	for(auto it = async_results.begin(), end = async_results.end(); it != end; ++it) {
+	for (auto it = async_results.begin(), end = async_results.end(); it != end; ++it) {
 		auto entry = it->get_one();
-		for(auto ind_it = entry.indexes.begin(), ind_end = entry.indexes.end(); ind_it != ind_end; ++ind_it) {
+		for (auto ind_it = entry.indexes.begin(), ind_end = entry.indexes.end(); ind_it != ind_end; ++ind_it) {
+			LOG(DNET_LOG_DEBUG, "Found value: %s\n", ind_it->second.to_string().c_str());
+			ret.insert(ind_it->second.to_string());
+		}
+	}*/
+}
+
+std::set<std::string> provider::impl::get_active_users(const std::vector<std::string>& subkeys)
+{
+	std::set<std::string> ret;
+
+	auto s = create_session(DNET_IO_FLAGS_CACHE);
+
+	auto async_result = get_active_users(s, subkeys);
+
+	for (auto it = async_result.begin(), end = async_result.end(); it != end; ++it) {
+		for (auto ind_it = it->indexes.begin(), ind_end = it->indexes.end(); ind_it != ind_end; ++ind_it) {
 			LOG(DNET_LOG_DEBUG, "Found value: %s\n", ind_it->second.to_string().c_str());
 			ret.insert(ind_it->second.to_string());
 		}
 	}
 
 	return ret;
+}
+
+void provider::impl::on_active_users(std::function<void(const std::set<std::string> &active_users)> callback,
+                                     const std::vector<ioremap::elliptics::find_indexes_result_entry> &result,
+                                     const ioremap::elliptics::error_info &/*error*/)
+{
+	std::set<std::string> active_users;
+
+	for (auto it = result.begin(), end = result.end(); it != end; ++it) {
+		for (auto ind_it = it->indexes.begin(), ind_end = it->indexes.end(); ind_it != ind_end; ++ind_it) {
+			active_users.insert(ind_it->second.to_string());
+		}
+	}
+
+	callback(active_users);
+}
+
+void provider::impl::get_active_users(const std::vector<std::string>& subkeys, std::function<void(const std::set<std::string> &active_users)> callback)
+{
+	auto s = create_session(DNET_IO_FLAGS_CACHE);
+
+	get_active_users(s, subkeys).connect(boost::bind(&provider::impl::on_active_users, callback, _1, _2));
 }
 
 void provider::impl::for_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<bool(const std::vector<char>& data)> callback)
@@ -295,7 +393,9 @@ void provider::impl::for_user_logs(const std::string& user, const std::vector<st
 void provider::impl::for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback)
 {
 	for(auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
-		if(!callback(get_active_users(*it)))
+		std::vector<std::string> one_subkey;
+		one_subkey.push_back(*it);
+		if(!callback(get_active_users(one_subkey)))
 			return;
 	}
 }

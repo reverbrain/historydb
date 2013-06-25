@@ -104,25 +104,46 @@ void provider::add_log_and_activity(const std::string& user, const std::string& 
 	impl_->add_log_and_activity(user, subkey, data, callback);
 }*/
 
-std::list<std::vector<char>> provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
+std::vector<char> provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
 {
 	return impl_->get_user_logs(user, time_period_to_subkeys(begin_time, end_time));
 }
 
-std::list<std::vector<char>> provider::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys)
+std::vector<char> provider::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys)
 {
 	return impl_->get_user_logs(user, subkeys);
 }
 
-std::set<std::string> provider::get_active_users(uint64_t time)
+void provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<void(const std::vector<char>& data)> callback)
 {
-	return impl_->get_active_users(time_to_subkey(time));
+	impl_->get_user_logs(user, time_period_to_subkeys(begin_time, end_time), callback);
 }
 
-std::set<std::string> provider::get_active_users(const std::string& subkey)
+void provider::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<void(const std::vector<char>& data)> callback)
 {
-	return impl_->get_active_users(subkey);
+	impl_->get_user_logs(user, subkeys, callback);
 }
+
+std::set<std::string> provider::get_active_users(uint64_t begin_time, uint64_t end_time)
+{
+	return impl_->get_active_users(time_period_to_subkeys(begin_time, end_time));
+}
+
+std::set<std::string> provider::get_active_users(const std::vector<std::string>& subkeys)
+{
+	return impl_->get_active_users(subkeys);
+}
+
+void provider::get_active_users(uint64_t begin_time, uint64_t end_time, std::function<void(const std::set<std::string> &active_users)> callback)
+{
+	impl_->get_active_users(time_period_to_subkeys(begin_time, end_time), callback);
+}
+
+void provider::get_active_users(const std::vector<std::string>& subkeys, std::function<void(const std::set<std::string> &active_users)> callback)
+{
+	impl_->get_active_users(subkeys, callback);
+}
+
 
 void provider::for_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time, std::function<bool(const std::vector<char>& data)> callback)
 {
