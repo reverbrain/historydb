@@ -18,6 +18,7 @@ namespace history {
 
 namespace consts {
 	const uint32_t CHUNKS_COUNT = 1000; // number of chunks
+	const uint32_t TIMEOUT = 60; // timeout for node configuration and session
 }
 
 class provider::impl : public std::enable_shared_from_this<provider::impl>
@@ -72,6 +73,8 @@ dnet_config create_config()
 	config.io_thread_num = 100;
 	config.nonblocking_io_thread_num = 100;
 	config.net_thread_num = 16;
+	config.check_timeout = consts::TIMEOUT;
+	config.wait_timeout = consts::TIMEOUT;
 
 	return config;
 }
@@ -305,6 +308,7 @@ ioremap::elliptics::session provider::impl::create_session(uint32_t io_flags) co
 	ret.set_cflags(0);
 	ret.set_groups(groups_); // sets groups
 	ret.set_exceptions_policy(ioremap::elliptics::session::exceptions_policy::no_exceptions);
+	ret.set_timeout(consts::TIMEOUT);
 
 	return ret;
 }
