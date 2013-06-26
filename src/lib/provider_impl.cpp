@@ -258,7 +258,6 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
                                  const std::vector<ioremap::elliptics::read_result_entry> &entry,
                                  const ioremap::elliptics::error_info &/*error*/)
 {
-	printf("provider::impl::on_user_log\n");
 	try {
 		results->erase(results->begin());
 		auto file = entry.front().file();
@@ -276,7 +275,6 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
 
 void provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<void(const std::vector<char>& data)> callback)
 {
-	printf("provider::impl::get_user_logs\n");
 	auto data = std::make_shared<std::deque<char>>();
 
 	auto results = std::make_shared<std::list<ioremap::elliptics::async_read_result>>();
