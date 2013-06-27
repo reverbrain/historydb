@@ -50,12 +50,10 @@ void on_add_log::on_request(const ioremap::swarm::network_request &/*req*/, cons
 		else
 			throw std::invalid_argument("Key and time are missed");
 	}
-	catch(ioremap::elliptics::error&) {
+	catch(ioremap::elliptics::error&)
 		get_reply()->send_error(ioremap::swarm::network_reply::internal_server_error);
-	}
-	catch(...) {
+	catch(...)
 		get_reply()->send_error(ioremap::swarm::network_reply::bad_request);
-	}
 }
 
 void on_add_log::on_finish(bool added)

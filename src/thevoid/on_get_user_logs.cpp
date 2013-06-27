@@ -56,12 +56,10 @@ void on_get_user_logs::on_request(const ioremap::swarm::network_request &req, co
 			throw std::invalid_argument("something is missed");
 
 	}
-	catch(ioremap::elliptics::error& e) {
+	catch(ioremap::elliptics::error& e)
 		get_reply()->send_error(ioremap::swarm::network_reply::internal_server_error);
-	}
-	catch(...) {
+	catch(...)
 		get_reply()->send_error(ioremap::swarm::network_reply::bad_request);
-	}
 }
 
 bool on_get_user_logs::on_finished(const std::vector<char>& data)
