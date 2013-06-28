@@ -1,3 +1,9 @@
+historydb (0.2.1.1) unstable; urgency=low
+
+  * New version of swarm: 0.5.1 
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Fri, 28 Jun 2013 20:39:38 +0400
+
 historydb (0.2.1.0) unstable; urgency=low
 
   * Increased timeout for elliptics operation.
