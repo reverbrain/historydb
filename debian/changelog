@@ -1,3 +1,12 @@
+historydb (0.2.1.0) unstable; urgency=low
+
+  * Increased timeout for elliptics operation.
+  * Implemented HistoryDB-TheVoid web-server.
+  * Updated HistoryDB HTTP and C++ API.
+  * Added pre-version of combine tool.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Fri, 28 Jun 2013 15:25:29 +0400
+
 historydb (0.2.0.4) unstable; urgency=low
 
   * Fixed missing Content-Length in HTTP response header.

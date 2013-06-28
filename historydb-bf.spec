@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.0.4
+Version:	0.2.1.0
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -70,6 +70,12 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Fri Jun 28 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.1.0
+- Increased timeout for elliptics operation.
+- Implemented HistoryDB-TheVoid web-server.
+- Updated HistoryDB HTTP and C++ API.
+- Added pre-version of combine tool.
+
 * Fri Jun  21 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.0.4
 - Fixed missing Content-Length in HTTP response header.
 
