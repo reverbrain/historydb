@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.1.1
+Version:	0.2.1.2
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -70,6 +70,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Fri Jun 28 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.1.2
+- Removed cerr from HistoryDB-TheVoid initialization
+
 * Fri Jun 28 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.1.1
 - New version of swarm: 0.5.1
 
