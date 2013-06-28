@@ -17,15 +17,11 @@ webserver::webserver()
 
 bool webserver::initialize(const rapidjson::Value &config)
 {
-	if (!config.HasMember("remotes")) {
-		std::cerr << "\"remotes\" field is missed";
+	if (!config.HasMember("remotes"))
 		return false;
-	}
 
-	if (!config.HasMember("groups")) {
-		std::cerr << "\"groups\" field is missed";
+	if (!config.HasMember("groups"))
 		return false;
-	}
 
 	std::vector<std::string> remotes;
 	std::vector<int> groups;
