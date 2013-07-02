@@ -60,10 +60,12 @@ make install DESTDIR=%{buildroot}
 %files
 %defattr(-,root,root,-)
 %doc README.md
+%{_bindir}/*
 %{_libdir}/*.so.*
 
 %files devel
 %defattr(-,root,root,-)
+%{_bindir}/*
 %{_includedir}/%{name}
 %{_libdir}/*.so
 
