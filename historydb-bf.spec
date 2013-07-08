@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.1.2
+Version:	0.2.2.0
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -71,6 +71,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Mon Jul 08 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.2.0
+- Removed sharding activity on historydb side. Updated elliptics depency
+
 * Fri Jun 28 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.1.2
 - Removed cerr from HistoryDB-TheVoid initialization
 
