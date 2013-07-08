@@ -17,7 +17,7 @@ BuildRequires:	gcc gcc-c++
 
 BuildRequires:	boost-devel, boost-thread, boost-system
 BuildRequires:	cmake msgpack-devel
-BuildRequires:	elliptics-client-devel >= 2.24.10.5
+BuildRequires:	elliptics-client-devel >= 2.24.13.1
 BuildRequires:	fastcgi-daemon2-libs-devel
 BuildRequires:	libthevoid-devel >= 0.5.1.1
 
