@@ -71,7 +71,6 @@ public:
 	*/
 	void add_activity(const std::string& user, const std::string& subkey);
 
-
 	/* Async adds user to activity statistics
 		user - name of user
 		time - timestamp of activity statistics
@@ -79,44 +78,42 @@ public:
 	*/
 	void add_activity(const std::string& user, uint64_t time, std::function<void(bool added)> callback);
 
-
 	/* Async adds user to activity statistics
 		user - name of user
 		subkey - custom key for activity statistics
-		key - custom key of activity statistics
 		callback - complete callback
 	*/
 	void add_activity(const std::string& user, const std::string& subkey, std::function<void(bool added)> callback);
 
 	/* Adds data to user logs and user to activity statistics
 		user - name of user
-		time - timestamp of log and activity statistics
+		time - timestamp for log and for activity statistics
 		data - user log data
 	*/
-	//void add_log_and_activity(const std::string& user, uint64_t time, const std::vector<char>& data);
+	void add_log_with_activity(const std::string& user, uint64_t time, const std::vector<char>& data);
 
 	/* Adds data to user logs and user to activity statistics
 		user - name of user
-		key - custom key of logs and activity statistics
+		subkey - custom key for logs and for activity statistics
 		data - user log data
 	*/
-	//void add_log_and_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data);
+	void add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data);
 
 	/* Async adds data to user logs and user to activity statistics
 		user - name of user
-		time - timestamp of log and activity statistics
+		time - timestamp for log and for activity statistics
 		data - user log data
 		callback - complete callback
 	*/
-	//void add_log_and_activity(const std::string& user, uint64_t time, const std::vector<char>& data, std::function<void(bool log_added, bool activity_added)> callback);
+	void add_log_with_activity(const std::string& user, uint64_t time, const std::vector<char>& data, std::function<void(bool added)> callback);
 
 	/* Async adds data to user logs and user to activity statistics
 		user - name of user
-		key - custom key of logs and activity statistics
+		subkey - custom key for logs and for activity statistics
 		data - user log data
 		callback - complete callback
 	*/
-	//void add_log_and_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool log_added, bool activity_added)> callback);
+	void add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool added)> callback);
 
 	/* Gets user's logs for specified period
 		user - name of user

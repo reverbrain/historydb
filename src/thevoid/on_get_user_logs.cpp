@@ -66,18 +66,21 @@ void on_get_user_logs::on_request(const ioremap::swarm::network_request &req, co
 
 bool on_get_user_logs::on_finished(const std::vector<char>& data)
 {
-	rapidjson::Document d; // creates json document
-	d.SetObject();
+	std::string result_str;
+	if(!data.empty()) {
+		rapidjson::Document d; // creates json document
+		d.SetObject();
 
-	rapidjson::Value user_logs(&data.front(), data.size(), d.GetAllocator()); // creates vector value for user one's day log
+		rapidjson::Value user_logs(data.data(), data.size(), d.GetAllocator()); // creates vector value for user one's day log
 
-	d.AddMember("logs", user_logs, d.GetAllocator()); // adds logs array to json document
+		d.AddMember("logs", user_logs, d.GetAllocator()); // adds logs array to json document
 
-	rapidjson::StringBuffer buffer; // creates string buffer for serialized json
-	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); // creates json writer
-	d.Accept(writer); // accepts writer by json document
+		rapidjson::StringBuffer buffer; // creates string buffer for serialized json
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); // creates json writer
+		d.Accept(writer); // accepts writer by json document
 
-	const std::string result_str = buffer.GetString();
+		result_str = buffer.GetString();
+	}
 
 	ioremap::swarm::network_reply reply;
 	reply.set_code(ioremap::swarm::network_reply::ok);

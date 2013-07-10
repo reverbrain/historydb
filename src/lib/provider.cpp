@@ -84,25 +84,25 @@ void provider::add_activity(const std::string& user, const std::string& subkey, 
 	impl_->add_activity(user, subkey, callback);
 }
 
-/*void provider::add_log_and_activity(const std::string& user, uint64_t time, const std::vector<char>& data)
+void provider::add_log_with_activity(const std::string& user, uint64_t time, const std::vector<char>& data)
 {
-	impl_->add_log_and_activity(user, time_to_subkey(time), data);
+	impl_->add_log_with_activity(user, time_to_subkey(time), data);
 }
 
-void provider::add_log_and_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data)
+void provider::add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data)
 {
-	impl_->add_log_and_activity(user, subkey, data);
-}*/
-
-/*void provider::add_log_and_activity(const std::string& user, uint64_t time, const std::vector<char>& data, std::function<void(bool log_added, bool activity_added)> callback)
-{
-	impl_->add_log_and_activity(user, time_to_subkey(time), data, callback);
+	impl_->add_log_with_activity(user, subkey, data);
 }
 
-void provider::add_log_and_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool log_added, bool activity_added)> callback)
+void provider::add_log_with_activity(const std::string& user, uint64_t time, const std::vector<char>& data, std::function<void(bool added)> callback)
 {
-	impl_->add_log_and_activity(user, subkey, data, callback);
-}*/
+	impl_->add_log_with_activity(user, time_to_subkey(time), data, callback);
+}
+
+void provider::add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool added)> callback)
+{
+	impl_->add_log_with_activity(user, subkey, data, callback);
+}
 
 std::vector<char> provider::get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time)
 {

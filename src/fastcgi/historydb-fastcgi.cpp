@@ -290,7 +290,7 @@ void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContex
 		rapidjson::Document d; // creates json document
 		d.SetObject();
 
-		rapidjson::Value user_logs(&res.front(), res.size(), d.GetAllocator()); // creates vector value for user one's day log
+		rapidjson::Value user_logs(res.data(), res.size(), d.GetAllocator()); // creates vector value for user one's day log
 
 		d.AddMember("logs", user_logs, d.GetAllocator()); // adds logs array to json document
 

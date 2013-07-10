@@ -7,6 +7,7 @@
 
 #include "on_add_log.h"
 #include "on_add_activity.h"
+#include "on_add_log_with_activity.h"
 #include "on_get_active_users.h"
 #include "on_get_user_logs.h"
 
@@ -53,6 +54,7 @@ bool webserver::initialize(const rapidjson::Value &config)
 	on<on_root>("/");
 	on<on_add_log>("/add_log");
 	on<on_add_activity>("/add_activity");
+	on<on_add_log_with_activity>("/add_log_with_activity");
 	on<on_get_active_users>("/get_active_users");
 	on<on_get_user_logs>("/get_user_logs");
 
@@ -68,5 +70,5 @@ void webserver::on_root::on_request(const ioremap::swarm::network_request &/*req
 
 int main(int argc, char **argv)
 {
-	return ioremap::thevoid::create_server<history::webserver>()->run(argc, argv);
+	return ioremap::thevoid::run_server<history::webserver>(argc, argv);
 }
