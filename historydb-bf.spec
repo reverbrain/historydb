@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.2.0
+Version:	0.2.3.0
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -71,6 +71,10 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Thu Jul 11 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.3.0
+- Added hand for appending log and updating activity
+- Updated version of elliptics.
+
 * Mon Jul 08 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.2.0
 - Removed sharding activity on historydb side. Updated elliptics depency
 

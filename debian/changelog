@@ -1,3 +1,10 @@
+historydb (0.2.3.0) unstable; urgency=low
+
+  * Added hand for appending log and updating activity
+  * Updated version of elliptics.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Thu, 11 Jul 2013 12:45:58 +0400
+
 historydb (0.2.2.0) unstable; urgency=low
 
   * Removed sharding activity on historydb side. Updated elliptics depency 
