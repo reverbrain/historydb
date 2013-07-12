@@ -19,7 +19,7 @@ ch.setLevel(logging.INFO)
 log.addHandler(ch)
 
 
-def combine_logs(keys, new_key, batch_size, node, groups):
+def combine_logs(users, keys, new_key, batch_size, node, groups):
     log.debug("Creating session for reading and appending logs")
     log_session = elliptics.Session(node)
     log_session.ioflags = elliptics.io_flags.append
@@ -34,12 +34,14 @@ def combine_logs(keys, new_key, batch_size, node, groups):
         process_key(key=key, new_key=new_key, batch_size=batch_size, log_session=log_session, activity_session=activity_session)
 
 
-def process_key(key, new_key, batch_size, log_session, activity_session):
+def process_key(users, key, new_key, batch_size, log_session, activity_session):
     log.debug("Processing key: {0}".format(key))
     try:
         res = activity_session.find_any_indexes([key])
         print len(res.get())
         for batch_id, batch in groupby(enumerate((r.indexes[0].data for r in res)), key=lambda x: x[0] / batch_size):
+            if users and len(users):
+                batch = users.intersection(batch)
             process_users(batch, key, new_key, log_session, activity_session)
     except:
         log.error("Coudn't process key: {0}".format(key))
@@ -48,6 +50,10 @@ def process_key(key, new_key, batch_size, log_session, activity_session):
 def process_users(users, key, new_key, log_session, activity_session):
     users_len = len(users)
     log.debug("Processing users: {0} for key: {1}".format(users_len, key))
+
+    if not users or len(users) == 0:
+        log.debug("No users specified, skipping")
+        return
 
     log.debug("Async updating indexes for {0} users for index: {1}".format(users_len, new_key))
     async_indexes = []
@@ -83,6 +89,12 @@ def process_users(users, key, new_key, log_session, activity_session):
     log.info("Successed: {0}".format(users_len))
     log.indo("Failures: {0}".format(failed))
 
+    async_indexes.wait()
+    if async_indexes.successful():
+        log.info("Index {0} updated".format(new_key))
+    else:
+        log.error("Failed update index {0}".format(new_key))
+
 
 if __name__ == '__main__':
     from optparse import OptionParser
@@ -104,6 +116,8 @@ if __name__ == '__main__':
                       help="Output log messages from library to file [default: %default]")
     parser.add_option("-L", "--log-level", action="store", dest="elliptics_log_level", default="1",
                       help="Elliptics client verbosity [default: %default]")
+    parser.add_option("-u", "--user", action="append", dest="users", default=[],
+                      help="User whose logs should be aggregated")
 
     (options, args) = parser.parse_args()
 
@@ -144,6 +158,24 @@ if __name__ == '__main__':
         raise ValueError("Can't parse grouplist: '{0}': {1}".format(options.elliptics_groups, e))
     log.info("Using group list: {0}".format(groups))
 
+    try:
+        users = set(options.users)
+    except Exception as e:
+        raise ValueError("Can't parse keys: '{0}': {1}".format(options.users, e))
+    log.info("Aggregating keys for users: 0".format(users))
+
+    try:
+        keys = args[0].split(':')
+    except Exception as e:
+        raise ValueError("Can't parse keys: '{0}': {1}".format(args[0], e))
+    log.info("Aggregating keys: 0".format(keys))
+
+    try:
+        new_key = args[1]
+    except Exception as e:
+        raise ValueError("Can't parse new_key: '{0}': {1}".format(args[1], e))
+    log.info("Aggregating keys in key: 0".format(new_key))
+
     log.info("Setting up elliptics client")
 
     log.debug("Creating logger")
@@ -160,17 +192,7 @@ if __name__ == '__main__':
     node.add_remote(addr=address.host, port=address.port, family=address.family)
     log.info("Created node: {0}".format(node))
 
-    try:
-        keys = args[0].split(':')
-    except Exception as e:
-        raise ValueError("Can't parse keys: '{0}': {1}".format(args[0], e))
-
-    try:
-        new_key = args[1]
-    except Exception as e:
-        raise ValueError("Can't parse new_key: '{0}': {1}".format(args[1], e))
-
     log.info("Keys which will be aggregated: {0}".format(keys))
     log.info("New aggregated key: {0}".format(new_key))
 
-    combine_logs(keys, new_key, batch_size, node, groups)
+    combine_logs(users, keys, new_key, batch_size, node, groups)
