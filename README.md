@@ -34,6 +34,8 @@ Interface of the [History DB](http://doc.reverbrain.com/historydb:historydb) pre
 	provider::add_log - appends data to user log
 
 	provider::add_activity - updates user activity
+	
+	provider::add_log_with_activity - appends data to user log and updates user activity
 
 	provider::get_user_logs() - gets user logs.
 
@@ -72,7 +74,7 @@ Use provider instance to write/read user logs, update activity, gets active user
 =========
 [HistoryDB](http://doc.reverbrain.com/historydb:historydb) has follow HTTP interface implemented via fastcgi-daemon2:
 
-	"/add_log" - adds record to user logs.
+	"/add_log" POST - adds record to user logs.
 		Parameters:
 			user - name of the user
 			data - data of the log record
@@ -80,25 +82,33 @@ Use provider instance to write/read user logs, update activity, gets active user
 				time - timestamp of record
 				key - custom key of record
 
-	"/add_activity" - marks user as active in the day.
+	"/add_activity" POST - marks user as active in the day.
 		Parameters:
 			user - name of the user
 			time or key. If both: key and time are specified - key will be used
 				time - timestamp of activity statistics
 				key - custom key of activity statistics
+				
+	"/add_log_with_activity" POST - Appends log to user logs and updates user activity.
+		Parameters:
+			user - name of user
+			data - data of log record
+			time or key. If both: key and time are specified - key will be used
+				time - timestamp of record
+				key - custom key of record
 	
-	"/get_active_users" - returns users who was active in the day.
+	"/get_active_users" GET - returns users who was active in the day.
 		Parameters:
 			time or key. If both: key and time are specified - key will be used
 				time - timestamp of activity statistics
 				key - custom key of activity statistics
 	
-	"/get_user_logs" - returns logs of user.
+	"/get_user_logs" GET - returns logs of user.
 		Parameters:
 			user - name of the user
 			begin_time and end_time - time period for logs
 			
-	"/" - has no parameters. If all is ok - returns HTTP 200. May be used for checking service.
+	"/" POST&GET - has no parameters. If all is ok - returns HTTP 200. May be used for checking service.
 
 [Fastcgi-daemon2 config file](http://doc.reverbrain.com/historydb:http_configure)
 =========
@@ -120,3 +130,24 @@ Use provider instance to write/read user logs, update activity, gets active user
 &lt;min_writes&gt;number&lt;/min_writes&gt; - minimum number of succeded writes in groups. For example, if historydb tries to write in 5 groups and min_writes is 3
 the attemp will be failed if write will be succeded in less then 3 groups.
 </pre>
+
+[HistoryDB Tool for aggregacting logs](http://doc.reverbrain.com/historydb:tools)
+=========
+The tool goes through activity statisitics for specified days, aggregates logs for each active users and saves it in specified new subkeys.
+
+	Usage: hdb_tool.py KEYS NEW_KEY [options]
+
+	Options:
+		-h, --help            show this help message and exit
+		-b BATCH_SIZE, --batch-size=BATCH_SIZE
+			Number of keys in read_bulk/write_bulk batch [default:1024]
+		-d, --debug           Enable debug output [default: False]
+		-r ELLIPTICS_REMOTE, --remote=ELLIPTICS_REMOTE
+			Elliptics node address [default: none]
+		-g ELLIPTICS_GROUPS, --groups=ELLIPTICS_GROUPS
+			Comma separated list of groups [default: all]
+		-l FILE, --log=FILE   Output log messages from library to file [default:hdb_tool.log]
+		-L ELLIPTICS_LOG_LEVEL, --log-level=ELLIPTICS_LOG_LEVEL
+			Elliptics client verbosity [default: 1]
+		-u USERS, --user=USERS
+			User whose logs should be aggregated
