@@ -88,7 +88,7 @@ public:
 	void for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback);
 
 private:
-	ioremap::elliptics::session create_session(uint32_t io_flags) const;
+	ioremap::elliptics::session create_session(uint32_t io_flags = 0) const;
 
 	ioremap::elliptics::async_write_result add_log(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey, const std::vector<char> data);
 	ioremap::elliptics::async_set_indexes_result add_activity(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey);
@@ -211,7 +211,7 @@ void provider::impl::add_log(const std::string& user, const std::string& subkey,
 
 void provider::impl::add_activity(const std::string& user, const std::string& subkey)
 {
-	auto s = create_session(DNET_IO_FLAGS_CACHE);
+	auto s = create_session();
 
 	auto res = add_activity(s, user, subkey);
 
@@ -223,7 +223,7 @@ void provider::impl::add_activity(const std::string& user, const std::string& su
 
 void provider::impl::add_activity(const std::string& user, const std::string& subkey, std::function<void(bool added)> callback)
 {
-	auto s = create_session(DNET_IO_FLAGS_CACHE);
+	auto s = create_session();
 
 	auto res = add_activity(s, user, subkey);
 
@@ -235,7 +235,7 @@ void provider::impl::add_activity(const std::string& user, const std::string& su
 void provider::impl::add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data)
 {
 	auto log_s = create_session(DNET_IO_FLAGS_APPEND);
-	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
+	auto act_s = create_session();
 
 	auto log_res = add_log(log_s, user, subkey, data);
 	auto act_res = add_activity(act_s, user, subkey);
@@ -261,7 +261,7 @@ void provider::impl::add_log_with_activity(const std::string& user, const std::s
 	auto waiter = boost::make_shared<log_and_activity_waiter>(callback);
 
 	auto log_s = create_session(DNET_IO_FLAGS_APPEND);
-	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
+	auto act_s = create_session();
 
 	add_log(log_s, user, subkey, data).connect(boost::bind(&log_and_activity_waiter::on_log,
 		waiter,
@@ -349,7 +349,7 @@ std::set<std::string> provider::impl::get_active_users(const std::vector<std::st
 {
 	std::set<std::string> ret;
 
-	auto s = create_session(DNET_IO_FLAGS_CACHE);
+	auto s = create_session();
 
 	auto async_result = get_active_users(s, subkeys);
 
@@ -380,7 +380,7 @@ void provider::impl::on_active_users(std::function<void(const std::set<std::stri
 
 void provider::impl::get_active_users(const std::vector<std::string>& subkeys, std::function<void(const std::set<std::string> &active_users)> callback)
 {
-	auto s = create_session(DNET_IO_FLAGS_CACHE);
+	auto s = create_session();
 
 	get_active_users(s, subkeys).connect(boost::bind(&provider::impl::on_active_users, callback, _1, _2));
 }
@@ -424,7 +424,7 @@ ioremap::elliptics::session provider::impl::create_session(uint32_t io_flags) co
 {
 	auto ret = ioremap::elliptics::session(node_);
 
-	ret.set_ioflags(io_flags);
+	ret.set_ioflags(DNET_IO_FLAGS_CACHE | io_flags);
 	ret.set_cflags(0);
 	ret.set_groups(groups_); // sets groups
 	ret.set_exceptions_policy(ioremap::elliptics::session::exceptions_policy::no_exceptions);
