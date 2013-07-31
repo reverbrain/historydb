@@ -188,7 +188,7 @@ void provider::impl::set_session_parameters(const std::vector<int>& groups, uint
 
 void provider::impl::add_log(const std::string& user, const std::string& subkey, const std::vector<char>& data)
 {
-	auto s = create_session(DNET_IO_FLAGS_APPEND);
+	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 
 	auto res = add_log(s, user, subkey, data);
 
@@ -200,7 +200,7 @@ void provider::impl::add_log(const std::string& user, const std::string& subkey,
 
 void provider::impl::add_log(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool added)> callback)
 {
-	auto s = create_session(DNET_IO_FLAGS_APPEND);
+	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 
 	auto res = add_log(s, user, subkey, data);
 
@@ -211,7 +211,7 @@ void provider::impl::add_log(const std::string& user, const std::string& subkey,
 
 void provider::impl::add_activity(const std::string& user, const std::string& subkey)
 {
-	auto s = create_session();
+	auto s = create_session(DNET_IO_FLAGS_CACHE);
 
 	auto res = add_activity(s, user, subkey);
 
@@ -223,7 +223,7 @@ void provider::impl::add_activity(const std::string& user, const std::string& su
 
 void provider::impl::add_activity(const std::string& user, const std::string& subkey, std::function<void(bool added)> callback)
 {
-	auto s = create_session();
+	auto s = create_session(DNET_IO_FLAGS_CACHE);
 
 	auto res = add_activity(s, user, subkey);
 
@@ -234,8 +234,8 @@ void provider::impl::add_activity(const std::string& user, const std::string& su
 
 void provider::impl::add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data)
 {
-	auto log_s = create_session(DNET_IO_FLAGS_APPEND);
-	auto act_s = create_session();
+	auto log_s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
+	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
 
 	auto log_res = add_log(log_s, user, subkey, data);
 	auto act_res = add_activity(act_s, user, subkey);
@@ -260,8 +260,8 @@ void provider::impl::add_log_with_activity(const std::string& user, const std::s
 {
 	auto waiter = boost::make_shared<log_and_activity_waiter>(callback);
 
-	auto log_s = create_session(DNET_IO_FLAGS_APPEND);
-	auto act_s = create_session();
+	auto log_s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
+	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
 
 	add_log(log_s, user, subkey, data).connect(boost::bind(&log_and_activity_waiter::on_log,
 		waiter,
@@ -424,7 +424,7 @@ ioremap::elliptics::session provider::impl::create_session(uint32_t io_flags) co
 {
 	auto ret = ioremap::elliptics::session(node_);
 
-	ret.set_ioflags(DNET_IO_FLAGS_CACHE | io_flags);
+	ret.set_ioflags(io_flags);
 	ret.set_cflags(0);
 	ret.set_groups(groups_); // sets groups
 	ret.set_exceptions_policy(ioremap::elliptics::session::exceptions_policy::no_exceptions);
