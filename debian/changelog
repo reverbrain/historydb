@@ -1,3 +1,10 @@
+historydb (0.2.4.0) unstable; urgency=low
+
+  * Enabled cache for adding logs and activity.
+  * Added logs for async operation.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Fri, 02 Aug 2013 13:34:37 +0400
+
 historydb (0.2.3.0) unstable; urgency=low
 
   * Added hand for appending log and updating activity
