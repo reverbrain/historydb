@@ -24,7 +24,11 @@ namespace consts {
 
 struct waiter
 {
-	waiter(std::function<void(bool added)> callback, ioremap::elliptics::node &node, uint32_t min_writes, bool log_init = false, bool activity_init = false)
+	waiter(std::function<void(bool added)> callback,
+	       ioremap::elliptics::node &node,
+	       uint32_t min_writes,
+	       bool log_init = false,
+	       bool activity_init = false)
 	: log_completed(log_init)
 	, activity_completed(activity_init)
 	, result_(true)
@@ -33,7 +37,8 @@ struct waiter
 	, min_writes_(min_writes)
 	{}
 
-	void on_log(const ioremap::elliptics::sync_write_result &res, const ioremap::elliptics::error_info &error) {
+	void on_log(const ioremap::elliptics::sync_write_result &res,
+	            const ioremap::elliptics::error_info &error) {
 		if (res.size() < min_writes_) {
 			LOG(DNET_LOG_ERROR, "Can't write data to the minimum number of groups while appending data to user log error: %s\n", error.message().c_str());
 			log_completed = false;
@@ -44,7 +49,8 @@ struct waiter
 		handle(log_completed);
 	}
 
-	void on_activity(const ioremap::elliptics::sync_set_indexes_result &res, const ioremap::elliptics::error_info &error) {
+	void on_activity(const ioremap::elliptics::sync_set_indexes_result &res,
+	                 const ioremap::elliptics::error_info &error) {
 		if (res.size() < min_writes_) {
 			LOG(DNET_LOG_ERROR, "Can't write data while adding activity error: %s\n", error.message().c_str());
 			activity_completed = false;
@@ -78,36 +84,72 @@ private:
 class provider::impl : public std::enable_shared_from_this<provider::impl>
 {
 public:
-	impl(const std::vector<server_info>& servers, const std::vector<int>& groups, uint32_t min_writes, const std::string& log_file, const int log_level);
-	impl(const std::vector<std::string>& servers, const std::vector<int>& groups, uint32_t min_writes, const std::string& log_file, const int log_level);
+	impl(const std::vector<server_info>& servers,
+	     const std::vector<int>& groups,
+	     uint32_t min_writes,
+	     const std::string& log_file,
+	     const int log_level);
+	impl(const std::vector<std::string>& servers,
+	     const std::vector<int>& groups,
+	     uint32_t min_writes,
+	     const std::string& log_file,
+	     const int log_level);
 
 	void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes);
 
-	void add_log(const std::string& user, const std::string& subkey, const std::vector<char>& data);
-	void add_log(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool added)> callback);
+	void add_log(const std::string& user,
+	             const std::string& subkey,
+	             const std::vector<char>& data);
+	void add_log(const std::string& user,
+	             const std::string& subkey,
+	             const std::vector<char>& data,
+	             std::function<void(bool added)> callback);
 
 	void add_activity(const std::string& user, const std::string& subkey);
-	void add_activity(const std::string& user, const std::string& subkey, std::function<void(bool added)> callback);
+	void add_activity(const std::string& user,
+	                  const std::string& subkey,
+	                  std::function<void(bool added)> callback);
 
-	void add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data);
-	void add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool added)> callback);
+	void add_log_with_activity(const std::string& user,
+	                           const std::string& subkey,
+	                           const std::vector<char>& data);
+	void add_log_with_activity(const std::string& user,
+	                           const std::string& subkey,
+	                           const std::vector<char>& data,
+	                           std::function<void(bool added)> callback);
 
-	std::vector<char> get_user_logs(const std::string& user, const std::vector<std::string>& subkeys);
-	void get_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<void(const std::vector<char>& data)> callback);
+	std::vector<char> get_user_logs(const std::string& user,
+	                                const std::vector<std::string>& subkeys);
+	void get_user_logs(const std::string& user,
+	                   const std::vector<std::string>& subkeys,
+	                   std::function<void(const std::vector<char>& data)> callback);
 
 	std::set<std::string> get_active_users(const std::vector<std::string>& subkeys);
-	void get_active_users(const std::vector<std::string>& subkeys, std::function<void(const std::set<std::string> &active_users)> callback);
+	void get_active_users(const std::vector<std::string>& subkeys,
+	                      std::function<void(const std::set<std::string> &active_users)> callback);
 
-	void for_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<bool(const std::vector<char>& data)> callback);
+	void for_user_logs(const std::string& user,
+	                   const std::vector<std::string>& subkeys,
+	                   std::function<bool(const std::vector<char>& data)> callback);
 
-	void for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback);
+	void for_active_users(const std::vector<std::string>& subkeys,
+	                      std::function<bool(const std::set<std::string>& active_users)> callback);
 
 private:
 	ioremap::elliptics::session create_session(uint32_t io_flags = 0) const;
 
-	ioremap::elliptics::async_write_result add_log(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey, const std::vector<char> data);
-	ioremap::elliptics::async_set_indexes_result add_activity(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey);
-	ioremap::elliptics::async_find_indexes_result get_active_users(ioremap::elliptics::session& s, const std::vector<std::string>& subkeys);
+	ioremap::elliptics::async_write_result
+	add_log(ioremap::elliptics::session& s,
+	        const std::string& user,
+	        const std::string& subkey,
+	        const std::vector<char> data);
+	ioremap::elliptics::async_set_indexes_result
+	add_activity(ioremap::elliptics::session& s,
+	             const std::string& user,
+	             const std::string& subkey);
+	ioremap::elliptics::async_find_indexes_result
+	get_active_users(ioremap::elliptics::session& s,
+	                 const std::vector<std::string>& subkeys);
 
 	static void on_user_log(std::shared_ptr<std::list<ioremap::elliptics::async_read_result>> results,
 							std::shared_ptr<std::deque<char>> data,
@@ -142,7 +184,11 @@ dnet_config create_config()
 	return config;
 }
 
-provider::impl::impl(const std::vector<server_info>& servers, const std::vector<int>& groups, uint32_t min_writes, const std::string& log_file, const int log_level)
+provider::impl::impl(const std::vector<server_info>& servers,
+                     const std::vector<int>& groups,
+                     uint32_t min_writes,
+                     const std::string& log_file,
+                     const int log_level)
 : groups_(groups)
 , min_writes_(min_writes)
 , config_(create_config())
@@ -165,7 +211,11 @@ provider::impl::impl(const std::vector<server_info>& servers, const std::vector<
 	LOG(DNET_LOG_INFO, "provider::impl has been created\n");
 }
 
-provider::impl::impl(const std::vector<std::string>& servers, const std::vector<int>& groups, uint32_t min_writes, const std::string& log_file, const int log_level)
+provider::impl::impl(const std::vector<std::string>& servers,
+                     const std::vector<int>& groups,
+                     uint32_t min_writes,
+                     const std::string& log_file,
+                     const int log_level)
 : groups_(groups)
 , min_writes_(min_writes)
 , config_(create_config())
@@ -197,7 +247,9 @@ void provider::impl::set_session_parameters(const std::vector<int>& groups, uint
 		min_writes_ = groups_.size();
 }
 
-void provider::impl::add_log(const std::string& user, const std::string& subkey, const std::vector<char>& data)
+void provider::impl::add_log(const std::string& user,
+                             const std::string& subkey,
+                             const std::vector<char>& data)
 {
 	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 
@@ -209,17 +261,20 @@ void provider::impl::add_log(const std::string& user, const std::string& subkey,
 	}
 }
 
-void provider::impl::add_log(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool added)> callback)
+void provider::impl::add_log(const std::string& user,
+                             const std::string& subkey,
+                             const std::vector<char>& data,
+                             std::function<void(bool added)> callback)
 {
 	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 
 	auto w = boost::make_shared<waiter>(callback, node_, min_writes_, false, true);
 
-	add_log(s, user, subkey, data).connect(boost::bind(&waiter::on_log,
-	                                                   w,
-	                                                   _1,
-	                                                   _2
-	                                                   ));
+	add_log(s, user, subkey, data)
+	.connect(boost::bind(&waiter::on_log,
+	                     w,
+	                     _1,
+	                     _2));
 }
 
 void provider::impl::add_activity(const std::string& user, const std::string& subkey)
@@ -234,20 +289,24 @@ void provider::impl::add_activity(const std::string& user, const std::string& su
 	}
 }
 
-void provider::impl::add_activity(const std::string& user, const std::string& subkey, std::function<void(bool added)> callback)
+void provider::impl::add_activity(const std::string& user,
+                                  const std::string& subkey,
+                                  std::function<void(bool added)> callback)
 {
 	auto s = create_session(DNET_IO_FLAGS_CACHE);
 
 	auto w = boost::make_shared<waiter>(callback, node_, min_writes_, true, false);
 
-	add_activity(s, user, subkey).connect(boost::bind(&waiter::on_activity,
-	                                                  w,
-	                                                  _1,
-	                                                  _2
-	                                                  ));
+	add_activity(s, user, subkey)
+	.connect(boost::bind(&waiter::on_activity,
+	                     w,
+	                     _1,
+	                     _2));
 }
 
-void provider::impl::add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data)
+void provider::impl::add_log_with_activity(const std::string& user,
+                                           const std::string& subkey,
+                                           const std::vector<char>& data)
 {
 	auto log_s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
@@ -271,24 +330,27 @@ void provider::impl::add_log_with_activity(const std::string& user, const std::s
 		throw ioremap::elliptics::error(EREMOTEIO, "Data wasn't written to the minimum number of groups");
 }
 
-void provider::impl::add_log_with_activity(const std::string& user, const std::string& subkey, const std::vector<char>& data, std::function<void(bool added)> callback)
+void provider::impl::add_log_with_activity(const std::string& user,
+                                           const std::string& subkey,
+                                           const std::vector<char>& data,
+                                           std::function<void(bool added)> callback)
 {
 	auto w = boost::make_shared<waiter>(callback, node_, min_writes_);
 
 	auto log_s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
 
-	add_log(log_s, user, subkey, data).connect(boost::bind(&waiter::on_log,
-	                                                       w,
-	                                                       _1,
-	                                                       _2
-	                                                       ));
+	add_log(log_s, user, subkey, data)
+	.connect(boost::bind(&waiter::on_log,
+	                     w,
+	                     _1,
+	                     _2));
 
-	add_activity(act_s, user, subkey).connect(boost::bind(&waiter::on_activity,
-	                                                      w,
-	                                                      _1,
-	                                                      _2
-	                                                      ));
+	add_activity(act_s, user, subkey)
+	.connect(boost::bind(&waiter::on_activity,
+	                     w,
+	                     _1,
+	                     _2));
 }
 
 std::vector<char> provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys)
@@ -347,7 +409,9 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
 		callback(std::vector<char>(data->begin(), data->end()));
 }
 
-void provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<void(const std::vector<char>& data)> callback)
+void provider::impl::get_user_logs(const std::string& user,
+                                   const std::vector<std::string>& subkeys,
+                                   std::function<void(const std::vector<char>& data)> callback)
 {
 	auto data = std::make_shared<std::deque<char>>();
 
@@ -359,10 +423,18 @@ void provider::impl::get_user_logs(const std::string& user, const std::vector<st
 		results->emplace_back(s.read_latest(combine_key(user, *it), 0, 0));
 	}
 
-	results->front().connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
+	results->front()
+	.connect(boost::bind(&provider::impl::on_user_log,
+	                     results,
+	                     data,
+	                     callback,
+	                     _1,
+	                     _2));
 }
 
-ioremap::elliptics::async_find_indexes_result provider::impl::get_active_users(ioremap::elliptics::session& s, const std::vector<std::string>& subkeys)
+ioremap::elliptics::async_find_indexes_result
+provider::impl::get_active_users(ioremap::elliptics::session& s,
+                                 const std::vector<std::string>& subkeys)
 {
 	return s.find_any_indexes(subkeys);
 }
@@ -400,14 +472,21 @@ void provider::impl::on_active_users(std::function<void(const std::set<std::stri
 	callback(active_users);
 }
 
-void provider::impl::get_active_users(const std::vector<std::string>& subkeys, std::function<void(const std::set<std::string> &active_users)> callback)
+void provider::impl::get_active_users(const std::vector<std::string>& subkeys,
+                                      std::function<void(const std::set<std::string> &active_users)> callback)
 {
 	auto s = create_session();
 
-	get_active_users(s, subkeys).connect(boost::bind(&provider::impl::on_active_users, callback, _1, _2));
+	get_active_users(s, subkeys)
+	.connect(boost::bind(&provider::impl::on_active_users,
+	                     callback,
+	                     _1,
+	                     _2));
 }
 
-void provider::impl::for_user_logs(const std::string& user, const std::vector<std::string>& subkeys, std::function<bool(const std::vector<char>& data)> callback)
+void provider::impl::for_user_logs(const std::string& user,
+                                   const std::vector<std::string>& subkeys,
+                                   std::function<bool(const std::vector<char>& data)> callback)
 {
 	std::list<ioremap::elliptics::async_read_result> results;
 
@@ -437,7 +516,8 @@ void provider::impl::for_user_logs(const std::string& user, const std::vector<st
 	}
 }
 
-void provider::impl::for_active_users(const std::vector<std::string>& subkeys, std::function<bool(const std::set<std::string>& active_users)> callback)
+void provider::impl::for_active_users(const std::vector<std::string>& subkeys,
+                                      std::function<bool(const std::set<std::string>& active_users)> callback)
 {
 	for (auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
 		std::vector<std::string> one_subkey;
@@ -460,7 +540,11 @@ ioremap::elliptics::session provider::impl::create_session(uint32_t io_flags) co
 	return ret;
 }
 
-ioremap::elliptics::async_write_result provider::impl::add_log(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey, const std::vector<char> data)
+ioremap::elliptics::async_write_result
+provider::impl::add_log(ioremap::elliptics::session& s,
+                        const std::string& user,
+                        const std::string& subkey,
+                        const std::vector<char> data)
 {
 	auto write_key = combine_key(user, subkey);
 
@@ -471,7 +555,10 @@ ioremap::elliptics::async_write_result provider::impl::add_log(ioremap::elliptic
 	return s.write_data(write_key, dp, 0); // write data into elliptics
 }
 
-ioremap::elliptics::async_set_indexes_result provider::impl::add_activity(ioremap::elliptics::session& s, const std::string& user, const std::string& subkey)
+ioremap::elliptics::async_set_indexes_result
+provider::impl::add_activity(ioremap::elliptics::session& s,
+                             const std::string& user,
+                             const std::string& subkey)
 {
 	LOG(DNET_LOG_DEBUG, "Try to add user to activity statistics: %s\n", subkey.c_str());
 

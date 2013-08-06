@@ -24,7 +24,8 @@ const char END_TIME_ITEM[] = "end_time";
 const char KEYS_ITEM[] = "keys";
 }
 
-void on_get_active_users::on_request(const ioremap::swarm::network_request &req, const boost::asio::const_buffer &/*buffer*/)
+void on_get_active_users::on_request(const ioremap::swarm::network_request &req,
+                                     const boost::asio::const_buffer &/*buffer*/)
 {
 	try {
 		ioremap::swarm::network_url url(req.get_url());
@@ -34,19 +35,22 @@ void on_get_active_users::on_request(const ioremap::swarm::network_request &req,
 			std::string keys_value = query_list.item_value(consts::KEYS_ITEM);
 			std::vector<std::string> keys;
 			boost::split(keys, keys_value, boost::is_any_of(":"));
-			get_server()->get_provider()->get_active_users(keys,
-			                                               std::bind(&on_get_active_users::on_finished,
-			                                                         shared_from_this(),
-			                                                         std::placeholders::_1)
-			                                               );
+			get_server()
+			->get_provider()
+			->get_active_users(keys,
+			                   std::bind(&on_get_active_users::on_finished,
+			                             shared_from_this(),
+			                             std::placeholders::_1));
 		}
-		else if (query_list.has_item(consts::BEGIN_TIME_ITEM) and query_list.has_item(consts::END_TIME_ITEM)) {
-			get_server()->get_provider()->get_active_users(boost::lexical_cast<uint64_t>(query_list.item_value(consts::BEGIN_TIME_ITEM)),
-			                                               boost::lexical_cast<uint64_t>(query_list.item_value(consts::END_TIME_ITEM)),
-			                                               std::bind(&on_get_active_users::on_finished,
-			                                                         shared_from_this(),
-			                                                         std::placeholders::_1)
-			                                               );
+		else if (query_list.has_item(consts::BEGIN_TIME_ITEM) and
+		         query_list.has_item(consts::END_TIME_ITEM)) {
+			get_server()
+			->get_provider()
+			->get_active_users(boost::lexical_cast<uint64_t>(query_list.item_value(consts::BEGIN_TIME_ITEM)),
+			                   boost::lexical_cast<uint64_t>(query_list.item_value(consts::END_TIME_ITEM)),
+			                   std::bind(&on_get_active_users::on_finished,
+			                             shared_from_this(),
+			                             std::placeholders::_1));
 		}
 		else
 			throw std::invalid_argument("key and time are missed");

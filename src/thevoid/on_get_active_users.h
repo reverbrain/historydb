@@ -7,9 +7,12 @@
 
 namespace history {
 
-	struct on_get_active_users : public ioremap::thevoid::simple_request_stream<webserver>, public std::enable_shared_from_this<on_get_active_users>
+	struct on_get_active_users :
+		public ioremap::thevoid::simple_request_stream<webserver>,
+		public std::enable_shared_from_this<on_get_active_users>
 	{
-		virtual void on_request(const ioremap::swarm::network_request &req, const boost::asio::const_buffer &buffer);
+		virtual void on_request(const ioremap::swarm::network_request &req,
+		                        const boost::asio::const_buffer &buffer);
 		void on_finished(const std::set<std::string>& active_users);
 		void on_send_finished(const std::string &);
 		virtual void on_close(const boost::system::error_code &) {}

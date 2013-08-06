@@ -49,7 +49,11 @@ bool webserver::initialize(const rapidjson::Value &config)
 	if (config.HasMember("min_writes"))
 		min_writes = config["min_writes"].GetInt();
 
-	provider_ = std::make_shared<provider>(remotes, groups , min_writes, logfile, loglevel);
+	provider_ = std::make_shared<provider>(remotes,
+	                                       groups ,
+	                                       min_writes,
+	                                       logfile,
+	                                       loglevel);
 
 	on<on_root>("/");
 	on<on_add_log>("/add_log");
@@ -61,7 +65,8 @@ bool webserver::initialize(const rapidjson::Value &config)
 	return true;
 }
 
-void webserver::on_root::on_request(const ioremap::swarm::network_request &/*req*/, const boost::asio::const_buffer &/*buffer*/)
+void webserver::on_root::on_request(const ioremap::swarm::network_request &/*req*/,
+                                    const boost::asio::const_buffer &/*buffer*/)
 {
 	get_reply()->send_error(ioremap::swarm::network_reply::ok);
 }

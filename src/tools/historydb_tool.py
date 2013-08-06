@@ -78,7 +78,8 @@ def process_key(key, log_s, index_s, new_key):
             r.wait()
             result = r.get()[0]
             print "Write: {0}".format(k)
-            write_result = log_s.write_data_async((elliptics.Id(k), elliptics.Time(0, 0), 0), result.data)
+            write_result = log_s.write_data_async((elliptics.Id(k), elliptics.Time(0, 0), 0),
+                                                  result.data)
             write_result.wait()
             print "Write is {0}".format(write_result.successful())
         except Exception as e:

@@ -29,28 +29,33 @@ void on_get_user_logs::on_request(const ioremap::swarm::network_request &req, co
 		ioremap::swarm::network_url url(req.get_url());
 		ioremap::swarm::network_query_list query_list(url.query());
 
-		if (!query_list.has_item(consts::USER_ITEM) || (!query_list.has_item(consts::KEYS_ITEM) && (!query_list.has_item(consts::BEGIN_TIME_ITEM) || !query_list.has_item(consts::END_TIME_ITEM)))) // checks required parameters
+		if (!query_list.has_item(consts::USER_ITEM) ||
+		    (!query_list.has_item(consts::KEYS_ITEM) &&
+		    (!query_list.has_item(consts::BEGIN_TIME_ITEM) ||
+		     !query_list.has_item(consts::END_TIME_ITEM)))) // checks required parameters
 			throw std::invalid_argument("user or begin_time or end_time is missed");
 
 		if (query_list.has_item(consts::KEYS_ITEM)) {
 			std::string keys_value = query_list.item_value(consts::KEYS_ITEM);
 			std::vector<std::string> keys;
 			boost::split(keys, keys_value, boost::is_any_of(":"));
-			get_server()->get_provider()->get_user_logs(query_list.item_value(consts::USER_ITEM),
-			                                            keys,
-			                                            std::bind(&on_get_user_logs::on_finished,
-			                                                      shared_from_this(),
-			                                                      std::placeholders::_1)
-			                                            );
+			get_server()
+			->get_provider()
+			->get_user_logs(query_list.item_value(consts::USER_ITEM),
+			                keys,
+			                std::bind(&on_get_user_logs::on_finished,
+			                          shared_from_this(),
+			                          std::placeholders::_1));
 		}
 		else if(query_list.has_item(consts::BEGIN_TIME_ITEM) && query_list.has_item(consts::END_TIME_ITEM)) {
-			get_server()->get_provider()->get_user_logs(query_list.item_value(consts::USER_ITEM),
-			                                            boost::lexical_cast<uint64_t>(query_list.item_value(consts::BEGIN_TIME_ITEM)),
-			                                            boost::lexical_cast<uint64_t>(query_list.item_value(consts::END_TIME_ITEM)),
-			                                            std::bind(&on_get_user_logs::on_finished,
-			                                                      shared_from_this(),
-			                                                      std::placeholders::_1)
-			                                            );
+			get_server()
+			->get_provider()
+			->get_user_logs(query_list.item_value(consts::USER_ITEM),
+			                boost::lexical_cast<uint64_t>(query_list.item_value(consts::BEGIN_TIME_ITEM)),
+			                boost::lexical_cast<uint64_t>(query_list.item_value(consts::END_TIME_ITEM)),
+			                std::bind(&on_get_user_logs::on_finished,
+			                          shared_from_this(),
+			                          std::placeholders::_1));
 		}
 		else
 			throw std::invalid_argument("something is missed");
@@ -90,8 +95,7 @@ bool on_get_user_logs::on_finished(const std::vector<char>& data)
 	                          boost::asio::buffer(result_str),
 	                          std::bind(&on_get_user_logs::on_send_finished,
 	                                    shared_from_this(),
-	                                    result_str)
-	                          );
+	                                    result_str));
 	return false;
 }
 

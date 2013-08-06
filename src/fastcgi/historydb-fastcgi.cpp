@@ -19,7 +19,8 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
-#define ADD_HANDLER(script, func) m_handlers.insert(std::make_pair(script, boost::bind(&handler::func, this, _1, _2)));
+#define ADD_HANDLER(script, func) m_handlers.insert(\
+		std::make_pair(script, boost::bind(&handler::func, this, _1, _2)));
 
 namespace history { namespace fcgi {
 
@@ -50,9 +51,8 @@ void handler::onLoad()
 	const std::string logger_component_name = config->asString(xpath + "/logger"); // get logger name
 	m_logger = context()->findComponent<fastcgi::Logger>(logger_component_name); // get logger component
 
-	if (!m_logger) {
+	if (!m_logger)
 		throw std::runtime_error("cannot get component " + logger_component_name);
-	}
 
 	std::vector<std::string> subs;
 	std::vector<server_info> servers;
@@ -71,8 +71,8 @@ void handler::onLoad()
 		servers.emplace_back(info);
 	}
 
-	const auto log_file		= config->asString(xpath + "/log_file"); // gets historydb log file path from config
-	const auto log_level	= config->asString(xpath + "/log_level"); // gets historydb log level from config
+	const auto log_file = config->asString(xpath + "/log_file"); // gets historydb log file path from config
+	const auto log_level = config->asString(xpath + "/log_level"); // gets historydb log level from config
 
 	m_logger->debug("HistoryDB provider has been created\n");
 
@@ -91,7 +91,11 @@ void handler::onLoad()
 
 	int min_writes = config->asInt(xpath + "/min_writes");
 
-	m_provider = std::make_shared<history::provider>(servers, groups, min_writes, log_file, history::get_log_level(log_level)); // creates historydb provider instance
+	m_provider = std::make_shared<history::provider>(servers, // creates historydb provider instance
+	                                                 groups,
+	                                                 min_writes,
+	                                                 log_file,
+	                                                 history::get_log_level(log_level));
 }
 
 void handler::onUnload()
@@ -143,7 +147,10 @@ void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext*)
 	req->setHeader("Content-Length", "0");
 
 	try {
-		if (!req->hasArg("user") || !req->hasArg(consts::DATA_ITEM) || (!req->hasArg(consts::TIME_ITEM) && !req->hasArg(consts::KEY_ITEM)))
+		if (!req->hasArg("user") ||
+		    !req->hasArg(consts::DATA_ITEM) ||
+		    (!req->hasArg(consts::TIME_ITEM) &&
+		     !req->hasArg(consts::KEY_ITEM)))
 			throw std::invalid_argument("Required parameters are missing");
 
 		auto data = req->getArg(consts::DATA_ITEM);
@@ -181,15 +188,14 @@ void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext
 		if(!req->hasArg(consts::USER_ITEM))
 			throw std::invalid_argument("Required parameters are missing");
 
-		if(req->hasArg(consts::KEY_ITEM) && !req->getArg(consts::KEY_ITEM).empty()) {
+		if(req->hasArg(consts::KEY_ITEM) &&
+		   !req->getArg(consts::KEY_ITEM).empty()) {
 			m_provider->add_activity(req->getArg(consts::USER_ITEM),
-			                         req->getArg(consts::KEY_ITEM)
-			                         );
+			                         req->getArg(consts::KEY_ITEM));
 		}
 		else if(req->hasArg(consts::TIME_ITEM)) {
 			m_provider->add_activity(req->getArg(consts::USER_ITEM),
-			                         boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM))
-			                         );
+			                         boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM)));
 		}
 		else
 			throw std::invalid_argument("Required parameters are missing");
@@ -212,7 +218,8 @@ void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerCon
 
 		std::set<std::string> res;
 
-		if (req->hasArg(consts::KEYS_ITEM) && !req->getArg(consts::KEYS_ITEM).empty()) { // checks optional parameter key
+		if (req->hasArg(consts::KEYS_ITEM) &&
+		    !req->getArg(consts::KEYS_ITEM).empty()) { // checks optional parameter key
 			std::string keys_value = req->getArg(consts::KEYS_ITEM);
 			std::vector<std::string> keys;
 			boost::split(keys, keys_value, boost::is_any_of(":"));
@@ -220,7 +227,8 @@ void handler::handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerCon
 
 			res = m_provider->get_active_users(keys); // gets active users by key
 		}
-		else if(req->hasArg(consts::BEGIN_TIME_ITEM) and req->hasArg(consts::END_TIME_ITEM)) { // checks optional parameter time
+		else if(req->hasArg(consts::BEGIN_TIME_ITEM) &&
+		        req->hasArg(consts::END_TIME_ITEM)) { // checks optional parameter time
 			res = m_provider->get_active_users(boost::lexical_cast<uint64_t>(req->getArg(consts::BEGIN_TIME_ITEM)),
 											   boost::lexical_cast<uint64_t>(req->getArg(consts::END_TIME_ITEM))); // gets active users by time
 		}

@@ -40,11 +40,12 @@ namespace fcgi {
 		void handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get active user request
 		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get user logs request
 
-		fastcgi::Logger*																			m_logger;
-		std::shared_ptr<history::provider>															m_provider;
+		fastcgi::Logger*	m_logger;
+		std::shared_ptr<history::provider>	m_provider;
 
-		std::map<	std::string,
-					std::function<void(fastcgi::Request* req, fastcgi::HandlerContext* context)>>	m_handlers;
+		std::map<std::string,
+		         std::function<void(fastcgi::Request* req, fastcgi::HandlerContext* context)>
+		        >	m_handlers;
 	};
 
 } } /* namespace history { namespace fastcgi */
