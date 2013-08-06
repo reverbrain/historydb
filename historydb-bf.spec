@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.4.0
+Version:	0.2.4.1
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -71,6 +71,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Tue Aug 06 2013 Evgeniy Polyakov <zbr@ioremap.net> - 0.2.4.1
+- Revert "Get rid of cmake-generated files"
+
 * Fri Aug 02 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.4.0
 - Enabled cache for adding logs and activity.
 - Added logs for async operation.

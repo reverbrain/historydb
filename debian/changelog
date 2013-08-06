@@ -1,3 +1,9 @@
+historydb (0.2.4.1) unstable; urgency=low
+
+  * Revert "Get rid of cmake-generated files"
+
+ -- Evgeniy Polyakov <zbr@ioremap.net>  Tue, 06 Aug 2013 18:24:19 +0400
+
 historydb (0.2.4.0) unstable; urgency=low
 
   * Enabled cache for adding logs and activity.
