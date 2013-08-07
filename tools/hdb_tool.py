@@ -62,10 +62,11 @@ def process_users(users, key, new_key, log_session, activity_session):
     log.debug("Async updating indexes for {0} users for index: {1}".format(users_len, new_key))
     async_indexes = []
     for u in users:
+        log.debug("Add user: {0} to activity: {1}".format(u, new_key))
         async_indexes.append(activity_session.set_indexes(elliptics.Id(u), [new_key], [u]))
 
     log.debug("Async reading logs for {0} users".format(users_len))
-    async_read = log_session.bulk_read_async([elliptics.Id(u + '.' + key for u in users)])
+    async_read = log_session.bulk_read_async([elliptics.Id(u + '.' + key) for u in users])
 
     log.debug("Async writing read logs")
     async_writes = []
