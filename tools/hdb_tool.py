@@ -92,7 +92,7 @@ def process_users(users, key, new_key, log_session, activity_session):
 
     log.info("Aggregated bytes: {0}".format(writed_bytes))
     log.info("Successed: {0}".format(users_len))
-    log.indo("Failures: {0}".format(failed))
+    log.info("Failures: {0}".format(failed))
 
     async_indexes.wait()
     if async_indexes.successful():
