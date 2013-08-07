@@ -94,11 +94,15 @@ def process_users(users, key, new_key, log_session, activity_session):
     log.info("Successed: {0}".format(users_len))
     log.info("Failures: {0}".format(failed))
 
-    async_indexes.wait()
-    if async_indexes.successful():
-        log.info("Index {0} updated".format(new_key))
-    else:
-        log.error("Failed update index {0}".format(new_key))
+    successes, failures = (0, 0)
+    for a in async_indexes:
+        a.wait()
+        if a.successful():
+            successes += 1
+        else:
+            failures += 1
+    log.info("Activtiy updates successes: {0}".format(users_len))
+    log.info("Activtiy updates failures: {0}".format(failed))
 
 
 if __name__ == '__main__':
