@@ -31,7 +31,7 @@ def combine_logs(users, keys, new_key, batch_size, node, groups):
     activity_session.groups = groups
 
     for key in keys:
-        process_key(key=key, new_key=new_key, batch_size=batch_size, log_session=log_session, activity_session=activity_session)
+        process_key(users=users, key=key, new_key=new_key, batch_size=batch_size, log_session=log_session, activity_session=activity_session)
 
 
 def process_key(users, key, new_key, batch_size, log_session, activity_session):
