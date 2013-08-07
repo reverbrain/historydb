@@ -38,7 +38,7 @@ def process_key(users, key, new_key, batch_size, log_session, activity_session):
     log.debug("Processing key: {0}".format(key))
     try:
         results = activity_session.find_any_indexes([key]).get()
-        print len(results)
+        log.debug("Found {0} users active at {1}".format(len(results), key))
         for batch_id, batch in groupby(enumerate((r.indexes[0].data for r in results)), key=lambda x: x[0] / batch_size):
             if users and len(users):
                 batch = users.intersection([u for _, u in batch])
@@ -62,7 +62,6 @@ def process_users(users, key, new_key, log_session, activity_session):
     log.debug("Async updating indexes for {0} users for index: {1}".format(users_len, new_key))
     async_indexes = []
     for u in users:
-        log.debug("Add user: {0} to activity: {1}".format(u, new_key))
         async_indexes.append(activity_session.set_indexes(elliptics.Id(u), [new_key], [u]))
 
     log.debug("Async reading logs for {0} users".format(users_len))
