@@ -40,7 +40,6 @@ def process_key(users, key, new_key, batch_size, log_session, activity_session):
         results = activity_session.find_any_indexes([key]).get()
         print len(results)
         for batch_id, batch in groupby(enumerate((r.indexes[0].data for r in results)), key=lambda x: x[0] / batch_size):
-            log.debug("Batch: {0}".format(batch))
             if users and len(users):
                 batch = users.intersection([u for _, u in batch])
             else:
@@ -53,7 +52,6 @@ def process_key(users, key, new_key, batch_size, log_session, activity_session):
 
 
 def process_users(users, key, new_key, log_session, activity_session):
-    log.debug("Process users: {0}".format(users))
     users_len = len(users)
     log.debug("Processing users: {0} for key: {1}".format(users_len, key))
 
@@ -64,10 +62,10 @@ def process_users(users, key, new_key, log_session, activity_session):
     log.debug("Async updating indexes for {0} users for index: {1}".format(users_len, new_key))
     async_indexes = []
     for u in users:
-        async_indexes.append(activity_session.set_indexes(activity_session.transform(u), [new_key], [u]))
+        async_indexes.append(activity_session.set_indexes(elliptics.Id(u), [new_key], [u]))
 
     log.debug("Async reading logs for {0} users".format(users_len))
-    async_read = log_session.bulk_read_async([u + '.' + key for u in users])
+    async_read = log_session.bulk_read_async([elliptics.Id(u + '.' + key for u in users)])
 
     log.debug("Async writing read logs")
     async_writes = []
@@ -76,7 +74,7 @@ def process_users(users, key, new_key, log_session, activity_session):
     while True:
         try:
             r = next(it)
-            async_writes.append(log_session.write_data_async((r.id, elliptics.Time(), 0), r.data), len(r.data))
+            async_writes.append(log_session.write_data_async((r.id, elliptics.Time(-1, -1), 0), r.data), len(r.data))
         except StopIteration:
             break
         except Exception as e:
