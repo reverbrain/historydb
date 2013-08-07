@@ -40,8 +40,11 @@ def process_key(users, key, new_key, batch_size, log_session, activity_session):
         results = activity_session.find_any_indexes([key]).get()
         print len(results)
         for batch_id, batch in groupby(enumerate((r.indexes[0].data for r in results)), key=lambda x: x[0] / batch_size):
+            log.debug("Batch: {0}".format(batch))
             if users and len(users):
-                batch = users.intersection(batch)
+                batch = users.intersection([u for _, u in batch])
+            else:
+                batch = [u for _, u in batch]
             process_users(batch, key, new_key, log_session, activity_session)
     except Exception as e:
         log.error("Coudn't process key: {0} error: {1}".format(key, e))
@@ -50,6 +53,7 @@ def process_key(users, key, new_key, batch_size, log_session, activity_session):
 
 
 def process_users(users, key, new_key, log_session, activity_session):
+    log.debug("Process users: {0}".format(users))
     users_len = len(users)
     log.debug("Processing users: {0} for key: {1}".format(users_len, key))
 
