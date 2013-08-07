@@ -37,12 +37,14 @@ def combine_logs(users, keys, new_key, batch_size, node, groups):
 def process_key(users, key, new_key, batch_size, log_session, activity_session):
     log.debug("Processing key: {0}".format(key))
     try:
-        res = activity_session.find_any_indexes([key])
-        print len(res.get())
-        for batch_id, batch in groupby(enumerate((r.indexes[0].data for r in res)), key=lambda x: x[0] / batch_size):
+        results = activity_session.find_any_indexes([key]).get()
+        print len(results)
+        for batch_id, batch in groupby(enumerate((r.indexes[0].data for r in results)), key=lambda x: x[0] / batch_size):
             if users and len(users):
                 batch = users.intersection(batch)
             process_users(batch, key, new_key, log_session, activity_session)
+    except Exception as e:
+        log.error("Coudn't process key: {0} error: {1}".format(key, e))
     except:
         log.error("Coudn't process key: {0}".format(key))
 
