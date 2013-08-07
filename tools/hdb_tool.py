@@ -27,7 +27,6 @@ def combine_logs(users, keys, new_key, batch_size, node, groups):
 
     log.debug("Creating session for reading and updating activity")
     activity_session = elliptics.Session(node)
-    activity_session.ioflags = elliptics.io_flags.cache
     activity_session.groups = groups
 
     for key in keys:
