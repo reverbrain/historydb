@@ -1,3 +1,9 @@
+historydb (0.2.4.2) unstable; urgency=low
+
+  * Fixed error handling while async add_log_with_activity.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Thu, 08 Aug 2013 16:33:46 +0400
+
 historydb (0.2.4.1) unstable; urgency=low
 
   * Revert "Get rid of cmake-generated files"
