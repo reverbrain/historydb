@@ -39,35 +39,34 @@ struct waiter
 
 	void on_log(const ioremap::elliptics::sync_write_result &res,
 	            const ioremap::elliptics::error_info &error) {
+		boost::mutex::scoped_lock lock(mutex_);
 		if (res.size() < min_writes_) {
 			LOG(DNET_LOG_ERROR, "Can't write data to the minimum number of groups while appending data to user log error: %s\n", error.message().c_str());
-			log_completed = false;
+			result_ = false;
 		}
-		else
-			log_completed = true;
 
-		handle(log_completed);
+		log_completed = true;
+
+		handle();
 	}
 
 	void on_activity(const ioremap::elliptics::sync_set_indexes_result &res,
 	                 const ioremap::elliptics::error_info &error) {
+		boost::mutex::scoped_lock lock(mutex_);
 		if (res.size() < min_writes_) {
 			LOG(DNET_LOG_ERROR, "Can't write data while adding activity error: %s\n", error.message().c_str());
-			activity_completed = false;
+			result_ = false;
 		}
-		else
-			activity_completed = true;
 
-		handle(activity_completed);
+		activity_completed = true;
+
+		handle();
 	}
 
 
 private:
 
-	void handle(bool added) {
-		boost::mutex::scoped_lock lock(mutex_);
-		if (!added)
-			result_ = false;
+	void handle() {
 		if (log_completed && activity_completed)
 			callback_(result_);
 	}
@@ -420,7 +419,9 @@ void provider::impl::get_user_logs(const std::string& user,
 	auto s = create_session(0);
 
 	for (auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
-		results->emplace_back(s.read_latest(combine_key(user, *it), 0, 0));
+		auto cmb_key = combine_key(user, *it);
+		LOG(DNET_LOG_DEBUG, "Try to read user: %s log file: %s\n", user.c_str(), cmb_key.c_str());
+		results->emplace_back(s.read_latest(cmb_key, 0, 0));
 	}
 
 	results->front()
