@@ -27,9 +27,9 @@ logs = defaultdict(str)
 activity = defaultdict(list)
 
 
-def test_ping(iterations, debug):
+def test_ping(host, iterations, debug):
     log.info("Run test_ping")
-    hdb = historydb('shaitan01h.dev.yandex.net:8082', debug)
+    hdb = historydb(host, debug)
     res = hdb.ping()
     if res == 200:
         log.info("Ping test successed")
@@ -96,11 +96,11 @@ def check_activity(hdb, keys=None, begin_time=None, end_time=None):
         return True
 
 
-def test_add_log(iterations, debug):
+def test_add_log(host, iterations, debug):
     global logs
     log.info("Run add_log test {0} times".format(iterations))
     result = True
-    hdb = historydb('shaitan01h.dev.yandex.net:8082', debug)
+    hdb = historydb(host, debug)
 
     user = hex(random.randint(0, 1000))[2:] + "_historydb-test_" + hex(random.randint(0, 1000))[2:]
     keys = set()
@@ -144,10 +144,10 @@ def test_add_log(iterations, debug):
     return result
 
 
-def test_add_activity(iterations, debug):
+def test_add_activity(host, iterations, debug):
     log.info("Run add_activity test for {0} times".format(iterations))
     result = True
-    hdb = historydb('shaitan01h.dev.yandex.net:8082', debug)
+    hdb = historydb(host, debug)
     keys = set()
 
     begin_time = int(datetime.now().strftime('%s'))
@@ -185,10 +185,10 @@ def test_add_activity(iterations, debug):
     return result
 
 
-def test_add_log_with_activity(iterations, debug):
+def test_add_log_with_activity(host, iterations, debug):
     log.info("Run add_log_with_activity test for {0} times".format(iterations))
     result = True
-    hdb = historydb('shaitan01h.dev.yandex.net:8082', debug)
+    hdb = historydb(host, debug)
 
     user = hex(random.randint(0, 1000))[2:] + "_historydb-test_" + hex(random.randint(0, 1000))[2:]
     keys = set()
@@ -281,7 +281,7 @@ if __name__ == '__main__':
 
     test_time = datetime.now()
     for t in tests:
-        if t(iterations=iterations, debug=options.debug):
+        if t(host=host, iterations=iterations, debug=options.debug):
             succ += 1
         else:
             fail += 1
