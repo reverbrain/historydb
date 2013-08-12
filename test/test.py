@@ -281,7 +281,7 @@ if __name__ == '__main__':
 
     test_time = datetime.now()
     for t in tests:
-        if t(host=host, iterations=iterations, debug=options.debug):
+        if t(host=options.host, iterations=iterations, debug=options.debug):
             succ += 1
         else:
             fail += 1
