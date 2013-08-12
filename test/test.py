@@ -265,6 +265,8 @@ if __name__ == '__main__':
 
     start(host=options.host)
 
+    host = options.host + ':8082'
+
     log.info("Starting tests")
 
     succ, fail = (0, 0)
@@ -281,7 +283,7 @@ if __name__ == '__main__':
 
     test_time = datetime.now()
     for t in tests:
-        if t(host=options.host, iterations=iterations, debug=options.debug):
+        if t(host=host, iterations=iterations, debug=options.debug):
             succ += 1
         else:
             fail += 1
