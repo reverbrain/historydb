@@ -26,6 +26,8 @@ log.addHandler(ch)
 logs = defaultdict(str)
 activity = defaultdict(list)
 
+MAX_USER_NO = 30000000
+
 
 def test_ping(host, iterations, debug):
     log.info("Run test_ping")
@@ -102,7 +104,7 @@ def test_add_log(host, iterations, debug):
     result = True
     hdb = historydb(host, debug)
 
-    user = hex(random.randint(0, 1000))[2:] + "_historydb-test_" + hex(random.randint(0, 1000))[2:]
+    user = "test_user_" + hex(random.randint(0, MAX_USER_NO))[2:]
     keys = set()
 
     begin_time = int(datetime.now().strftime('%s'))
@@ -152,7 +154,7 @@ def test_add_activity(host, iterations, debug):
 
     begin_time = int(datetime.now().strftime('%s'))
     for _ in range(iterations):
-        user = hex(random.randint(0, 1000))[2:] + "_historydb-test_" + hex(random.randint(0, 1000))[2:]
+        user = "test_user_" + hex(random.randint(0, MAX_USER_NO))[2:]
         dt = datetime.now()
         if random.randint(0, 1) == 0:
             key = dt.strftime('%b_%d_%y')
@@ -190,7 +192,7 @@ def test_add_log_with_activity(host, iterations, debug):
     result = True
     hdb = historydb(host, debug)
 
-    user = hex(random.randint(0, 1000))[2:] + "_historydb-test_" + hex(random.randint(0, 1000))[2:]
+    user = "test_user_" + hex(random.randint(0, MAX_USER_NO))[2:]
     keys = set()
 
     begin_time = int(datetime.now().strftime('%s'))
@@ -258,12 +260,14 @@ if __name__ == '__main__':
                       help="Turns on debug mode [default: %default]")
     parser.add_option("-i", "--iterations", action="store", dest="iterations", default=100,
                       help="Number of iterations of operation in test")
+    parser.add_option("-D", "--dir", dest="tmp_dir", default='/var/tmp', metavar="DIR",
+                      help="Temporary directory for data and logs [default: %default]")
     (options, args) = parser.parse_args()
 
     if options.debug:
         ch.setLevel(logging.DEBUG)
 
-    start(host=options.host)
+    start(host=options.host, tmp_dir=options.tmp_dir)
 
     host = options.host + ':8082'
 
@@ -287,6 +291,9 @@ if __name__ == '__main__':
             succ += 1
         else:
             fail += 1
+            log.error("TEST IS FAILED, stopping")
+            options.leave = True
+            break
 
     test_time = datetime.now() - test_time
 

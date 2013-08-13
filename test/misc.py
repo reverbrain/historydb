@@ -66,10 +66,18 @@ iterate_thread_num = 2'''.format(root_dir, host)
     h_json.write(h_str_json)
 
 
-def start(host):
+def start(host, tmp_dir):
     global root_dir, ioserv, thevoid
 
-    root_dir = '/tmp/historydb-test-' + hex(random.randint(0, sys.maxint))[2:]
+    if not os.path.exists(tmp_dir):
+        try:
+            os.makedirs(tmp_dir, 0755)
+        except Exception as e:
+            raise ValueError("Directory: {0} does not exist and could not be created: {1}".format(tmp_dir, e))
+
+    os.chdir(tmp_dir)
+
+    root_dir = os.path.join(tmp_dir, 'historydb-test-' + hex(random.randint(0, sys.maxint))[2:])
     os.mkdir(root_dir)
     output_configs(host=host)
 
