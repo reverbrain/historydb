@@ -80,7 +80,7 @@ def process_users(users, key, new_key, log_session, activity_session):
     while True:
         try:
             r = next(it)
-            async_writes.append(log_session.write_data_async((r.id, elliptics.Time(-1, -1), 0), r.data), len(r.data))
+            async_writes.append(log_session.write_data_async((r.id, elliptics.Time(2**64-1, 2**64-1), 0), r.data), len(r.data))
         except StopIteration:
             break
         except Exception as e:
