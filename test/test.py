@@ -251,7 +251,7 @@ if __name__ == '__main__':
     parser.usage = "%prog [options]"
     parser.description = __doc__
     parser.add_option("-r", "--repeat", action="store", dest="repeat", default="1",
-                      help="Number of test repeat [default: %default]")
+                      help="Number of times all test cases will be executed [default: %default]")
     parser.add_option("-l", "--leave", action="store_true", dest="leave", default=False,
                       help="Leave tmp files [default: %default]")
     parser.add_option("-e", "--no-exit", action="store_true", dest="noexit", default=False,
@@ -259,7 +259,7 @@ if __name__ == '__main__':
     parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False,
                       help="Turns on debug mode [default: %default]")
     parser.add_option("-i", "--iterations", action="store", dest="iterations", default=100,
-                      help="Number of iterations of operation in test")
+                      help="Number of times testing function of HistoryDB will be executed in each test case")
     parser.add_option("-D", "--dir", dest="tmp_dir", default='/var/tmp', metavar="DIR",
                       help="Temporary directory for data and logs [default: %default]")
     (options, args) = parser.parse_args()
@@ -299,15 +299,7 @@ if __name__ == '__main__':
 
     log.info("Ending tests")
 
-    while options.noexit:
-        try:
-            sleep(10)
-        except KeyboardInterrupt:
-            pass
-        except Exception as e:
-            pass
-        except:
-            pass
+    raw_input("Press Enter to exit!")
 
     stop(leave=options.leave)
 
