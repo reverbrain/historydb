@@ -245,6 +245,8 @@ def test_add_log_with_activity(host, iterations, debug):
 if __name__ == '__main__':
     from optparse import OptionParser
     from misc import start, stop
+    import socket
+
     parser = OptionParser()
     parser.usage = "%prog [options]"
     parser.description = __doc__
@@ -252,8 +254,6 @@ if __name__ == '__main__':
                       help="Number of test repeat [default: %default]")
     parser.add_option("-l", "--leave", action="store_true", dest="leave", default=False,
                       help="Leave tmp files [default: %default]")
-    parser.add_option("-a", "--hostname", action="store", dest="host", default="localhost",
-                      help="Initial hostname for elliptics and historydb [default: %default]")
     parser.add_option("-e", "--no-exit", action="store_true", dest="noexit", default=False,
                       help="Exit at the end [default: %default]")
     parser.add_option("-d", "--debug", action="store_true", dest="debug", default=False,
@@ -267,9 +267,9 @@ if __name__ == '__main__':
     if options.debug:
         ch.setLevel(logging.DEBUG)
 
-    start(host=options.host, tmp_dir=options.tmp_dir)
+    start(host=socket.gethostname(), tmp_dir=options.tmp_dir)
 
-    host = options.host + ':8082'
+    host = socket.gethostname() + ':8082'
 
     log.info("Starting tests")
 
