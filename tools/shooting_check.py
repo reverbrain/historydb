@@ -19,9 +19,9 @@ ch.setLevel(logging.DEBUG)
 log.addHandler(ch)
 
 hand_re = re.compile("POST \/(.*) HTTP/1.1.*"
-                     "user=(.*)&"
+                     "user=([0-9]*).*"
                      "data=(.*)&"
-                     "key=(.*)\\n\\n", re.DOTALL)
+                     "key=([a-zA-Z_0-9]*).*", re.DOTALL)
 
 cfg = elliptics.Config()
 cfg.config.check_timeout = 1000
@@ -37,9 +37,9 @@ activities = dict()
 def process_packet(offsets, packet):
     global activities, s
     ret = True
-    #print packet
+    #print '[', packet, ']'
     hand, user, data, key = hand_re.search(packet).groups()
-    print hand, user, data, key
+    #print hand, user, data, key
 
     user_key = user + '.' + key
 
@@ -49,8 +49,9 @@ def process_packet(offsets, packet):
     size = len(data)
     if user_key in offsets:
         offset = offsets[user_key]
-    print "offset = ", offset
+    #print ' user_key = [', user_key, '] offset = [', offset, '] size = [', size, ']'
 
+    log.debug("Reading file '{0}' offset: {1} size: {2}".format(user_key, offset, size))
     r_data = s.read_data(user_key, offset, size)
 
     #print "r_data = ", r_data
@@ -67,6 +68,7 @@ def process_packet(offsets, packet):
         activities[key] = [r.indexes[0].data
                            for r in s.find_any_indexes([key]).get()]
     activity = activities[key]
+    #print 'activity size = ', len(activity)
     log.debug("Looking up for user: {0} in activity: {1}".format(user, key))
     if user not in activity:
         log.error("User: {0} isn't in activity: {1}".format(user, key))
@@ -84,7 +86,8 @@ def check_shoot(belt_path):
             try:
                 line = f.readline()
                 packet_size, _ = line.split(' ')
-                packet_size = int(packet_size) - len(line)
+                packet_size = int(packet_size) + 1
+		#print packet_size
                 packet = f.read(packet_size)
                 if not process_packet(offsets, packet):
                     return False
