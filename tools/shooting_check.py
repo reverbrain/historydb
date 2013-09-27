@@ -32,10 +32,11 @@ s = elliptics.Session(n)
 s.groups = [1]
 
 activities = dict()
+offsets = dict()
 
 
-def process_packet(offsets, packet):
-    global activities, s
+def process_packet(packet):
+    global activities, s, offsets
     ret = True
     #print '[', packet, ']'
     hand, user, data, key = hand_re.search(packet).groups()
@@ -65,8 +66,8 @@ def process_packet(offsets, packet):
 
     if key not in activities:
         log.debug("Getting activity: {0}".format(key))
-        activities[key] = [r.indexes[0].data
-                           for r in s.find_any_indexes([key]).get()]
+        activities[key] = set([r.indexes[0].data
+                               for r in s.find_any_indexes([key]).get()])
     activity = activities[key]
     #print 'activity size = ', len(activity)
     log.debug("Looking up for user: {0} in activity: {1}".format(user, key))
@@ -79,7 +80,6 @@ def process_packet(offsets, packet):
 
 
 def check_shoot(belt_path):
-    offsets = dict()
     log.debug("Checking shoot: {0}".format(belt_path))
     with open(belt_path, 'r') as f:
         while True:
@@ -89,7 +89,7 @@ def check_shoot(belt_path):
                 packet_size = int(packet_size) + 1
 		#print packet_size
                 packet = f.read(packet_size)
-                if not process_packet(offsets, packet):
+                if not process_packet(packet):
                     return False
             except Exception as e:
                 log.debug("Error: {0}".format(e))
