@@ -1,3 +1,9 @@
+historydb (0.2.5.0) unstable; urgency=low
+
+  * Compatibility with elliptics 2.24.14.15
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Mon, 30 Sep 2013 17:16:28 +0400
+
 historydb (0.2.4.2) unstable; urgency=low
 
   * Fixed error handling while async add_log_with_activity.

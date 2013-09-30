@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.4.2
+Version:	0.2.5.0
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -17,9 +17,9 @@ BuildRequires:	gcc gcc-c++
 
 BuildRequires:	boost-devel, boost-thread, boost-system
 BuildRequires:	cmake msgpack-devel
-BuildRequires:	elliptics-client-devel >= 2.24.13.29
+BuildRequires:	elliptics-client-devel >= 2.24.14.15
 BuildRequires:	fastcgi-daemon2-libs-devel
-BuildRequires:	libthevoid-devel >= 0.5.4.1
+BuildRequires:	libthevoid-devel >= 0.5.4.7
 
 %description
 History DB is a trully scalable (hundreds of millions updates per day)
@@ -71,6 +71,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Mon Sep 30 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.5.0
+- Compatibility with elliptics 2.24.14.15
+
 * Thu Aug 08 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.4.2
 - Fixed error handling while async add_log_with_activity.
 
