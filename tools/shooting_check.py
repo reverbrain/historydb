@@ -6,16 +6,19 @@ import elliptics
 import logging
 import logging.handlers
 import re
+import mmap
+from datetime import datetime
 
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
-formatter = logging.Formatter(fmt='%(asctime)-15s %(processName)s %(levelname)s %(message)s',
+formatter = logging.Formatter(fmt='%(asctime)-15s %(processName)s '
+                              '%(levelname)s %(message)s',
                               datefmt='%d %b %y %H:%M:%S')
 
 
 ch = logging.StreamHandler(sys.stderr)
 ch.setFormatter(formatter)
-ch.setLevel(logging.DEBUG)
+ch.setLevel(logging.INFO)
 log.addHandler(ch)
 
 hand_re = re.compile("POST \/(.*) HTTP/1.1.*"
@@ -28,40 +31,41 @@ cfg.config.check_timeout = 1000
 cfg.config.wait_timeout = 1000
 n = elliptics.Node(elliptics.Logger("/dev/stderr", 0), cfg)
 n.add_remote("s16h.xxx.yandex.net", 1025)
-s = elliptics.Session(n)
-s.groups = [1]
 
 activities = dict()
 offsets = dict()
 
+counter = 0
+start = None
 
-def process_packet(packet):
-    global activities, s, offsets
+
+def process_packet(packet, s, perc):
+    global activities, offsets, counter, start
     ret = True
-    #print '[', packet, ']'
+    log.debug("packet: '{0}'".format(packet))
     hand, user, data, key = hand_re.search(packet).groups()
-    #print hand, user, data, key
+    log.debug("hand: '{0}', user = '{1}', data = '{2}', key = '{3}'"
+              .format(hand, user, data, key))
 
     user_key = user + '.' + key
-
-    #print "user_key = ", user_key
 
     offset = 0
     size = len(data)
     if user_key in offsets:
         offset = offsets[user_key]
-    #print ' user_key = [', user_key, '] offset = [', offset, '] size = [', size, ']'
+    log.debug("user_key = '{0}' offset = '{1}' size = '{2}'"
+              .format(user_key, offset, size))
 
-    log.debug("Reading file '{0}' offset: {1} size: {2}".format(user_key, offset, size))
+    log.debug("Reading file '{0}' offset: {1} size: {2}"
+              .format(user_key, offset, size))
     r_data = s.read_data(user_key, offset, size)
-
-    #print "r_data = ", r_data
-    #print "data = ", data
 
     offsets[user_key] = offset + size
 
     if data != r_data:
-        log.error("Error: data mismatch: [{0}] != [{1}]".format(data, r_data))
+        log.error("Error: user_key: '{2}' offset: '{3}' size: '{4}'"
+                  " data mismatch: [{0}] != [{1}]"
+                  .format(data, r_data, user_key, offset, size))
         ret = False
 
     if key not in activities:
@@ -69,33 +73,56 @@ def process_packet(packet):
         activities[key] = set([r.indexes[0].data
                                for r in s.find_any_indexes([key]).get()])
     activity = activities[key]
-    #print 'activity size = ', len(activity)
-    log.debug("Looking up for user: {0} in activity: {1}".format(user, key))
+    log.debug("Looking up for user: {0} in activity: {1}. Activity size = {2}"
+              .format(user, key, len(activity)))
     if user not in activity:
         log.error("User: {0} isn't in activity: {1}".format(user, key))
         log.error("Activity: {0}".format(activity))
         ret = False
 
+    counter += 1
+
+    if counter > 999:
+        log.info("Speed: {0} {1}%"
+                 .format(counter / (datetime.now() - start).total_seconds(),
+                         perc))
+        start = datetime.now()
+        counter = 0
+
     return ret
 
 
 def check_shoot(belt_path):
+    global start
+    import os
     log.debug("Checking shoot: {0}".format(belt_path))
+    ret = True
+    s = elliptics.Session(n)
+    s.groups = [1]
+    start = datetime.now()
     with open(belt_path, 'r') as f:
+        fsize = os.fstat(f.fileno()).st_size
+        mm = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
         while True:
             try:
-                line = f.readline()
+                line = mm.readline()
                 packet_size, _ = line.split(' ')
                 packet_size = int(packet_size) + 1
-		#print packet_size
-                packet = f.read(packet_size)
-                if not process_packet(packet):
-                    return False
+                packet = mm.read(packet_size)
+                if not process_packet(packet, s, mm.tell() * 100.0 / fsize):
+                    ret = False
             except Exception as e:
                 log.debug("Error: {0}".format(e))
                 break
+        mm.close()
+    return ret
 
 
 if __name__ == "__main__":
-    if not check_shoot(sys.argv[1]):
+    ret = True
+    for arg in sys.argv[1:]:
+        if not check_shoot(arg):
+            ret = False
+
+    if not ret:
         exit(1)
