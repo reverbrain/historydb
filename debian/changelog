@@ -1,3 +1,9 @@
+historydb (0.2.5.1) unstable; urgency=low
+
+  * Updated thevoid and elliptics version.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Mon, 14 Oct 2013 15:47:47 +0400
+
 historydb (0.2.5.0) unstable; urgency=low
 
   * Compatibility with elliptics 2.24.14.15
@@ -32,19 +38,19 @@ historydb (0.2.3.0) unstable; urgency=low
 
 historydb (0.2.2.0) unstable; urgency=low
 
-  * Removed sharding activity on historydb side. Updated elliptics depency 
+  * Removed sharding activity on historydb side. Updated elliptics depency
 
  -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Mon, 08 Jul 2013 14:34:57 +0400
 
 historydb (0.2.1.2) unstable; urgency=low
 
-  * Removed cerr from HistoryDB-TheVoid initialization 
+  * Removed cerr from HistoryDB-TheVoid initialization
 
  -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Fri, 28 Jun 2013 20:50:49 +0400
 
 historydb (0.2.1.1) unstable; urgency=low
 
-  * New version of swarm: 0.5.1 
+  * New version of swarm: 0.5.1
 
  -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Fri, 28 Jun 2013 20:39:38 +0400
 
