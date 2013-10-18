@@ -58,7 +58,7 @@ def process_packet(packet, s, perc):
 
     log.debug("Reading file '{0}' offset: {1} size: {2}"
               .format(user_key, offset, size))
-    r_data = s.read_data(user_key, offset, size)
+    r_data = s.read_data(user_key, offset, size).get()[0].data
 
     offsets[user_key] = offset + size
 
