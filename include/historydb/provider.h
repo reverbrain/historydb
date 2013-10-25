@@ -147,14 +147,14 @@ public:
 		user - name of user
 		begin_time - begin of the time period
 		end_time - end of the time period
-		returns list of vectors where vector is a logs of one day
+		returns aggregated user's logs for specified period
 	*/
 	std::vector<char> get_user_logs(const std::string& user, uint64_t begin_time, uint64_t end_time);
 
 	/* Gets user's logs for subkeys
 		user - name of user
 		subkeys - custom keys of user logs
-		returns list of vector where vector is a logs of one subkey
+		returns aggregated user's logs. Logs are aggregated in subkeys order.
 	*/
 	std::vector<char> get_user_logs(const std::string& user, const std::vector<std::string>& subkeys);
 
@@ -162,7 +162,7 @@ public:
 		user - name of user
 		begin_time - begin of the time period
 		end_time - end of the time period
-		returns list of vectors where vector is a logs of one day
+		callback - result callback which accepts aggregated user's logs
 	*/
 	void get_user_logs(const std::string& user,
 	                   uint64_t begin_time,
@@ -172,7 +172,7 @@ public:
 	/* Async gets user's logs for subkeys
 		user - name of user
 		subkeys - custom keys of user logs
-		returns list of vector where vector is a logs of one subkey
+		callback - result callbeck which accepts aggregated user's logs. Logs are aggregated in subkeys order.
 	*/
 	void get_user_logs(const std::string& user,
 	                   const std::vector<std::string>& subkeys,
@@ -180,19 +180,19 @@ public:
 
 	/* Gets active users with activity statistics for specified period
 		time - timestamp of the activity statistics day
-		returns list of active users
+		returns set of active users
 	*/
 	std::set<std::string> get_active_users(uint64_t begin_time, uint64_t end_time);
 
 	/* Gets active users with activity statistics for specified subkeys
 		subkey - custom key of activity statistics
-		return list of active users
+		return set of active users
 	*/
 	std::set<std::string> get_active_users(const std::vector<std::string>& subkeys);
 
 	/* Async gets active users with activity statistics for specified period
 		time - timestamp of the activity statistics day
-		returns list of active users
+		callback - result callback which accepts set of active users.
 	*/
 	void get_active_users(uint64_t begin_time,
 	                      uint64_t end_time,
@@ -200,7 +200,7 @@ public:
 
 	/* Async gets active users with activity statistics for specified subkeys
 		subkey - custom key of activity statistics
-		return list of active users
+		callback - result callback which accepts set of active users.
 	*/
 	void get_active_users(const std::vector<std::string>& subkeys,
 	                      std::function<void(const std::set<std::string> &active_users)> callback);
