@@ -1,3 +1,11 @@
+historydb (0.2.5.2) unstable; urgency=low
+
+  * Added ability to use void*/size_t or std::string for logs data.
+  * Added add_log_with_activity to fastcgi.
+  * Increased version of thevoid, swarm and elliptics in deps. 
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Mon, 28 Oct 2013 22:38:54 +0400
+
 historydb (0.2.5.1) unstable; urgency=low
 
   * Updated thevoid and elliptics version.

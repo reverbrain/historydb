@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.5.1
+Version:	0.2.5.2
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -71,6 +71,11 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Mon Oct 28 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.5.2
+- Added ability to use void*/size_t or std::string for logs data.
+- Added add_log_with_activity to fastcgi.
+- Increased version of thevoid, swarm and elliptics in deps.
+
 * Mon Oct 14 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.5.1
 - Updated thevoid and elliptics version.
 
