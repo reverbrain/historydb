@@ -47,15 +47,12 @@ void on_add_log::on_request(const ioremap::swarm::network_request &/*req*/,
 		    !query_list.has_item(consts::KEY_ITEM)))
 			throw std::invalid_argument("user, data, time or key");
 
-		auto data = query_list.item_value("data");
-		std::vector<char> std_data(data.begin(), data.end());
-
 		if(query_list.has_item(consts::KEY_ITEM)) {
 			get_server()
 			->get_provider()
 			->add_log(query_list.item_value(consts::USER_ITEM),
 			          query_list.item_value(consts::KEY_ITEM),
-			          std_data,
+			          query_list.item_value("data"),
 			          std::bind(&on_add_log::on_finish,
 			                    shared_from_this(),
 			                    std::placeholders::_1));
@@ -65,7 +62,7 @@ void on_add_log::on_request(const ioremap::swarm::network_request &/*req*/,
 			->get_provider()
 			->add_log(query_list.item_value(consts::USER_ITEM),
 			          boost::lexical_cast<uint64_t>(query_list.item_value(consts::TIME_ITEM)),
-			          std_data,
+			          query_list.item_value("data"),
 			          std::bind(&on_add_log::on_finish,
 			                    shared_from_this(),
 			                    std::placeholders::_1));

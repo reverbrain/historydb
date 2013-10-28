@@ -53,6 +53,7 @@ namespace fcgi {
 
 		void handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext* context);
 		void handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext* context);
+		void handle_add_log_with_activity(fastcgi::Request* req, fastcgi::HandlerContext* context);
 		void handle_get_active_users(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get active user request
 		void handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContext* context); // handle get user logs request
 

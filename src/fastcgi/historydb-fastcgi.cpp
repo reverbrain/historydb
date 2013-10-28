@@ -136,11 +136,12 @@ void handler::handleRequest(fastcgi::Request* req, fastcgi::HandlerContext* cont
 
 void handler::init_handlers()
 {
-	ADD_HANDLER("/",					handle_root);
-	ADD_HANDLER("/add_log",				handle_add_log);
-	ADD_HANDLER("/add_activity",		handle_add_activity);
-	ADD_HANDLER("/get_active_users",	handle_get_active_users);
-	ADD_HANDLER("/get_user_logs",		handle_get_user_logs);
+	ADD_HANDLER("/",						handle_root);
+	ADD_HANDLER("/add_log",					handle_add_log);
+	ADD_HANDLER("/add_activity",			handle_add_activity);
+	ADD_HANDLER("/add_log_with_activity",	handle_add_log_with_activity);
+	ADD_HANDLER("/get_active_users",		handle_get_active_users);
+	ADD_HANDLER("/get_user_logs",			handle_get_user_logs);
 }
 
 void handler::handle_root(fastcgi::Request* req, fastcgi::HandlerContext*)
@@ -169,18 +170,15 @@ void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext*)
 		     !req->hasArg(consts::KEY_ITEM)))
 			throw std::invalid_argument("Required parameters are missing");
 
-		auto data = req->getArg(consts::DATA_ITEM);
-		std::vector<char> std_data(data.begin(), data.end());
-
 		if (req->hasArg(consts::KEY_ITEM)) {
 			m_provider->add_log(req->getArg(consts::USER_ITEM),
 			                    req->getArg(consts::KEY_ITEM),
-			                    std_data);
+			                    req->getArg(consts::DATA_ITEM));
 		}
 		else if (req->hasArg(consts::TIME_ITEM)) {
 			m_provider->add_log(req->getArg(consts::USER_ITEM),
 			                    boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM)),
-			                    std_data);
+			                    req->getArg(consts::DATA_ITEM));
 		}
 		else
 			throw std::invalid_argument("Required parameters are missing");
@@ -212,6 +210,41 @@ void handler::handle_add_activity(fastcgi::Request* req, fastcgi::HandlerContext
 		else if(req->hasArg(consts::TIME_ITEM)) {
 			m_provider->add_activity(req->getArg(consts::USER_ITEM),
 			                         boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM)));
+		}
+		else
+			throw std::invalid_argument("Required parameters are missing");
+
+		req->setStatus(200);
+	}
+	catch(ioremap::elliptics::error&) {
+		req->setStatus(500);
+	}
+	catch(...) {
+		req->setStatus(400);
+	}
+}
+
+void handler::handle_add_log_with_activity(fastcgi::Request* req, fastcgi::HandlerContext* context)
+{
+	m_logger->debug("Handle add log with activity request\n");
+	req->setHeader("Content-Length", "0");
+
+	try {
+		if (!req->hasArg("user") ||
+		    !req->hasArg(consts::DATA_ITEM) ||
+		    (!req->hasArg(consts::TIME_ITEM) &&
+		     !req->hasArg(consts::KEY_ITEM)))
+			throw std::invalid_argument("Required parameters are missing");
+
+		if (req->hasArg(consts::KEY_ITEM)) {
+			m_provider->add_log_with_activity(req->getArg(consts::USER_ITEM),
+			                                  req->getArg(consts::KEY_ITEM),
+			                                  req->getArg(consts::DATA_ITEM));
+		}
+		else if (req->hasArg(consts::TIME_ITEM)) {
+			m_provider->add_log_with_activity(req->getArg(consts::USER_ITEM),
+			                                  boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM)),
+			                                  req->getArg(consts::DATA_ITEM));
 		}
 		else
 			throw std::invalid_argument("Required parameters are missing");

@@ -17,9 +17,9 @@ BuildRequires:	gcc gcc-c++
 
 BuildRequires:	boost-devel, boost-thread, boost-system
 BuildRequires:	cmake msgpack-devel
-BuildRequires:	elliptics-client-devel >= 2.24.14.19
+BuildRequires:	elliptics-client-devel >= 2.24.14.21
 BuildRequires:	fastcgi-daemon2-libs-devel
-BuildRequires:	libthevoid-devel >= 0.5.5.0
+BuildRequires:	libthevoid-devel >= 0.5.5.1
 
 %description
 History DB is a trully scalable (hundreds of millions updates per day)

@@ -47,138 +47,258 @@ std::vector<std::string> time_period_to_subkeys(uint64_t begin_time, uint64_t en
 	return ret;
 }
 
-provider::provider(const std::vector<server_info>& servers,
-                   const std::vector<int>& groups,
+provider::provider(const std::vector<server_info> &servers,
+                   const std::vector<int> &groups,
                    uint32_t min_writes,
-                   const std::string& log_file,
+                   const std::string &log_file,
                    const int log_level)
 : m_impl(std::make_shared<impl>(servers, groups, min_writes, log_file, log_level))
 {}
 
-provider::provider(const std::vector<std::string>& servers,
-                   const std::vector<int>& groups,
+provider::provider(const std::vector<std::string> &servers,
+                   const std::vector<int> &groups,
                    uint32_t min_writes,
-                   const std::string& log_file,
+                   const std::string &log_file,
                    const int log_level)
 : m_impl(std::make_shared<impl>(servers, groups, min_writes, log_file, log_level))
 {}
 
-void provider::set_session_parameters(const std::vector<int>& groups,
+void provider::set_session_parameters(const std::vector<int> &groups,
                                       uint32_t min_writes)
 {
 	m_impl->set_session_parameters(groups, min_writes);
 }
 
-void provider::add_log(const std::string& user,
+void provider::add_log(const std::string &user,
                        uint64_t time,
-                       const std::vector<char>& data)
+                       const void *data, size_t size)
 {
-	m_impl->add_log(user, time_to_subkey(time), data);
+	m_impl->add_log(user, time_to_subkey(time), data, size);
 }
 
-void provider::add_log(const std::string& user,
-                       const std::string& subkey,
-                       const std::vector<char>& data)
+void provider::add_log(const std::string &user,
+                       uint64_t time,
+                       const std::string &data)
 {
-	m_impl->add_log(user, subkey, data);
+	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size());
 }
 
-void provider::add_log(const std::string& user,
+void provider::add_log(const std::string &user,
                        uint64_t time,
-                       const std::vector<char>& data,
+                       const std::vector<char> &data)
+{
+	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size());
+}
+
+void provider::add_log(const std::string &user,
+                       const std::string &subkey,
+                       const void *data, size_t size)
+{
+	m_impl->add_log(user, subkey, data, size);
+}
+
+void provider::add_log(const std::string &user,
+                       const std::string &subkey,
+                       const std::string &data)
+{
+	m_impl->add_log(user, subkey, data.data(), data.size());
+}
+
+void provider::add_log(const std::string &user,
+                       const std::string &subkey,
+                       const std::vector<char> &data)
+{
+	m_impl->add_log(user, subkey, data.data(), data.size());
+}
+
+void provider::add_log(const std::string &user,
+                       uint64_t time,
+                       const void *data, size_t size,
                        std::function<void(bool added)> callback)
 {
-	m_impl->add_log(user, time_to_subkey(time), data, callback);
+	m_impl->add_log(user, time_to_subkey(time), data, size, callback);
 }
 
-void provider::add_log(const std::string& user,
-                       const std::string& subkey,
-                       const std::vector<char>& data,
+void provider::add_log(const std::string &user,
+                       uint64_t time,
+                       const std::string &data,
                        std::function<void(bool added)> callback)
 {
-	m_impl->add_log(user, subkey, data, callback);
+	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size(), callback);
 }
 
-void provider::add_activity(const std::string& user, uint64_t time)
+void provider::add_log(const std::string &user,
+                       uint64_t time,
+                       const std::vector<char> &data,
+                       std::function<void(bool added)> callback)
+{
+	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size(), callback);
+}
+
+void provider::add_log(const std::string &user,
+                       const std::string &subkey,
+                       const void *data, size_t size,
+                       std::function<void(bool added)> callback)
+{
+	m_impl->add_log(user, subkey, data, size, callback);
+}
+
+void provider::add_log(const std::string &user,
+                       const std::string &subkey,
+                       const std::string &data,
+                       std::function<void(bool added)> callback)
+{
+	m_impl->add_log(user, subkey, data.data(), data.size(), callback);
+}
+
+void provider::add_log(const std::string &user,
+                       const std::string &subkey,
+                       const std::vector<char> &data,
+                       std::function<void(bool added)> callback)
+{
+	m_impl->add_log(user, subkey, data.data(), data.size(), callback);
+}
+
+void provider::add_activity(const std::string &user, uint64_t time)
 {
 	m_impl->add_activity(user, time_to_subkey(time));
 }
 
-void provider::add_activity(const std::string& user, const std::string& subkey)
+void provider::add_activity(const std::string &user, const std::string &subkey)
 {
 	m_impl->add_activity(user, subkey);
 }
 
-void provider::add_activity(const std::string& user,
+void provider::add_activity(const std::string &user,
                             uint64_t time,
                             std::function<void(bool added)> callback)
 {
 	m_impl->add_activity(user, time_to_subkey(time), callback);
 }
 
-void provider::add_activity(const std::string& user,
-                            const std::string& subkey,
+void provider::add_activity(const std::string &user,
+                            const std::string &subkey,
                             std::function<void(bool added)> callback)
 {
 	m_impl->add_activity(user, subkey, callback);
 }
 
-void provider::add_log_with_activity(const std::string& user,
+void provider::add_log_with_activity(const std::string &user,
                                      uint64_t time,
-                                     const std::vector<char>& data)
+                                     const void *data, size_t size)
 {
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data);
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data, size);
 }
 
-void provider::add_log_with_activity(const std::string& user,
-                                     const std::string& subkey,
-                                     const std::vector<char>& data)
+void provider::add_log_with_activity(const std::string &user,
+                                     uint64_t time,
+                                     const std::string &data)
 {
-	m_impl->add_log_with_activity(user, subkey, data);
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size());
 }
 
-void provider::add_log_with_activity(const std::string& user,
+void provider::add_log_with_activity(const std::string &user,
                                      uint64_t time,
-                                     const std::vector<char>& data,
+                                     const std::vector<char> &data)
+{
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size());
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     const std::string &subkey,
+                                     const void *data, size_t size)
+{
+	m_impl->add_log_with_activity(user, subkey, data, size);
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     const std::string &subkey,
+                                     const std::string &data)
+{
+	m_impl->add_log_with_activity(user, subkey, data.data(), data.size());
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     const std::string &subkey,
+                                     const std::vector<char> &data)
+{
+	m_impl->add_log_with_activity(user, subkey, data.data(), data.size());
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     uint64_t time,
+                                     const void *data, size_t size,
                                      std::function<void(bool added)> callback)
 {
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data, callback);
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data, size, callback);
 }
 
-void provider::add_log_with_activity(const std::string& user,
-                                     const std::string& subkey,
-                                     const std::vector<char>& data,
+void provider::add_log_with_activity(const std::string &user,
+                                     uint64_t time,
+                                     const std::string &data,
                                      std::function<void(bool added)> callback)
 {
-	m_impl->add_log_with_activity(user, subkey, data, callback);
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size(), callback);
 }
 
-std::vector<char> provider::get_user_logs(const std::string& user,
+void provider::add_log_with_activity(const std::string &user,
+                                     uint64_t time,
+                                     const std::vector<char> &data,
+                                     std::function<void(bool added)> callback)
+{
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size(), callback);
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     const std::string &subkey,
+                                     const void *data, size_t size,
+                                     std::function<void(bool added)> callback)
+{
+	m_impl->add_log_with_activity(user, subkey, data, size, callback);
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     const std::string &subkey,
+                                     const std::string &data,
+                                     std::function<void(bool added)> callback)
+{
+	m_impl->add_log_with_activity(user, subkey, data.data(), data.size(), callback);
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     const std::string &subkey,
+                                     const std::vector<char> &data,
+                                     std::function<void(bool added)> callback)
+{
+	m_impl->add_log_with_activity(user, subkey, data.data(), data.size(), callback);
+}
+
+std::vector<char> provider::get_user_logs(const std::string &user,
                                           uint64_t begin_time,
                                           uint64_t end_time)
 {
 	return m_impl->get_user_logs(user, time_period_to_subkeys(begin_time, end_time));
 }
 
-std::vector<char> provider::get_user_logs(const std::string& user,
-                                          const std::vector<std::string>& subkeys)
+std::vector<char> provider::get_user_logs(const std::string &user,
+                                          const std::vector<std::string> &subkeys)
 {
 	return m_impl->get_user_logs(user, subkeys);
 }
 
-void provider::get_user_logs(const std::string& user,
+void provider::get_user_logs(const std::string &user,
                              uint64_t begin_time,
                              uint64_t end_time,
-                             std::function<void(const std::vector<char>& data)> callback)
+                             std::function<void(const std::vector<char> &data)> callback)
 {
 	m_impl->get_user_logs(user,
 	                     time_period_to_subkeys(begin_time, end_time),
 	                     callback);
 }
 
-void provider::get_user_logs(const std::string& user,
-                             const std::vector<std::string>& subkeys,
-                             std::function<void(const std::vector<char>& data)> callback)
+void provider::get_user_logs(const std::string &user,
+                             const std::vector<std::string> &subkeys,
+                             std::function<void(const std::vector<char> &data)> callback)
 {
 	m_impl->get_user_logs(user, subkeys, callback);
 }
@@ -188,55 +308,55 @@ std::set<std::string> provider::get_active_users(uint64_t begin_time, uint64_t e
 	return m_impl->get_active_users(time_period_to_subkeys(begin_time, end_time));
 }
 
-std::set<std::string> provider::get_active_users(const std::vector<std::string>& subkeys)
+std::set<std::string> provider::get_active_users(const std::vector<std::string> &subkeys)
 {
 	return m_impl->get_active_users(subkeys);
 }
 
 void provider::get_active_users(uint64_t begin_time,
                                 uint64_t end_time,
-                                std::function<void(const std::set<std::string> &active_users)> callback)
+                                std::function<void(const std::set<std::string>  &ctive_users)> callback)
 {
 	m_impl->get_active_users(time_period_to_subkeys(begin_time, end_time), callback);
 }
 
-void provider::get_active_users(const std::vector<std::string>& subkeys,
-                                std::function<void(const std::set<std::string> &active_users)> callback)
+void provider::get_active_users(const std::vector<std::string> &subkeys,
+                                std::function<void(const std::set<std::string>  &ctive_users)> callback)
 {
 	m_impl->get_active_users(subkeys, callback);
 }
 
 
-void provider::for_user_logs(const std::string& user,
+void provider::for_user_logs(const std::string &user,
                              uint64_t begin_time,
                              uint64_t end_time,
-                             std::function<bool(const std::vector<char>& data)> callback)
+                             std::function<bool(const std::vector<char> &data)> callback)
 {
 	m_impl->for_user_logs(user, time_period_to_subkeys(begin_time, end_time), callback);
 }
 
-void provider::for_user_logs(const std::string& user,
-                             const std::vector<std::string>& subkeys,
-                             std::function<bool(const std::vector<char>& data)> callback)
+void provider::for_user_logs(const std::string &user,
+                             const std::vector<std::string> &subkeys,
+                             std::function<bool(const std::vector<char> &data)> callback)
 {
 	m_impl->for_user_logs(user, subkeys, callback);
 }
 
 void provider::for_active_users(uint64_t begin_time,
                                 uint64_t end_time,
-                                std::function<bool(const std::set<std::string>& active_users)> callback)
+                                std::function<bool(const std::set<std::string> &active_users)> callback)
 {
 	m_impl->for_active_users(time_period_to_subkeys(begin_time, end_time), callback);
 }
 
-void provider::for_active_users(const std::vector<std::string>& subkeys,
-                                std::function<bool(const std::set<std::string>& active_users)> callback)
+void provider::for_active_users(const std::vector<std::string> &subkeys,
+                                std::function<bool(const std::set<std::string> &active_users)> callback)
 {
 	m_impl->for_active_users(subkeys, callback);
 }
 
 
-int get_log_level(const std::string& log_level)
+int get_log_level(const std::string &log_level)
 {
 			if (boost::iequals(log_level,	"DATA"))	return DNET_LOG_DATA;
 	else	if (boost::iequals(log_level,	"ERROR"))	return DNET_LOG_ERROR;

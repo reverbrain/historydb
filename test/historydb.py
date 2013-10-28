@@ -32,7 +32,7 @@ class historydb(object):
         return res.status
 
     def add_log(self, user, data, time=None, key=None):
-        p = {"user" : user, "data" : data}
+        p = {"user": user, "data": data}
         if time:
                 p['time'] = time
         elif key:
@@ -45,7 +45,7 @@ class historydb(object):
         return res.status
 
     def add_activity(self, user, time=None, key=None):
-        p = {"user" : user}
+        p = {"user": user}
         if not time is None:
                 p['time'] = time
         elif key:
@@ -56,7 +56,7 @@ class historydb(object):
         return res.status
 
     def add_log_with_activity(self, user, data, time=None, key=None):
-        p = {"user" : user, "data" : data}
+        p = {"user": user, "data": data}
         if time:
                 p['time'] = time
         elif key:
@@ -69,10 +69,10 @@ class historydb(object):
         return res.status
 
     def get_user_logs(self, user, keys=None, begin_time=None, end_time=None):
-        p = {'user' : user}
+        p = {'user': user}
         if keys:
                 p["keys"] = ':'.join(keys)
-        elif begin_time and end_time:
+        elif begin_time is not None and end_time is not None:
                 p['begin_time'] = begin_time
                 p['end_time'] = end_time
         else:
