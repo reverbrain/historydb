@@ -1,3 +1,9 @@
+historydb (0.2.6.0) unstable; urgency=low
+
+  * Used ioremap::elliptics::data_pointer for logs data.
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Wed, 30 Oct 2013 02:25:25 +0400
+
 historydb (0.2.5.2) unstable; urgency=low
 
   * Added ability to use void*/size_t or std::string for logs data.

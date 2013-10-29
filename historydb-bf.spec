@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.5.2
+Version:	0.2.6.0
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -71,6 +71,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Wed Oct 30 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.6.0
+- Used ioremap::elliptics::data_pointer for logs data.
+
 * Mon Oct 28 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.5.2
 - Added ability to use void*/size_t or std::string for logs data.
 - Added add_log_with_activity to fastcgi.
