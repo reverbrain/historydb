@@ -173,12 +173,12 @@ void handler::handle_add_log(fastcgi::Request* req, fastcgi::HandlerContext*)
 		if (req->hasArg(consts::KEY_ITEM)) {
 			m_provider->add_log(req->getArg(consts::USER_ITEM),
 			                    req->getArg(consts::KEY_ITEM),
-			                    req->getArg(consts::DATA_ITEM));
+			                    ioremap::elliptics::data_pointer::copy(req->getArg(consts::DATA_ITEM)));
 		}
 		else if (req->hasArg(consts::TIME_ITEM)) {
 			m_provider->add_log(req->getArg(consts::USER_ITEM),
 			                    boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM)),
-			                    req->getArg(consts::DATA_ITEM));
+			                    ioremap::elliptics::data_pointer::copy(req->getArg(consts::DATA_ITEM)));
 		}
 		else
 			throw std::invalid_argument("Required parameters are missing");
@@ -239,12 +239,12 @@ void handler::handle_add_log_with_activity(fastcgi::Request* req, fastcgi::Handl
 		if (req->hasArg(consts::KEY_ITEM)) {
 			m_provider->add_log_with_activity(req->getArg(consts::USER_ITEM),
 			                                  req->getArg(consts::KEY_ITEM),
-			                                  req->getArg(consts::DATA_ITEM));
+			                                  ioremap::elliptics::data_pointer::copy(req->getArg(consts::DATA_ITEM)));
 		}
 		else if (req->hasArg(consts::TIME_ITEM)) {
 			m_provider->add_log_with_activity(req->getArg(consts::USER_ITEM),
 			                                  boost::lexical_cast<uint64_t>(req->getArg(consts::TIME_ITEM)),
-			                                  req->getArg(consts::DATA_ITEM));
+			                                  ioremap::elliptics::data_pointer::copy(req->getArg(consts::DATA_ITEM)));
 		}
 		else
 			throw std::invalid_argument("Required parameters are missing");
@@ -326,7 +326,7 @@ void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContex
 		if (!req->hasArg(consts::USER_ITEM))
 			throw std::invalid_argument("Required parameters are missing");
 
-		std::vector<char> res;
+		std::vector<ioremap::elliptics::data_pointer> res;
 
 		if(req->hasArg(consts::KEYS_ITEM)) {
 			std::string keys_value = req->getArg(consts::KEYS_ITEM);
@@ -347,7 +347,12 @@ void handler::handle_get_user_logs(fastcgi::Request* req, fastcgi::HandlerContex
 		rapidjson::Document d; // creates json document
 		d.SetObject();
 
-		rapidjson::Value user_logs(res.data(), res.size(), d.GetAllocator()); // creates vector value for user one's day log
+		rapidjson::Value user_logs(rapidjson::kArrayType); // creates vector value for user one's day log
+
+		for (auto it = res.begin(), end = res.end(); it != end; ++it) {
+			rapidjson::Value user_log(it->data<char>(), it->size(), d.GetAllocator()); // creates vector value for user one's day log
+			user_logs.PushBack(user_log, d.GetAllocator());
+		}
 
 		d.AddMember("logs", user_logs, d.GetAllocator()); // adds logs array to json document
 

@@ -45,15 +45,15 @@ void print_usage(char* s)
 	;
 }
 
-bool test1_for1(const std::vector<char>& data)
+bool test1_for1(const ioremap::elliptics::data_pointer& data)
 {
-	std::cout << "LOG1 LAMBDA: " << std::string((char*)&data.front(), data.size()) << " " << time << std::endl;
+	std::cout << "LOG1 LAMBDA: " << data.to_string() << " " << time << std::endl;
 	return true;
 }
 
-bool test1_for2(const std::vector<char>& data)
+bool test1_for2(const ioremap::elliptics::data_pointer& data)
 {
-	std::cout << "LOG2 LAMBDA: " << std::string((char*)&data.front(), data.size()) << " " << time << std::endl;
+	std::cout << "LOG2 LAMBDA: " << data.to_string() << " " << time << std::endl;
 	return true;
 }
 
@@ -69,9 +69,9 @@ bool test1_for4(const std::set<std::string>& user)
 	return true;
 }
 
-std::vector<char> make_vector(const char* data, uint32_t size)
+ioremap::elliptics::data_pointer make_data(const char* data, uint32_t size)
 {
-	return std::vector<char>(data, data + size);
+	return ioremap::elliptics::data_pointer::copy(data, size);
 }
 
 void test1(std::shared_ptr<history::provider> provider)
@@ -79,23 +79,23 @@ void test1(std::shared_ptr<history::provider> provider)
 	std::cout << "Run test1" << std::endl;
 	auto tm = 0;
 
-	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
-	provider->add_log(USER1, tm++, make_vector(UCM, sizeof(UCM)));
-	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
-	provider->add_log(USER1, tm++, make_vector(UCR, sizeof(UCR)));
-	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
-	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
-	provider->add_log(USER1, tm++, make_vector(UCR, sizeof(UCR)));
-	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
-	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_data(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_data(UCM, sizeof(UCM)));
+	provider->add_log(USER1, tm++, make_data(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_data(UCR, sizeof(UCR)));
+	provider->add_log(USER1, tm++, make_data(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_data(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_data(UCR, sizeof(UCR)));
+	provider->add_log(USER1, tm++, make_data(UMM, sizeof(UMM)));
+	provider->add_log(USER1, tm++, make_data(UMM, sizeof(UMM)));
 
-	provider->add_log(USER2, tm++, make_vector(UCR, sizeof(UCR)));
-	provider->add_log(USER2, tm++, make_vector(UCR, sizeof(UCR)));
-	provider->add_log(USER2, tm++, make_vector(UCM, sizeof(UCM)));
-	provider->add_log(USER2, tm++, make_vector(UMM, sizeof(UMM)));
-	provider->add_log(USER2, tm++, make_vector(UCR, sizeof(UCR)));
-	provider->add_log(USER2, tm++, make_vector(UMM, sizeof(UMM)));
-	provider->add_log(USER2, tm++, make_vector(UCM, sizeof(UCM)));
+	provider->add_log(USER2, tm++, make_data(UCR, sizeof(UCR)));
+	provider->add_log(USER2, tm++, make_data(UCR, sizeof(UCR)));
+	provider->add_log(USER2, tm++, make_data(UCM, sizeof(UCM)));
+	provider->add_log(USER2, tm++, make_data(UMM, sizeof(UMM)));
+	provider->add_log(USER2, tm++, make_data(UCR, sizeof(UCR)));
+	provider->add_log(USER2, tm++, make_data(UMM, sizeof(UMM)));
+	provider->add_log(USER2, tm++, make_data(UCM, sizeof(UCM)));
 
 	provider->for_user_logs(USER1, 3, tm, test1_for1);
 
@@ -114,9 +114,9 @@ void test3_add(bool log_writed)
 				<< std::endl;
 }
 
-bool test3_for1(uint32_t& ind, const std::vector<char>& data)
+bool test3_for1(uint32_t& ind, const ioremap::elliptics::data_pointer& data)
 {
-	std::cout << "TEST3: LOG1 LAMBDA: " << std::string((char*)&data.front(), data.size()) << std::endl;
+	std::cout << "TEST3: LOG1 LAMBDA: " << data.to_string() << std::endl;
 	++ind;
 	return true;
 }
@@ -131,7 +131,7 @@ bool test3_for2(uint32_t& ind, const std::set<std::string>& user)
 void test3(std::shared_ptr<history::provider> provider)
 {
 	auto tm = 1;
-	provider->add_log(USER1, tm++, make_vector(UMM, sizeof(UMM)), test3_add);
+	provider->add_log(USER1, tm++, make_data(UMM, sizeof(UMM)), test3_add);
 
 	uint32_t ind = 0;
 
@@ -152,7 +152,7 @@ void test4(std::shared_ptr<history::provider> provider)
 {
 	std::cout << "TEST4:" << std::endl;
 
-	provider->add_log("PU", 0, make_vector("ASDSADA", 8), &test4_callback);
+	provider->add_log("PU", 0, make_data("ASDSADA", 8), &test4_callback);
 
 	boost::this_thread::sleep(boost::posix_time::milliseconds(100));
 }

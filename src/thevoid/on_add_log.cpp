@@ -52,7 +52,7 @@ void on_add_log::on_request(const ioremap::swarm::network_request &/*req*/,
 			->get_provider()
 			->add_log(query_list.item_value(consts::USER_ITEM),
 			          query_list.item_value(consts::KEY_ITEM),
-			          query_list.item_value("data"),
+			          ioremap::elliptics::data_pointer::copy(query_list.item_value(consts::DATA_ITEM)),
 			          std::bind(&on_add_log::on_finish,
 			                    shared_from_this(),
 			                    std::placeholders::_1));
@@ -62,7 +62,7 @@ void on_add_log::on_request(const ioremap::swarm::network_request &/*req*/,
 			->get_provider()
 			->add_log(query_list.item_value(consts::USER_ITEM),
 			          boost::lexical_cast<uint64_t>(query_list.item_value(consts::TIME_ITEM)),
-			          query_list.item_value("data"),
+			          ioremap::elliptics::data_pointer::copy(query_list.item_value(consts::DATA_ITEM)),
 			          std::bind(&on_add_log::on_finish,
 			                    shared_from_this(),
 			                    std::placeholders::_1));

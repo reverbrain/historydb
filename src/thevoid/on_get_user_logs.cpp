@@ -85,14 +85,19 @@ void on_get_user_logs::on_request(const ioremap::swarm::network_request &req, co
 	}
 }
 
-bool on_get_user_logs::on_finished(const std::vector<char>& data)
+bool on_get_user_logs::on_finished(const std::vector<ioremap::elliptics::data_pointer>& data)
 {
 	std::string result_str;
 	if(!data.empty()) {
 		rapidjson::Document d; // creates json document
 		d.SetObject();
 
-		rapidjson::Value user_logs(data.data(), data.size(), d.GetAllocator()); // creates vector value for user one's day log
+		rapidjson::Value user_logs(rapidjson::kArrayType); // creates vector value for user one's day log
+
+		for (auto it = data.begin(), end = data.end(); it != end; ++it) {
+			rapidjson::Value user_log(it->data<char>(), it->size(), d.GetAllocator()); // creates vector value for user one's day log
+			user_logs.PushBack(user_log, d.GetAllocator());
+		}
 
 		d.AddMember("logs", user_logs, d.GetAllocator()); // adds logs array to json document
 

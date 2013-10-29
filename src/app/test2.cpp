@@ -46,7 +46,7 @@ bool update()
 
 void test_method(std::shared_ptr<history::provider> provider, uint32_t)
 {
-	auto request = std::vector<char>(consts::REQUEST, consts::REQUEST + sizeof(consts::REQUEST));
+	auto request = ioremap::elliptics::data_pointer::copy(consts::REQUEST, sizeof(consts::REQUEST));
 	while(update()) {
 		auto user = "user" + boost::lexical_cast<std::string>(rand() % consts::USERS_NO);
 		provider->add_log(user, current_time, request);

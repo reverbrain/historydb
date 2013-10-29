@@ -21,8 +21,9 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include <list>
 #include <set>
+
+#include <elliptics/utils.hpp>
 
 namespace history {
 
@@ -57,62 +58,36 @@ public:
 		user - name of user
 		time - timestamp of the log record (in seconds)
 		data - user log data
-		size - size of data
 	*/
-	void add_log(const std::string &user, uint64_t time, const void *data, size_t size);
-	void add_log(const std::string &user, uint64_t time, const std::string &data);
-	void add_log(const std::string &user, uint64_t time, const std::vector<char> &data);
+	void add_log(const std::string &user, uint64_t time, const ioremap::elliptics::data_pointer &data);
 
 	/* Adds data to user logs
 		user - name of user
 		subkey - custom key for user logs
 		data - user log data
-		size - size of data
 	*/
-	void add_log(const std::string &user, const std::string &subkey, const void *data, size_t size);
-	void add_log(const std::string &user, const std::string &subkey, const std::string &data);
-	void add_log(const std::string &user, const std::string &subkey, const std::vector<char> &data);
+	void add_log(const std::string &user, const std::string &subkey, const ioremap::elliptics::data_pointer &data);
 
 	/* Async adds data to user logs
 		user - name of user
 		time - timestamp of the log record (in seconds)
 		data - user log data
-		size - size of data
 		callback - complete callback
 	*/
 	void add_log(const std::string &user,
 	             uint64_t time,
-	             const void *data,
-	             size_t size,
-	             std::function<void(bool added)> callback);
-	void add_log(const std::string &user,
-	             uint64_t time,
-	             const std::string &data,
-	             std::function<void(bool added)> callback);
-	void add_log(const std::string &user,
-	             uint64_t time,
-	             const std::vector<char> &data,
+	             const ioremap::elliptics::data_pointer &data,
 	             std::function<void(bool added)> callback);
 
 	/* Async adds data to user logs
 		user - name of user
 		subkey - custom key for user logs
 		data - user log data
-		size - size of data
 		callback - complete callback
 	*/
 	void add_log(const std::string &user,
 	             const std::string &subkey,
-	             const void *data,
-	             size_t size,
-	             std::function<void(bool added)> callback);
-	void add_log(const std::string &user,
-	             const std::string &subkey,
-	             const std::string &data,
-	             std::function<void(bool added)> callback);
-	void add_log(const std::string &user,
-	             const std::string &subkey,
-	             const std::vector<char> &data,
+	             const ioremap::elliptics::data_pointer &data,
 	             std::function<void(bool added)> callback);
 
 	/* Adds user to activity statistics
@@ -149,112 +124,76 @@ public:
 		user - name of user
 		time - timestamp for log and for activity statistics (in seconds)
 		data - user log data
-		size - size of data
 	*/
 	void add_log_with_activity(const std::string &user,
 	                           uint64_t time,
-	                           const void *data,
-	                           size_t size);
-	void add_log_with_activity(const std::string &user,
-	                           uint64_t time,
-	                           const std::string &data);
-	void add_log_with_activity(const std::string &user,
-	                           uint64_t time,
-	                           const std::vector<char> &data);
+	                           const ioremap::elliptics::data_pointer &data);
 
 	/* Adds data to user logs and user to activity statistics
 		user - name of user
 		subkey - custom key for logs and for activity statistics
 		data - user log data
-		size - size of data
 	*/
 	void add_log_with_activity(const std::string &user,
 	                           const std::string &subkey,
-	                           const void *data,
-	                           size_t size);
-	void add_log_with_activity(const std::string &user,
-	                           const std::string &subkey,
-	                           const std::string &data);
-	void add_log_with_activity(const std::string &user,
-	                           const std::string &subkey,
-	                           const std::vector<char> &data);
+	                           const ioremap::elliptics::data_pointer &data);
 
 	/* Async adds data to user logs and user to activity statistics
 		user - name of user
 		time - timestamp for log and for activity statistics (in seconds)
 		data - user log data
-		size - size of data
 		callback - complete callback
 	*/
 	void add_log_with_activity(const std::string &user,
 	                           uint64_t time,
-	                           const void *data,
-	                           size_t size,
-	                           std::function<void(bool added)> callback);
-	void add_log_with_activity(const std::string &user,
-	                           uint64_t time,
-	                           const std::string &data,
-	                           std::function<void(bool added)> callback);
-	void add_log_with_activity(const std::string &user,
-	                           uint64_t time,
-	                           const std::vector<char> &data,
+	                           const ioremap::elliptics::data_pointer &data,
 	                           std::function<void(bool added)> callback);
 
 	/* Async adds data to user logs and user to activity statistics
 		user - name of user
 		subkey - custom key for logs and for activity statistics
 		data - user log data
-		size - size of data
 		callback - complete callback
 	*/
 	void add_log_with_activity(const std::string &user,
 	                           const std::string &subkey,
-	                           const void *data,
-	                           size_t size,
-	                           std::function<void(bool added)> callback);
-	void add_log_with_activity(const std::string &user,
-	                           const std::string &subkey,
-	                           const std::string &data,
-	                           std::function<void(bool added)> callback);
-	void add_log_with_activity(const std::string &user,
-	                           const std::string &subkey,
-	                           const std::vector<char> &data,
+	                           const ioremap::elliptics::data_pointer &data,
 	                           std::function<void(bool added)> callback);
 
 	/* Gets user's logs for specified period
 		user - name of user
 		begin_time - begin of the time period (in seconds)
 		end_time - end of the time period (in seconds)
-		returns aggregated user's logs for specified period
+		returns vector of user's daily logs for specified period
 	*/
-	std::vector<char> get_user_logs(const std::string &user, uint64_t begin_time, uint64_t end_time);
+	std::vector<ioremap::elliptics::data_pointer> get_user_logs(const std::string &user, uint64_t begin_time, uint64_t end_time);
 
 	/* Gets user's logs for subkeys
 		user - name of user
 		subkeys - custom keys of user logs
-		returns aggregated user's logs. Logs are aggregated in subkeys order.
+		returns vector of user's daily logs for specified subkeys
 	*/
-	std::vector<char> get_user_logs(const std::string &user, const std::vector<std::string> &subkeys);
+	std::vector<ioremap::elliptics::data_pointer> get_user_logs(const std::string &user, const std::vector<std::string> &subkeys);
 
 	/* Async gets user's logs for specified period
 		user - name of user
 		begin_time - begin of the time period (in seconds)
 		end_time - end of the time period (in seconds)
-		callback - result callback which accepts aggregated user's logs
+		callback - result callback which accepts vector of user's daily logs for specified period
 	*/
 	void get_user_logs(const std::string &user,
 	                   uint64_t begin_time,
 	                   uint64_t end_time,
-	                   std::function<void(const std::vector<char> &data)> callback);
+	                   std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback);
 
 	/* Async gets user's logs for subkeys
 		user - name of user
 		subkeys - custom keys of user logs
-		callback - result callbeck which accepts aggregated user's logs. Logs are aggregated in subkeys order.
+		callback - result callbeck which accepts vector of user's daily logs for specified subkeys
 	*/
 	void get_user_logs(const std::string &user,
 	                   const std::vector<std::string> &subkeys,
-	                   std::function<void(const std::vector<char> &data)> callback);
+	                   std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback);
 
 	/* Gets active users with activity statistics for specified period
 		time - timestamp of the activity statistics day (in seconds)
@@ -293,16 +232,16 @@ public:
 	void for_user_logs(const std::string &user,
 	                   uint64_t begin_time,
 	                   uint64_t end_time,
-	                   std::function<bool(const std::vector<char> &data)> callback);
+	                   std::function<bool(const ioremap::elliptics::data_pointer &data)> callback);
 
 	/* Runs through users logs for specified subkeys and calls callback on each log file
 		user - name of user
 		subkeys - custom keys of user logs
-		callback - on log file callback
+		callback - on each daily logs callback
 	*/
 	void for_user_logs(const std::string &user,
 	                   const std::vector<std::string> &subkeys,
-	                   std::function<bool(const std::vector<char> &data)> callback);
+	                   std::function<bool(const ioremap::elliptics::data_pointer &data)> callback);
 
 	/* Runs throgh activity statistics for specified time period and calls callback on each activity statistics
 		begin_time - begin of the time period (in seconds)

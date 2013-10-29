@@ -19,6 +19,8 @@
 
 #include "webserver.h"
 
+#include <elliptics/utils.hpp>
+
 namespace history {
 
 	struct on_get_user_logs :
@@ -27,7 +29,7 @@ namespace history {
 	{
 		virtual void on_request(const ioremap::swarm::network_request &req,
 		                        const boost::asio::const_buffer &buffer);
-		bool on_finished(const std::vector<char>& data);
+		bool on_finished(const std::vector<ioremap::elliptics::data_pointer>& data);
 		void on_send_finished(const std::string &);
 		virtual void on_close(const boost::system::error_code &) {}
 	};

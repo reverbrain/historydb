@@ -96,7 +96,7 @@ private:
 	uint32_t min_writes_;
 };
 
-class provider::impl : public std::enable_shared_from_this<provider::impl>
+class provider::impl: public std::enable_shared_from_this<provider::impl>
 {
 public:
 	impl(const std::vector<server_info>& servers,
@@ -114,10 +114,10 @@ public:
 
 	void add_log(const std::string& user,
 	             const std::string& subkey,
-	             const void *data, size_t size);
+	             const ioremap::elliptics::data_pointer &data);
 	void add_log(const std::string& user,
 	             const std::string& subkey,
-	             const void *data, size_t size,
+	             const ioremap::elliptics::data_pointer &data,
 	             std::function<void(bool added)> callback);
 
 	void add_activity(const std::string& user, const std::string& subkey);
@@ -127,17 +127,17 @@ public:
 
 	void add_log_with_activity(const std::string& user,
 	                           const std::string& subkey,
-	                           const void *data, size_t size);
+	                           const ioremap::elliptics::data_pointer &data);
 	void add_log_with_activity(const std::string& user,
 	                           const std::string& subkey,
-	                           const void *data, size_t size,
+	                           const ioremap::elliptics::data_pointer &data,
 	                           std::function<void(bool added)> callback);
 
-	std::vector<char> get_user_logs(const std::string& user,
-	                                const std::vector<std::string>& subkeys);
+	std::vector<ioremap::elliptics::data_pointer> get_user_logs(const std::string& user,
+	                                                            const std::vector<std::string>& subkeys);
 	void get_user_logs(const std::string& user,
 	                   const std::vector<std::string>& subkeys,
-	                   std::function<void(const std::vector<char>& data)> callback);
+	                   std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback);
 
 	std::set<std::string> get_active_users(const std::vector<std::string>& subkeys);
 	void get_active_users(const std::vector<std::string>& subkeys,
@@ -145,7 +145,7 @@ public:
 
 	void for_user_logs(const std::string& user,
 	                   const std::vector<std::string>& subkeys,
-	                   std::function<bool(const std::vector<char>& data)> callback);
+	                   std::function<bool(const ioremap::elliptics::data_pointer &data)> callback);
 
 	void for_active_users(const std::vector<std::string>& subkeys,
 	                      std::function<bool(const std::set<std::string>& active_users)> callback);
@@ -157,7 +157,7 @@ private:
 	add_log(ioremap::elliptics::session& s,
 	        const std::string& user,
 	        const std::string& subkey,
-	        const void *data, size_t size);
+	        const ioremap::elliptics::data_pointer &data);
 	ioremap::elliptics::async_set_indexes_result
 	add_activity(ioremap::elliptics::session& s,
 	             const std::string& user,
@@ -167,8 +167,8 @@ private:
 	                 const std::vector<std::string>& subkeys);
 
 	static void on_user_log(std::shared_ptr<std::list<ioremap::elliptics::async_read_result>> results,
-							std::shared_ptr<std::deque<char>> data,
-							std::function<void(const std::vector<char>& data)> callback,
+							std::shared_ptr<std::vector<ioremap::elliptics::data_pointer>> data,
+							std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback,
 							const ioremap::elliptics::sync_read_result &entry,
 							const ioremap::elliptics::error_info &error);
 	static void on_active_users(std::function<void(const std::set<std::string> &active_users)> callback,
@@ -264,11 +264,11 @@ void provider::impl::set_session_parameters(const std::vector<int>& groups, uint
 
 void provider::impl::add_log(const std::string& user,
                              const std::string& subkey,
-                             const void *data, size_t size)
+                             const ioremap::elliptics::data_pointer &data)
 {
 	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 
-	auto res = add_log(s, user, subkey, data, size);
+	auto res = add_log(s, user, subkey, data);
 
 	if (res.get().size() < min_writes_) {
 		LOG(DNET_LOG_ERROR, "Can't write data to the minimum number of groups while appending data to user log error: %s\n", res.error().message().c_str());
@@ -278,14 +278,14 @@ void provider::impl::add_log(const std::string& user,
 
 void provider::impl::add_log(const std::string& user,
                              const std::string& subkey,
-                             const void *data, size_t size,
+                             const ioremap::elliptics::data_pointer &data,
                              std::function<void(bool added)> callback)
 {
 	auto s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 
 	auto w = boost::make_shared<waiter>(callback, node_, min_writes_, false, true);
 
-	add_log(s, user, subkey, data, size)
+	add_log(s, user, subkey, data)
 	.connect(boost::bind(&waiter::on_log,
 	                     w,
 	                     _1,
@@ -321,12 +321,12 @@ void provider::impl::add_activity(const std::string& user,
 
 void provider::impl::add_log_with_activity(const std::string& user,
                                            const std::string& subkey,
-                                           const void *data, size_t size)
+                                           const ioremap::elliptics::data_pointer &data)
 {
 	auto log_s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
 
-	auto log_res = add_log(log_s, user, subkey, data, size);
+	auto log_res = add_log(log_s, user, subkey, data);
 	auto act_res = add_activity(act_s, user, subkey);
 
 	bool result = true;
@@ -347,7 +347,7 @@ void provider::impl::add_log_with_activity(const std::string& user,
 
 void provider::impl::add_log_with_activity(const std::string& user,
                                            const std::string& subkey,
-                                           const void *data, size_t size,
+                                           const ioremap::elliptics::data_pointer &data,
                                            std::function<void(bool added)> callback)
 {
 	auto w = boost::make_shared<waiter>(callback, node_, min_writes_);
@@ -355,7 +355,7 @@ void provider::impl::add_log_with_activity(const std::string& user,
 	auto log_s = create_session(DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_APPEND);
 	auto act_s = create_session(DNET_IO_FLAGS_CACHE);
 
-	add_log(log_s, user, subkey, data, size)
+	add_log(log_s, user, subkey, data)
 	.connect(boost::bind(&waiter::on_log,
 	                     w,
 	                     _1,
@@ -368,11 +368,12 @@ void provider::impl::add_log_with_activity(const std::string& user,
 	                     _2));
 }
 
-std::vector<char> provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys)
+std::vector<ioremap::elliptics::data_pointer> provider::impl::get_user_logs(const std::string& user, const std::vector<std::string>& subkeys)
 {
-	LOG(DNET_LOG_DEBUG, "Getting user: %s logs for keys: %d\n", user.c_str(), subkeys.size());
+	LOG(DNET_LOG_DEBUG, "Getting user: %s logs for keys: %lu\n", user.c_str(), subkeys.size());
 
-	std::deque<char> data;
+	std::vector<ioremap::elliptics::data_pointer> datas;
+	datas.reserve(subkeys.size());
 
 	std::list<ioremap::elliptics::async_read_result> results;
 
@@ -381,7 +382,7 @@ std::vector<char> provider::impl::get_user_logs(const std::string& user, const s
 	for (auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
 		auto cmb_key = combine_key(user, *it);
 		LOG(DNET_LOG_DEBUG, "Try to read user: %s log file: %s\n", user.c_str(), cmb_key.c_str());
-		results.emplace_back(s.read_latest(cmb_key, 0, 0));
+		results.emplace_back(std::move(s.read_latest(cmb_key, 0, 0)));
 	}
 
 	try {
@@ -391,7 +392,7 @@ std::vector<char> provider::impl::get_user_logs(const std::string& user, const s
 				if (file.empty()) // if the file is empty
 					continue; // skip it and go to the next
 
-				data.insert(data.end(), file.data<char>(), file.data<char>() + file.size());
+				datas.emplace_back(std::move(file));
 			}
 			catch (ioremap::elliptics::error& e) {
 				LOG(DNET_LOG_ERROR, "Can't read log file: %s\n", e.error_message().c_str());
@@ -402,12 +403,12 @@ std::vector<char> provider::impl::get_user_logs(const std::string& user, const s
 		LOG(DNET_LOG_ERROR, "Error while getting user logs: %s\n", e.error_message().c_str());
 	}
 
-	return std::vector<char>(data.begin(), data.end());
+	return datas;
 }
 
 void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::async_read_result>> results,
-                                 std::shared_ptr<std::deque<char>> data,
-                                 std::function<void(const std::vector<char>& data)> callback,
+                                 std::shared_ptr<std::vector<ioremap::elliptics::data_pointer>> data,
+                                 std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback,
                                  const ioremap::elliptics::sync_read_result &entry,
                                  const ioremap::elliptics::error_info &/*error*/)
 {
@@ -416,7 +417,7 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
 		if (!entry.empty()) {
 			auto file = entry.front().file();
 			if (!file.empty())
-				data->insert(data->end(), file.data<char>(), file.data<char>() + file.size());
+				data->emplace_back(std::move(file));
 		}
 	}
 	catch (ioremap::elliptics::error& e) {}
@@ -425,15 +426,16 @@ void provider::impl::on_user_log(std::shared_ptr<std::list<ioremap::elliptics::a
 		results->front().connect(boost::bind(&provider::impl::on_user_log, results, data, callback, _1, _2));
 	}
 	else
-		callback(std::vector<char>(data->begin(), data->end()));
+		callback(*data);
 }
 
 void provider::impl::get_user_logs(const std::string& user,
                                    const std::vector<std::string>& subkeys,
-                                   std::function<void(const std::vector<char>& data)> callback)
+                                   std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback)
 {
-	LOG(DNET_LOG_DEBUG, "Async getting user: %s logs for keys: %d\n", user.c_str(), subkeys.size());
-	auto data = std::make_shared<std::deque<char>>();
+	LOG(DNET_LOG_DEBUG, "Async getting user: %s logs for keys: %lu\n", user.c_str(), subkeys.size());
+	auto data = std::make_shared<std::vector<ioremap::elliptics::data_pointer>>();
+	data->reserve(subkeys.size());
 
 	auto results = std::make_shared<std::list<ioremap::elliptics::async_read_result>>();
 
@@ -458,7 +460,7 @@ ioremap::elliptics::async_find_indexes_result
 provider::impl::get_active_users(ioremap::elliptics::session& s,
                                  const std::vector<std::string>& subkeys)
 {
-	LOG(DNET_LOG_DEBUG, "Getting active users: %d\n", subkeys.size());
+	LOG(DNET_LOG_DEBUG, "Getting active users: %lu\n", subkeys.size());
 	return s.find_any_indexes(subkeys);
 }
 
@@ -509,9 +511,9 @@ void provider::impl::get_active_users(const std::vector<std::string>& subkeys,
 
 void provider::impl::for_user_logs(const std::string& user,
                                    const std::vector<std::string>& subkeys,
-                                   std::function<bool(const std::vector<char>& data)> callback)
+                                   std::function<bool(const ioremap::elliptics::data_pointer &data)> callback)
 {
-	LOG(DNET_LOG_DEBUG, "Iterate user: %s logs: %d\n", user.c_str(), subkeys.size());
+	LOG(DNET_LOG_DEBUG, "Iterate user: %s logs: %lu\n", user.c_str(), subkeys.size());
 	std::list<ioremap::elliptics::async_read_result> results;
 
 	auto s = create_session(0);
@@ -527,15 +529,13 @@ void provider::impl::for_user_logs(const std::string& user,
 				if (file.empty()) // if the file is empty
 					continue; // skip it and go to the next
 
-				if (!callback(std::vector<char>(file.data<char>(), file.data<char>())))
+				if (!callback(file))
 					return;
-			}
-			catch (ioremap::elliptics::error& e) {
+			} catch (ioremap::elliptics::error& e) {
 				LOG(DNET_LOG_ERROR, "Can't read log file: %s\n", e.error_message().c_str());
 			}
 		}
-	}
-	catch (ioremap::elliptics::error& e) {
+	} catch (ioremap::elliptics::error& e) {
 		LOG(DNET_LOG_ERROR, "Error while iterating log files: %s\n", e.error_message().c_str());
 	}
 }
@@ -543,7 +543,7 @@ void provider::impl::for_user_logs(const std::string& user,
 void provider::impl::for_active_users(const std::vector<std::string>& subkeys,
                                       std::function<bool(const std::set<std::string>& active_users)> callback)
 {
-	LOG(DNET_LOG_DEBUG, "Iterate active users: %d\n", subkeys.size());
+	LOG(DNET_LOG_DEBUG, "Iterate active users: %lu\n", subkeys.size());
 	for (auto it = subkeys.begin(), end = subkeys.end(); it != end; ++it) {
 		std::vector<std::string> one_subkey;
 		one_subkey.push_back(*it);
@@ -569,15 +569,13 @@ ioremap::elliptics::async_write_result
 provider::impl::add_log(ioremap::elliptics::session& s,
                         const std::string& user,
                         const std::string& subkey,
-                        const void *data, size_t size)
+                        const ioremap::elliptics::data_pointer &data)
 {
 	auto write_key = combine_key(user, subkey);
 
 	LOG(DNET_LOG_DEBUG, "Try to append data to user log key: %s\n", write_key.c_str());
 
-	auto dp = ioremap::elliptics::data_pointer::copy(data, size);
-
-	return s.write_data(write_key, dp, 0); // write data into elliptics
+	return s.write_data(write_key, data, 0); // write data into elliptics
 }
 
 ioremap::elliptics::async_set_indexes_result

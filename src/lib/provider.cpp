@@ -71,92 +71,32 @@ void provider::set_session_parameters(const std::vector<int> &groups,
 
 void provider::add_log(const std::string &user,
                        uint64_t time,
-                       const void *data, size_t size)
+                       const ioremap::elliptics::data_pointer &data)
 {
-	m_impl->add_log(user, time_to_subkey(time), data, size);
+	m_impl->add_log(user, time_to_subkey(time), data);
+}
+
+void provider::add_log(const std::string &user,
+                       const std::string &subkey,
+                       const ioremap::elliptics::data_pointer &data)
+{
+	m_impl->add_log(user, subkey, data);
 }
 
 void provider::add_log(const std::string &user,
                        uint64_t time,
-                       const std::string &data)
+                       const ioremap::elliptics::data_pointer &data,
+                       std::function<void(bool added)> callback)
 {
-	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size());
-}
-
-void provider::add_log(const std::string &user,
-                       uint64_t time,
-                       const std::vector<char> &data)
-{
-	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size());
+	m_impl->add_log(user, time_to_subkey(time), data, callback);
 }
 
 void provider::add_log(const std::string &user,
                        const std::string &subkey,
-                       const void *data, size_t size)
-{
-	m_impl->add_log(user, subkey, data, size);
-}
-
-void provider::add_log(const std::string &user,
-                       const std::string &subkey,
-                       const std::string &data)
-{
-	m_impl->add_log(user, subkey, data.data(), data.size());
-}
-
-void provider::add_log(const std::string &user,
-                       const std::string &subkey,
-                       const std::vector<char> &data)
-{
-	m_impl->add_log(user, subkey, data.data(), data.size());
-}
-
-void provider::add_log(const std::string &user,
-                       uint64_t time,
-                       const void *data, size_t size,
+                       const ioremap::elliptics::data_pointer &data,
                        std::function<void(bool added)> callback)
 {
-	m_impl->add_log(user, time_to_subkey(time), data, size, callback);
-}
-
-void provider::add_log(const std::string &user,
-                       uint64_t time,
-                       const std::string &data,
-                       std::function<void(bool added)> callback)
-{
-	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size(), callback);
-}
-
-void provider::add_log(const std::string &user,
-                       uint64_t time,
-                       const std::vector<char> &data,
-                       std::function<void(bool added)> callback)
-{
-	m_impl->add_log(user, time_to_subkey(time), data.data(), data.size(), callback);
-}
-
-void provider::add_log(const std::string &user,
-                       const std::string &subkey,
-                       const void *data, size_t size,
-                       std::function<void(bool added)> callback)
-{
-	m_impl->add_log(user, subkey, data, size, callback);
-}
-
-void provider::add_log(const std::string &user,
-                       const std::string &subkey,
-                       const std::string &data,
-                       std::function<void(bool added)> callback)
-{
-	m_impl->add_log(user, subkey, data.data(), data.size(), callback);
-}
-
-void provider::add_log(const std::string &user,
-                       const std::string &subkey,
-                       const std::vector<char> &data,
-                       std::function<void(bool added)> callback)
-{
-	m_impl->add_log(user, subkey, data.data(), data.size(), callback);
+	m_impl->add_log(user, subkey, data, callback);
 }
 
 void provider::add_activity(const std::string &user, uint64_t time)
@@ -185,103 +125,43 @@ void provider::add_activity(const std::string &user,
 
 void provider::add_log_with_activity(const std::string &user,
                                      uint64_t time,
-                                     const void *data, size_t size)
+                                     const ioremap::elliptics::data_pointer &data)
 {
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data, size);
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data);
+}
+
+void provider::add_log_with_activity(const std::string &user,
+                                     const std::string &subkey,
+                                     const ioremap::elliptics::data_pointer &data)
+{
+	m_impl->add_log_with_activity(user, subkey, data);
 }
 
 void provider::add_log_with_activity(const std::string &user,
                                      uint64_t time,
-                                     const std::string &data)
+                                     const ioremap::elliptics::data_pointer &data,
+                                     std::function<void(bool added)> callback)
 {
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size());
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     uint64_t time,
-                                     const std::vector<char> &data)
-{
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size());
+	m_impl->add_log_with_activity(user, time_to_subkey(time), data, callback);
 }
 
 void provider::add_log_with_activity(const std::string &user,
                                      const std::string &subkey,
-                                     const void *data, size_t size)
-{
-	m_impl->add_log_with_activity(user, subkey, data, size);
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     const std::string &subkey,
-                                     const std::string &data)
-{
-	m_impl->add_log_with_activity(user, subkey, data.data(), data.size());
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     const std::string &subkey,
-                                     const std::vector<char> &data)
-{
-	m_impl->add_log_with_activity(user, subkey, data.data(), data.size());
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     uint64_t time,
-                                     const void *data, size_t size,
+                                     const ioremap::elliptics::data_pointer &data,
                                      std::function<void(bool added)> callback)
 {
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data, size, callback);
+	m_impl->add_log_with_activity(user, subkey, data, callback);
 }
 
-void provider::add_log_with_activity(const std::string &user,
-                                     uint64_t time,
-                                     const std::string &data,
-                                     std::function<void(bool added)> callback)
-{
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size(), callback);
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     uint64_t time,
-                                     const std::vector<char> &data,
-                                     std::function<void(bool added)> callback)
-{
-	m_impl->add_log_with_activity(user, time_to_subkey(time), data.data(), data.size(), callback);
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     const std::string &subkey,
-                                     const void *data, size_t size,
-                                     std::function<void(bool added)> callback)
-{
-	m_impl->add_log_with_activity(user, subkey, data, size, callback);
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     const std::string &subkey,
-                                     const std::string &data,
-                                     std::function<void(bool added)> callback)
-{
-	m_impl->add_log_with_activity(user, subkey, data.data(), data.size(), callback);
-}
-
-void provider::add_log_with_activity(const std::string &user,
-                                     const std::string &subkey,
-                                     const std::vector<char> &data,
-                                     std::function<void(bool added)> callback)
-{
-	m_impl->add_log_with_activity(user, subkey, data.data(), data.size(), callback);
-}
-
-std::vector<char> provider::get_user_logs(const std::string &user,
-                                          uint64_t begin_time,
-                                          uint64_t end_time)
+std::vector<ioremap::elliptics::data_pointer> provider::get_user_logs(const std::string &user,
+                                                         uint64_t begin_time,
+                                                         uint64_t end_time)
 {
 	return m_impl->get_user_logs(user, time_period_to_subkeys(begin_time, end_time));
 }
 
-std::vector<char> provider::get_user_logs(const std::string &user,
-                                          const std::vector<std::string> &subkeys)
+std::vector<ioremap::elliptics::data_pointer> provider::get_user_logs(const std::string &user,
+                                                         const std::vector<std::string> &subkeys)
 {
 	return m_impl->get_user_logs(user, subkeys);
 }
@@ -289,7 +169,7 @@ std::vector<char> provider::get_user_logs(const std::string &user,
 void provider::get_user_logs(const std::string &user,
                              uint64_t begin_time,
                              uint64_t end_time,
-                             std::function<void(const std::vector<char> &data)> callback)
+                             std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback)
 {
 	m_impl->get_user_logs(user,
 	                     time_period_to_subkeys(begin_time, end_time),
@@ -298,7 +178,7 @@ void provider::get_user_logs(const std::string &user,
 
 void provider::get_user_logs(const std::string &user,
                              const std::vector<std::string> &subkeys,
-                             std::function<void(const std::vector<char> &data)> callback)
+                             std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback)
 {
 	m_impl->get_user_logs(user, subkeys, callback);
 }
@@ -330,14 +210,14 @@ void provider::get_active_users(const std::vector<std::string> &subkeys,
 void provider::for_user_logs(const std::string &user,
                              uint64_t begin_time,
                              uint64_t end_time,
-                             std::function<bool(const std::vector<char> &data)> callback)
+                             std::function<bool(const ioremap::elliptics::data_pointer &data)> callback)
 {
 	m_impl->for_user_logs(user, time_period_to_subkeys(begin_time, end_time), callback);
 }
 
 void provider::for_user_logs(const std::string &user,
                              const std::vector<std::string> &subkeys,
-                             std::function<bool(const std::vector<char> &data)> callback)
+                             std::function<bool(const ioremap::elliptics::data_pointer &data)> callback)
 {
 	m_impl->for_user_logs(user, subkeys, callback);
 }
