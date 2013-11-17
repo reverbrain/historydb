@@ -48,51 +48,49 @@ std::vector<std::string> time_period_to_subkeys(uint64_t begin_time, uint64_t en
 }
 
 provider::provider(const std::vector<server_info> &servers,
-                   const std::vector<int> &groups,
-                   uint32_t min_writes,
-                   const std::string &log_file,
-                   const int log_level)
-: m_impl(std::make_shared<impl>(servers, groups, min_writes, log_file, log_level))
+                   const std::vector<int> &groups, uint32_t min_writes,
+                   const std::string &log_file, const int log_level,
+                   uint32_t wait_timeout, uint32_t check_timeout)
+: m_impl(std::make_shared<impl>(servers, groups, min_writes,
+                                log_file, log_level,
+                                wait_timeout, check_timeout))
 {}
 
 provider::provider(const std::vector<std::string> &servers,
-                   const std::vector<int> &groups,
-                   uint32_t min_writes,
-                   const std::string &log_file,
-                   const int log_level)
-: m_impl(std::make_shared<impl>(servers, groups, min_writes, log_file, log_level))
+                   const std::vector<int> &groups, uint32_t min_writes,
+                   const std::string &log_file, const int log_level,
+                   uint32_t wait_timeout, uint32_t check_timeout)
+: m_impl(std::make_shared<impl>(servers, groups, min_writes,
+                                log_file, log_level,
+                                wait_timeout, check_timeout))
 {}
 
-void provider::set_session_parameters(const std::vector<int> &groups,
-                                      uint32_t min_writes)
+void provider::set_session_parameters(const std::vector<int> &groups, uint32_t min_writes,
+                                      uint32_t wait_timeout, uint32_t check_timeout)
 {
-	m_impl->set_session_parameters(groups, min_writes);
+	m_impl->set_session_parameters(groups, min_writes, wait_timeout, check_timeout);
 }
 
-void provider::add_log(const std::string &user,
-                       uint64_t time,
+void provider::add_log(const std::string &user, uint64_t time,
                        const ioremap::elliptics::data_pointer &data)
 {
 	m_impl->add_log(user, time_to_subkey(time), data);
 }
 
-void provider::add_log(const std::string &user,
-                       const std::string &subkey,
+void provider::add_log(const std::string &user, const std::string &subkey,
                        const ioremap::elliptics::data_pointer &data)
 {
 	m_impl->add_log(user, subkey, data);
 }
 
-void provider::add_log(const std::string &user,
-                       uint64_t time,
+void provider::add_log(const std::string &user, uint64_t time,
                        const ioremap::elliptics::data_pointer &data,
                        std::function<void(bool added)> callback)
 {
 	m_impl->add_log(user, time_to_subkey(time), data, callback);
 }
 
-void provider::add_log(const std::string &user,
-                       const std::string &subkey,
+void provider::add_log(const std::string &user, const std::string &subkey,
                        const ioremap::elliptics::data_pointer &data,
                        std::function<void(bool added)> callback)
 {
@@ -109,66 +107,58 @@ void provider::add_activity(const std::string &user, const std::string &subkey)
 	m_impl->add_activity(user, subkey);
 }
 
-void provider::add_activity(const std::string &user,
-                            uint64_t time,
+void provider::add_activity(const std::string &user, uint64_t time,
                             std::function<void(bool added)> callback)
 {
 	m_impl->add_activity(user, time_to_subkey(time), callback);
 }
 
-void provider::add_activity(const std::string &user,
-                            const std::string &subkey,
+void provider::add_activity(const std::string &user, const std::string &subkey,
                             std::function<void(bool added)> callback)
 {
 	m_impl->add_activity(user, subkey, callback);
 }
 
-void provider::add_log_with_activity(const std::string &user,
-                                     uint64_t time,
+void provider::add_log_with_activity(const std::string &user, uint64_t time,
                                      const ioremap::elliptics::data_pointer &data)
 {
 	m_impl->add_log_with_activity(user, time_to_subkey(time), data);
 }
 
-void provider::add_log_with_activity(const std::string &user,
-                                     const std::string &subkey,
+void provider::add_log_with_activity(const std::string &user, const std::string &subkey,
                                      const ioremap::elliptics::data_pointer &data)
 {
 	m_impl->add_log_with_activity(user, subkey, data);
 }
 
-void provider::add_log_with_activity(const std::string &user,
-                                     uint64_t time,
+void provider::add_log_with_activity(const std::string &user, uint64_t time,
                                      const ioremap::elliptics::data_pointer &data,
                                      std::function<void(bool added)> callback)
 {
 	m_impl->add_log_with_activity(user, time_to_subkey(time), data, callback);
 }
 
-void provider::add_log_with_activity(const std::string &user,
-                                     const std::string &subkey,
+void provider::add_log_with_activity(const std::string &user, const std::string &subkey,
                                      const ioremap::elliptics::data_pointer &data,
                                      std::function<void(bool added)> callback)
 {
 	m_impl->add_log_with_activity(user, subkey, data, callback);
 }
 
-std::vector<ioremap::elliptics::data_pointer> provider::get_user_logs(const std::string &user,
-                                                         uint64_t begin_time,
-                                                         uint64_t end_time)
+std::vector<ioremap::elliptics::data_pointer>
+provider::get_user_logs(const std::string &user, uint64_t begin_time, uint64_t end_time)
 {
 	return m_impl->get_user_logs(user, time_period_to_subkeys(begin_time, end_time));
 }
 
-std::vector<ioremap::elliptics::data_pointer> provider::get_user_logs(const std::string &user,
-                                                         const std::vector<std::string> &subkeys)
+std::vector<ioremap::elliptics::data_pointer>
+provider::get_user_logs(const std::string &user, const std::vector<std::string> &subkeys)
 {
 	return m_impl->get_user_logs(user, subkeys);
 }
 
 void provider::get_user_logs(const std::string &user,
-                             uint64_t begin_time,
-                             uint64_t end_time,
+                             uint64_t begin_time, uint64_t end_time,
                              std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback)
 {
 	m_impl->get_user_logs(user,
@@ -176,8 +166,7 @@ void provider::get_user_logs(const std::string &user,
 	                     callback);
 }
 
-void provider::get_user_logs(const std::string &user,
-                             const std::vector<std::string> &subkeys,
+void provider::get_user_logs(const std::string &user, const std::vector<std::string> &subkeys,
                              std::function<void(const std::vector<ioremap::elliptics::data_pointer> &data)> callback)
 {
 	m_impl->get_user_logs(user, subkeys, callback);
@@ -193,8 +182,7 @@ std::set<std::string> provider::get_active_users(const std::vector<std::string> 
 	return m_impl->get_active_users(subkeys);
 }
 
-void provider::get_active_users(uint64_t begin_time,
-                                uint64_t end_time,
+void provider::get_active_users(uint64_t begin_time, uint64_t end_time,
                                 std::function<void(const std::set<std::string>  &ctive_users)> callback)
 {
 	m_impl->get_active_users(time_period_to_subkeys(begin_time, end_time), callback);
@@ -208,8 +196,7 @@ void provider::get_active_users(const std::vector<std::string> &subkeys,
 
 
 void provider::for_user_logs(const std::string &user,
-                             uint64_t begin_time,
-                             uint64_t end_time,
+                             uint64_t begin_time, uint64_t end_time,
                              std::function<bool(const ioremap::elliptics::data_pointer &data)> callback)
 {
 	m_impl->for_user_logs(user, time_period_to_subkeys(begin_time, end_time), callback);
@@ -222,8 +209,7 @@ void provider::for_user_logs(const std::string &user,
 	m_impl->for_user_logs(user, subkeys, callback);
 }
 
-void provider::for_active_users(uint64_t begin_time,
-                                uint64_t end_time,
+void provider::for_active_users(uint64_t begin_time, uint64_t end_time,
                                 std::function<bool(const std::set<std::string> &active_users)> callback)
 {
 	m_impl->for_active_users(time_period_to_subkeys(begin_time, end_time), callback);

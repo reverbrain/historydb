@@ -107,11 +107,9 @@ void handler::onLoad()
 
 	int min_writes = config->asInt(xpath + "/min_writes");
 
-	m_provider = std::make_shared<history::provider>(servers, // creates historydb provider instance
-	                                                 groups,
-	                                                 min_writes,
-	                                                 log_file,
-	                                                 history::get_log_level(log_level));
+	// creates historydb provider instance
+	m_provider = std::make_shared<history::provider>(servers, groups, min_writes,
+	                                                 log_file, history::get_log_level(log_level));
 }
 
 void handler::onUnload()

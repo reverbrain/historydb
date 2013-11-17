@@ -34,10 +34,6 @@
 
 namespace history {
 
-namespace consts {
-	const uint32_t TIMEOUT = 60; // timeout for node configuration and session
-}
-
 struct waiter
 {
 	waiter(std::function<void(bool added)> callback,
@@ -100,17 +96,16 @@ class provider::impl: public std::enable_shared_from_this<provider::impl>
 {
 public:
 	impl(const std::vector<server_info>& servers,
-	     const std::vector<int>& groups,
-	     uint32_t min_writes,
-	     const std::string& log_file,
-	     const int log_level);
+	     const std::vector<int>& groups, uint32_t min_writes,
+	     const std::string& log_file, const int log_level,
+	     uint32_t wait_timeout, uint32_t check_timeout);
 	impl(const std::vector<std::string>& servers,
-	     const std::vector<int>& groups,
-	     uint32_t min_writes,
-	     const std::string& log_file,
-	     const int log_level);
+	     const std::vector<int>& groups, uint32_t min_writes,
+	     const std::string& log_file, const int log_level,
+	     uint32_t wait_timeout, uint32_t check_timeout);
 
-	void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes);
+	void set_session_parameters(const std::vector<int>& groups, uint32_t min_writes,
+	                            uint32_t wait_timeout, uint32_t check_timeout);
 
 	void add_log(const std::string& user,
 	             const std::string& subkey,
@@ -185,28 +180,27 @@ private:
 	ioremap::elliptics::node			node_; // elliptics node
 };
 
-dnet_config create_config()
+dnet_config create_config(uint32_t wait_timeout, uint32_t check_timeout)
 {
 	dnet_config config;
 	memset(&config, 0, sizeof(config));
 
-	config.io_thread_num = 100;
-	config.nonblocking_io_thread_num = 100;
-	config.net_thread_num = 16;
-	config.check_timeout = consts::TIMEOUT;
-	config.wait_timeout = consts::TIMEOUT;
+	config.io_thread_num = 16;
+	config.nonblocking_io_thread_num = 4;
+	config.net_thread_num = 4;
+	config.check_timeout = wait_timeout;
+	config.wait_timeout = check_timeout;
 
 	return config;
 }
 
 provider::impl::impl(const std::vector<server_info>& servers,
-                     const std::vector<int>& groups,
-                     uint32_t min_writes,
-                     const std::string& log_file,
-                     const int log_level)
+                     const std::vector<int>& groups, uint32_t min_writes,
+                     const std::string& log_file, const int log_level,
+                     uint32_t wait_timeout, uint32_t check_timeout)
 : groups_(groups)
 , min_writes_(min_writes)
-, config_(create_config())
+, config_(create_config(wait_timeout, check_timeout))
 , log_(log_file.c_str(), log_level)
 , node_(log_, config_)
 {
@@ -227,13 +221,12 @@ provider::impl::impl(const std::vector<server_info>& servers,
 }
 
 provider::impl::impl(const std::vector<std::string>& servers,
-                     const std::vector<int>& groups,
-                     uint32_t min_writes,
-                     const std::string& log_file,
-                     const int log_level)
+                     const std::vector<int>& groups, uint32_t min_writes,
+                     const std::string& log_file, const int log_level,
+                     uint32_t wait_timeout, uint32_t check_timeout)
 : groups_(groups)
 , min_writes_(min_writes)
-, config_(create_config())
+, config_(create_config(wait_timeout, check_timeout))
 , log_(log_file.c_str(), log_level)
 , node_(log_, config_)
 {
@@ -253,13 +246,16 @@ provider::impl::impl(const std::vector<std::string>& servers,
 	LOG(DNET_LOG_INFO, "provider::impl has been created\n");
 }
 
-void provider::impl::set_session_parameters(const std::vector<int>& groups, uint32_t min_writes)
+void provider::impl::set_session_parameters(const std::vector<int>& groups, uint32_t min_writes,
+                                            uint32_t wait_timeout, uint32_t check_timeout)
 {
 	groups_ = groups;
 	min_writes_ = min_writes;
 
 	if (min_writes_ > groups_.size())
 		min_writes_ = groups_.size();
+
+	node_.set_timeouts(wait_timeout, check_timeout);
 }
 
 void provider::impl::add_log(const std::string& user,
@@ -560,7 +556,6 @@ ioremap::elliptics::session provider::impl::create_session(uint32_t io_flags) co
 	ret.set_cflags(0);
 	ret.set_groups(groups_); // sets groups
 	ret.set_exceptions_policy(ioremap::elliptics::session::exceptions_policy::no_exceptions);
-	ret.set_timeout(consts::TIMEOUT);
 
 	return ret;
 }

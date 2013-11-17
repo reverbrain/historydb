@@ -44,12 +44,19 @@ bool webserver::initialize(const rapidjson::Value &config)
 	std::vector<int> groups;
 	std::string logfile = "/dev/stderr";
 	int loglevel = DNET_LOG_INFO;
+	uint32_t wait_timeout = 60, check_timeout = 60;
 
 	if (config.HasMember("logfile"))
 		logfile = config["logfile"].GetString();
 
 	if (config.HasMember("loglevel"))
 		loglevel = config["loglevel"].GetInt();
+
+	if (config.HasMember("wait_timeout"))
+		wait_timeout = config["wait_timeout"].GetUint();
+
+	if (config.HasMember("check_timeout"))
+		check_timeout = config["check_timeout"].GetUint();
 
 	auto &remotesArray = config["remotes"];
 	std::transform(remotesArray.Begin(), remotesArray.End(),
@@ -65,11 +72,9 @@ bool webserver::initialize(const rapidjson::Value &config)
 	if (config.HasMember("min_writes"))
 		min_writes = config["min_writes"].GetInt();
 
-	provider_ = std::make_shared<provider>(remotes,
-	                                       groups ,
-	                                       min_writes,
-	                                       logfile,
-	                                       loglevel);
+	provider_ = std::make_shared<provider>(remotes, groups, min_writes,
+	                                       logfile, loglevel,
+	                                       wait_timeout, check_timeout);
 
 	on<on_root>("/");
 	on<on_add_log>("/add_log");
