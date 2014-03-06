@@ -10,7 +10,7 @@ Build-Depends:	debhelper (>= 7.0.50~),
 		libfastcgi-daemon2-dev,
 		elliptics-dev (>= 2.24.14.21), elliptics-dev (<< 2.25),
 		libmsgpack-dev,
-		libthevoid-dev (>= 0.5.5.1), libthevoid-dev (<< 0.6)
+		libthevoid-dev (>= 0.6.1.3), libthevoid-dev (<< 0.7)
 Standards-Version: 3.8.0
 Homepage: http://github.com/reverbrain/historydb/
 Vcs-Git: git://github.com/reverbrain/historydb.git
@@ -18,7 +18,7 @@ Vcs-Browser: https://github.com/reverbrain/historydb
 
 Package: historydb
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, libthevoid1 (>= 0.5.5.1), libthevoid1 (<< 0.6), elliptics-client (>= 2.24.14.21), elliptics-client (<< 2.25)
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, libthevoid2 (>= 0.6.1.3), libthevoid2 (<< 0.7), elliptics-client (>= 2.24.14.21), elliptics-client (<< 2.25)
 Description: History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
  with per user and per day activity statistics.
 
@@ -26,6 +26,6 @@ Package: historydb-dbg
 Architecture: any
 Section: debug
 Priority: extra
-Depends: historydb (= ${binary:Version}), ${misc:Depends}, libthevoid1 (>= 0.5.5.1), libthevoid1 (<< 0.6), elliptics-client (>= 2.24.14.21), elliptics-client (<< 2.25)
+Depends: historydb (= ${binary:Version}), ${misc:Depends}, libthevoid2 (>= 0.6.1.3), libthevoid2 (<< 0.7), elliptics-client (>= 2.24.14.21), elliptics-client (<< 2.25)
 Description: History DB is a trully scalable (hundreds of millions updates per day) distributed archive system
  with per user and per day activity statistics.

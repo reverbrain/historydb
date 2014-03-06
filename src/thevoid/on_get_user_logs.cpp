@@ -16,8 +16,8 @@
 
 #include "on_get_user_logs.h"
 
-#include <swarm/network_url.h>
-#include <swarm/network_query_list.h>
+#include <swarm/url.hpp>
+#include <swarm/url_query.hpp>
 
 #include <historydb/provider.h>
 #include <elliptics/error.hpp>
@@ -39,36 +39,34 @@ const char END_TIME_ITEM[] = "end_time";
 const char KEYS_ITEM[] = "keys";
 }
 
-void on_get_user_logs::on_request(const ioremap::swarm::network_request &req, const boost::asio::const_buffer &/*buffer*/)
+void on_get_user_logs::on_request(const ioremap::swarm::http_request &req, const boost::asio::const_buffer &/*buffer*/)
 {
 	try {
-		ioremap::swarm::network_url url(req.get_url());
-		ioremap::swarm::network_query_list query_list(url.query());
+		const auto &query = req.url().query();
 
-		if (!query_list.has_item(consts::USER_ITEM) ||
-		    (!query_list.has_item(consts::KEYS_ITEM) &&
-		    (!query_list.has_item(consts::BEGIN_TIME_ITEM) ||
-		     !query_list.has_item(consts::END_TIME_ITEM)))) // checks required parameters
-			throw std::invalid_argument("user or begin_time or end_time is missed");
+		auto user_item = query.item_value(consts::USER_ITEM);
+		if (!user_item)
+			throw std::invalid_argument("user is missed");
 
-		if (query_list.has_item(consts::KEYS_ITEM)) {
-			std::string keys_value = query_list.item_value(consts::KEYS_ITEM);
+		auto begin_time = query.item_value(consts::BEGIN_TIME_ITEM);
+		auto end_time = query.item_value(consts::END_TIME_ITEM);
+
+		if (auto keys_item = query.item_value(consts::KEYS_ITEM)) {
 			std::vector<std::string> keys;
-			boost::split(keys, keys_value, boost::is_any_of(":"));
-			get_server()
+			boost::split(keys, *keys_item, boost::is_any_of(":"));
+			server()
 			->get_provider()
-			->get_user_logs(query_list.item_value(consts::USER_ITEM),
+			->get_user_logs(*user_item,
 			                keys,
 			                std::bind(&on_get_user_logs::on_finished,
 			                          shared_from_this(),
 			                          std::placeholders::_1));
-		}
-		else if(query_list.has_item(consts::BEGIN_TIME_ITEM) && query_list.has_item(consts::END_TIME_ITEM)) {
-			get_server()
+		} else if(begin_time && end_time) {
+			server()
 			->get_provider()
-			->get_user_logs(query_list.item_value(consts::USER_ITEM),
-			                boost::lexical_cast<uint64_t>(query_list.item_value(consts::BEGIN_TIME_ITEM)),
-			                boost::lexical_cast<uint64_t>(query_list.item_value(consts::END_TIME_ITEM)),
+			->get_user_logs(*user_item,
+			                boost::lexical_cast<uint64_t>(*begin_time),
+			                boost::lexical_cast<uint64_t>(*end_time),
 			                std::bind(&on_get_user_logs::on_finished,
 			                          shared_from_this(),
 			                          std::placeholders::_1));
@@ -78,10 +76,10 @@ void on_get_user_logs::on_request(const ioremap::swarm::network_request &req, co
 
 	}
 	catch(ioremap::elliptics::error& e) {
-		get_reply()->send_error(ioremap::swarm::network_reply::internal_server_error);
+		get_reply()->send_error(ioremap::swarm::http_response::internal_server_error);
 	}
 	catch(...) {
-		get_reply()->send_error(ioremap::swarm::network_reply::bad_request);
+		get_reply()->send_error(ioremap::swarm::http_response::bad_request);
 	}
 }
 
@@ -108,11 +106,14 @@ bool on_get_user_logs::on_finished(const std::vector<ioremap::elliptics::data_po
 		result_str = buffer.GetString();
 	}
 
-	ioremap::swarm::network_reply reply;
-	reply.set_code(ioremap::swarm::network_reply::ok);
-	reply.set_content_length(result_str.size());
-	reply.set_content_type("text/json");
-	get_reply()->send_headers(reply,
+	ioremap::swarm::http_response reply;
+	reply.set_code(ioremap::swarm::http_response::ok);
+
+	auto &headers = reply.headers();
+	headers.set_content_length(result_str.size());
+	headers.set_content_type("text/json");
+
+	get_reply()->send_headers(std::move(reply),
 	                          boost::asio::buffer(result_str),
 	                          std::bind(&on_get_user_logs::on_send_finished,
 	                                    shared_from_this(),

@@ -76,20 +76,38 @@ bool webserver::initialize(const rapidjson::Value &config)
 	                                       logfile, loglevel,
 	                                       wait_timeout, check_timeout);
 
-	on<on_root>("/");
-	on<on_add_log>("/add_log");
-	on<on_add_activity>("/add_activity");
-	on<on_add_log_with_activity>("/add_log_with_activity");
-	on<on_get_active_users>("/get_active_users");
-	on<on_get_user_logs>("/get_user_logs");
+	on<on_root>(
+		options::exact_match("/"),
+		options::methods("GET")
+	);
+	on<on_add_log>(
+		options::exact_match("/add_log"),
+		options::methods("POST")
+	);
+	on<on_add_activity>(
+		options::exact_match("/add_activity"),
+		options::methods("POST")
+	);
+	on<on_add_log_with_activity>(
+		options::exact_match("/add_log_with_activity"),
+		options::methods("POST")
+	);
+	on<on_get_active_users>(
+		options::exact_match("/get_active_users"),
+		options::methods("GET")
+	);
+	on<on_get_user_logs>(
+		options::exact_match("/get_user_logs"),
+		options::methods("GET")
+	);
 
 	return true;
 }
 
-void webserver::on_root::on_request(const ioremap::swarm::network_request &/*req*/,
+void webserver::on_root::on_request(const ioremap::swarm::http_request &/*req*/,
                                     const boost::asio::const_buffer &/*buffer*/)
 {
-	get_reply()->send_error(ioremap::swarm::network_reply::ok);
+	get_reply()->send_error(ioremap::swarm::http_response::ok);
 }
 
 } /* namespace history */

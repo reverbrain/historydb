@@ -30,9 +30,8 @@ public:
 
 	struct on_root : public ioremap::thevoid::simple_request_stream<webserver>
 	{
-		virtual void on_request(const ioremap::swarm::network_request &req,
+		virtual void on_request(const ioremap::swarm::http_request &req,
                                 const boost::asio::const_buffer &buffer);
-		virtual void on_close(const boost::system::error_code &) {}
 	};
 
 	std::shared_ptr<provider> get_provider() { return provider_; }
