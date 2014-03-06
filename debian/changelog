@@ -1,3 +1,9 @@
+historydb (0.3.0.0) unstable; urgency=low
+
+  * Moved to new version of thevoid: 0.6.1.3 
+
+ -- Kirill Smorodinnikov <shaitan@yandex-team.ru>  Thu, 06 Mar 2014 20:29:53 +0400
+
 historydb (0.2.6.0) unstable; urgency=low
 
   * Used ioremap::elliptics::data_pointer for logs data.

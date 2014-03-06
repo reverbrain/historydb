@@ -1,5 +1,5 @@
 Name:		historydb
-Version:	0.2.6.0
+Version:	0.3.0.0
 Release:	1%{?dist}
 Summary:	Sccalable distributed archive system
 
@@ -19,7 +19,7 @@ BuildRequires:	boost-devel, boost-thread, boost-system
 BuildRequires:	cmake msgpack-devel
 BuildRequires:	elliptics-client-devel >= 2.24.14.21
 BuildRequires:	fastcgi-daemon2-libs-devel
-BuildRequires:	libthevoid-devel >= 0.5.5.1
+BuildRequires:	libthevoid-devel >= 0.6.1.3
 
 %description
 History DB is a trully scalable (hundreds of millions updates per day)
@@ -71,6 +71,9 @@ make install DESTDIR=%{buildroot}
 
 
 %changelog
+* Thu Mar 06 2014 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.3.0.0
+- Moved to new version of thevoid: 0.6.1.3
+
 * Wed Oct 30 2013 Kirill Smorodinnikov <shaitan@yandex-team.ru> - 0.2.6.0
 - Used ioremap::elliptics::data_pointer for logs data.
 
